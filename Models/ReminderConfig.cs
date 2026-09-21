@@ -33,6 +33,10 @@ public sealed class ReminderConfig
     /// Play a system sound when a reminder pops up.
     public bool SoundEnabled { get; set; } = true;
 
+    /// Check GitHub Releases quietly after startup and every few hours. Updates are never
+    /// installed silently; the user explicitly chooses "更新并重启" after a version is found.
+    public bool AutoCheckUpdates { get; set; } = true;
+
     /// False until the user has seen the first-run welcome card (config absent = first run).
     public bool WelcomeShown { get; set; }
 
@@ -48,6 +52,7 @@ public sealed class ReminderConfig
         MicroBreakIntervalMinutes = MicroBreakIntervalMinutes,
         MicroBreakDurationSeconds = MicroBreakDurationSeconds,
         SoundEnabled = SoundEnabled,
+        AutoCheckUpdates = AutoCheckUpdates,
         WelcomeShown = WelcomeShown,
     };
 }
