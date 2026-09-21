@@ -2,33 +2,48 @@ name: release
 
 # Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
 # one GitHub Release after every platform package has built successfully.
+# The main/path trigger below is a one-time v1.0.0 bootstrap: it publishes the already
+# validated release candidate at 62c3368, then the workflow is restored to tag-only.
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths:
+      - '.github/workflows/release.yml'
 
 permissions:
   contents: read
   actions: read
+
+env:
+  V1_RELEASE_SHA: 62c336812f15c5321a5c12d5980cb4ae30299667
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/main' && env.V1_RELEASE_SHA || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Verify tag matches project version
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Verify release version
         shell: bash
         run: |
           VERSION="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
-          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            if [ "${VERSION}" != "1.0.0" ]; then
+              echo "Bootstrap release expected MoveBit.csproj version 1.0.0, got ${VERSION}." >&2
+              exit 1
+            fi
+          elif [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
             echo "Tag ${GITHUB_REF_NAME} does not match MoveBit.csproj version v${VERSION}." >&2
             exit 1
           fi
@@ -51,6 +66,8 @@ jobs:
           - { rid: linux-x64, platform: linux-x64 }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/main' && env.V1_RELEASE_SHA || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -85,13 +102,25 @@ jobs:
             MoveBit-${{ matrix.platform }}.zip.sha256
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: read
     steps:
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "target=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v1.0.0" >> "$GITHUB_OUTPUT"
+            echo "target=${V1_RELEASE_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download all platform packages
         uses: actions/download-artifact@v4
         with:
@@ -102,6 +131,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ steps.meta.outputs.target }}
+          name: ${{ steps.meta.outputs.tag }}
           files: |
             dist/*.zip
             dist/*.sha256
