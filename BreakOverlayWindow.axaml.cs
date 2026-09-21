@@ -3,19 +3,18 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using MoveBit.Services;
 
 namespace MoveBit;
 
 /// <summary>
-/// Full-screen topmost break lock. One instance per connected screen; the countdown
-/// itself is driven by <see cref="App"/> so all screens tick in sync. Cannot be closed
-/// by the user — only the owning code closes it (break finished or skipped).
+/// Full-screen topmost break lock. One instance per connected screen. Every overlay
+/// renders the same countdown state supplied by <see cref="App"/> so multiple monitors
+/// stay visually identical. Cannot be closed by the user — only the owning code closes
+/// it when the break finishes or is skipped.
 /// </summary>
 public partial class BreakOverlayWindow : Window
 {
-    // Circumference of the 270 DIP progress ring, measured on the stroke mid-line (260).
-    private const double RingCircumference = Math.PI * 260;
-
     private bool _allowClose;
 
     /// Device-pixel bounds of the screen this overlay should cover.
@@ -24,7 +23,7 @@ public partial class BreakOverlayWindow : Window
     /// DPI scaling of the target screen, used to convert bounds to DIP.
     public double TargetScaling { get; init; }
 
-    /// The primary-screen overlay renders the countdown; the others just dim.
+    /// Retained for screen ownership/diagnostics. All screens now render the full break UI.
     public bool IsPrimary { get; init; }
 
     public event EventHandler? SkipRequested;
@@ -36,15 +35,13 @@ public partial class BreakOverlayWindow : Window
 
     public void UpdateCountdown(TimeSpan remaining, TimeSpan total, bool skipAvailable)
     {
-        CountdownText.Text = $"{(int)remaining.TotalMinutes:0}:{remaining.Seconds:00}";
-        SkipButton.IsVisible = IsPrimary && skipAvailable;
+        var displaySeconds = BreakCountdown.DisplaySeconds(remaining);
+        CountdownText.Text = $"{displaySeconds / 60:0}:{displaySeconds % 60:00}";
+        SkipButton.IsVisible = skipAvailable;
 
-        // Warm arc drains clockwise from 12 o'clock as the break passes.
-        var totalSeconds = Math.Max(total.TotalSeconds, 1);
-        var fraction = Math.Clamp(remaining.TotalSeconds / totalSeconds, 0, 1);
-        var arc = RingCircumference * fraction;
-        ProgressRing.StrokeDashArray = [arc, RingCircumference - arc];
-        ProgressRing.StrokeDashOffset = RingCircumference / 4; // rotate start to 12 o'clock
+        // A real Arc avoids dash-pattern geometry drift. The numeric countdown and
+        // the sweep angle are both derived from the exact same remaining TimeSpan.
+        ProgressRing.SweepAngle = 360 * BreakCountdown.ProgressFraction(remaining, total);
     }
 
     /// <summary>Rotate the break tip text (driven by App every ~25 s during the break).</summary>
@@ -55,16 +52,10 @@ public partial class BreakOverlayWindow : Window
 
     /// <summary>
     /// Droplet goodbye: title flips, icon floats away, then the caller closes the window.
-    /// Secondary overlays (no visible content) skip straight to <paramref name="onDone"/>.
+    /// Every monitor runs the same goodbye animation so no display appears to finish early.
     /// </summary>
     public void PlayGoodbye(Action onDone)
     {
-        if (!IsPrimary)
-        {
-            onDone();
-            return;
-        }
-
         BreakTitle.Text = "休息完成";
         CountdownText.Text = "💪";
         CountdownText.FontSize = 56;
@@ -103,18 +94,6 @@ public partial class BreakOverlayWindow : Window
         Position = TargetBounds.Position;
         Width = TargetBounds.Width / TargetScaling;
         Height = TargetBounds.Height / TargetScaling;
-
-        // Secondary overlays only dim their screen; hide the countdown furniture for one
-        // clean frame instead of flashing it until the first UpdateCountdown call.
-        if (!IsPrimary)
-        {
-            DropIcon.IsVisible = false;
-            BreakTitle.IsVisible = false;
-            CountdownText.IsVisible = false;
-            RingSub.IsVisible = false;
-            BreakHint.IsVisible = false;
-            CycleText.IsVisible = false;
-        }
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
