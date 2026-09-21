@@ -14,6 +14,7 @@ Most reminder tools lose the moment the notification becomes easy to dismiss. Mo
 - **Make long breaks intentional.** Sit reminders can cover every connected display with a topmost countdown. The skip button appears only after a configurable delay (20 seconds by default).
 - **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return. Completing a forced break does the same, and the break itself is never counted as active work.
 - **Keep installed copies current.** MoveBit can check GitHub Releases in the background, tell you when an update exists, then download, verify, replace, and restart only after you explicitly choose **Update & Restart**.
+- **Feel like an installed desktop app when you want one.** Windows users can use a per-user installer with Start-menu launch and normal uninstall support, while portable ZIPs remain available.
 
 ## v1 product guarantees
 
@@ -26,7 +27,7 @@ MoveBit v1 treats the following as product contracts rather than best-effort beh
 - settings and history are persisted with write-then-replace semantics;
 - history is bounded to 370 days;
 - release dependencies are pinned and release tags must match the project version;
-- release archives ship with SHA-256 checksum files;
+- release archives and the Windows installer ship with SHA-256 checksum files;
 - online updates verify the downloaded archive against the published SHA-256 sidecar before replacing files;
 - update installation is staged and applied by a helper process after MoveBit exits, with rollback of overwritten files if replacement fails.
 
@@ -44,18 +45,29 @@ MoveBit v1 treats the following as product contracts rather than best-effort beh
 - 🧙 **First-run onboarding** — choose gentle / standard / strict behavior before forced breaks are enabled
 - 🔒 **Single-instance activation** — relaunching surfaces the existing instance instead of duplicating it
 - ⬆️ **Online updates** — automatic checks plus explicit check/update controls in Settings and the tray; Windows x64, macOS arm64, and Linux x64 use the same verified GitHub Release assets
+- 📦 **Installer + portable distribution** — Windows gets a normal per-user installer; portable ZIPs remain available for every supported platform
 
 ## Install
 
-Download the archive for your platform from [Releases](https://github.com/turinglambdaai/movebit/releases), verify the accompanying `.sha256` file if desired, unpack, and run. The builds are self-contained; no separate .NET runtime is required.
+### Windows x64 — installer recommended
 
-| Platform | Archive |
+Download **`MoveBit-Setup-windows-x64.exe`** from [Releases](https://github.com/turinglambdaai/movebit/releases). It installs for the current user under `%LOCALAPPDATA%\Programs\MoveBit`, so no administrator permission is required. The installer creates a Start-menu shortcut, registers a standard uninstall entry, and offers an optional desktop shortcut.
+
+Once installed, launch MoveBit from the Start menu like a normal desktop app. Future versions continue to use MoveBit's own verified in-app updater; you do not need to download a new installer for each release.
+
+### Portable builds
+
+Portable archives remain available for users who do not want an installation:
+
+| Platform | Portable archive |
 | --- | --- |
 | Windows x64 | `MoveBit-windows-x64.zip` |
 | macOS arm64 | `MoveBit-macos-arm64.zip` |
 | Linux x64 | `MoveBit-linux-x64.zip` |
 
-> GitHub release binaries are currently unsigned. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Code signing/notarization is a distribution improvement, not a runtime requirement.
+The packaged builds are self-contained; no separate .NET runtime is required. Each installer/archive has a matching `.sha256` file in the GitHub Release.
+
+> GitHub release binaries are currently unsigned. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Code signing/notarization remains the next major distribution improvement.
 
 ## Online updates
 
@@ -70,9 +82,11 @@ When a newer version is available:
 5. MoveBit saves configuration/history and exits.
 6. A small platform helper replaces the application files, restores overwritten files if replacement fails, and starts MoveBit again.
 
+The Windows installer and Windows portable build deliberately use the same updater after first launch. The installer only establishes a stable user-writable location, Start-menu shortcut and uninstall registration; it does not introduce a second update framework. After an in-app update, installed Windows copies also refresh their Apps & Features display version on the next start.
+
 Configuration and history live in the user application-data directory, outside the application folder, so an application update does not replace user data.
 
-Automatic apply currently supports the same architectures shipped by the release workflow: **Windows x64, macOS arm64, and Linux x64**. If the application folder is not writable, MoveBit leaves the current version untouched and reports that the directory must be moved to a writable location.
+Automatic apply currently supports the same architectures shipped by the release workflow: **Windows x64, macOS arm64, and Linux x64**. If a portable application folder is not writable, MoveBit leaves the current version untouched and reports that the directory must be moved to a writable location. The recommended Windows installer uses a per-user writable install directory by design.
 
 ## How it works
 
@@ -106,9 +120,11 @@ Settings live in `%APPDATA%\movebit\config.json` on Windows or the platform appl
 | `SoundEnabled` | true | — |
 | `AutoCheckUpdates` | true | — |
 
+Numeric time fields accept direct keyboard entry and save immediately. Common longer intervals use practical five-minute/five-second spinner steps, while short durations keep one-minute precision. The settings card shows explicit saved/failed persistence feedback after each change.
+
 ## Platform notes
 
-- **Windows**: session-wide idle detection via `GetLastInputInfo`; reminder sound via `MessageBeep`; online update uses `MoveBit-windows-x64.zip`.
+- **Windows**: session-wide idle detection via `GetLastInputInfo`; reminder sound via `MessageBeep`; recommended per-user installer plus portable ZIP; online update uses `MoveBit-windows-x64.zip` for both distribution modes.
 - **macOS**: session-wide idle detection via CoreGraphics (`CGEventSourceSecondsSinceLastEventType`); online update uses the arm64 release archive.
 - **Linux/X11**: idle detection via the XScreenSaver extension (`XScreenSaverQueryInfo`); online update supports Linux x64.
 - **Linux/Wayland**: MoveBit remains usable, but idle detection currently degrades to elapsed-time reminders. Native Wayland idle support remains on the roadmap.
@@ -134,18 +150,21 @@ dotnet publish MoveBit.csproj -c Release -r win-x64 --self-contained true \
   -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish
 ```
 
+The Windows setup is defined in `installer/windows/MoveBit.iss` and is compiled with Inno Setup by CI/release automation.
+
 ## Release process
 
-1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.0.1` ↔ `v1.0.1`).
-2. Merge only with the three-platform CI matrix green.
+1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.0.2` ↔ `v1.0.2`).
+2. Merge only with the three-platform CI matrix green; Windows CI additionally compiles, silently installs, and silently uninstalls the setup package.
 3. Push the version tag.
-4. The release workflow runs tests, builds all supported archives, generates SHA-256 files, then creates a single GitHub Release after every package succeeds.
-5. Existing MoveBit 1.0.1+ installs discover the new release through GitHub's latest-release API and can apply the matching verified archive in-app.
+4. The release workflow runs tests, builds all supported portable archives and their SHA-256 files, builds the Windows per-user installer and checksum, then creates one GitHub Release after every package succeeds.
+5. Existing MoveBit 1.0.1+ copies discover the new release through GitHub's latest-release API and can apply the matching verified archive in-app.
 
 ## Roadmap
 
 - [ ] Native idle detection for Linux/Wayland sessions
-- [ ] Signed/notarized distribution packages and native installers
+- [ ] Windows code signing and macOS signing/notarization
+- [ ] Native macOS `.app` / DMG distribution and optional Linux installer formats
 - [ ] Weekly / monthly views beyond the last-7-days chart
 - [ ] Work-pattern insights (sedentary streaks, longest session)
 
