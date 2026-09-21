@@ -1,7 +1,7 @@
 name: release
 
 # Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
-# one GitHub Release after every platform package has built successfully.
+# one GitHub Release after every portable package and the Windows installer have built successfully.
 on:
   workflow_dispatch:
   push:
@@ -84,15 +84,70 @@ jobs:
             MoveBit-${{ matrix.platform }}.zip
             MoveBit-${{ matrix.platform }}.zip.sha256
 
+  windows-installer:
+    needs: verify
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content MoveBit.csproj
+          $version = $project.Project.PropertyGroup.Version | Select-Object -First 1
+          "MOVE_BIT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Publish Windows installer payload
+        shell: pwsh
+        run: >-
+          dotnet publish MoveBit.csproj -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:PublishTrimmed=false
+          -o publish-installer
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler not found at $iscc" }
+          & $iscc "/DMyAppVersion=$env:MOVE_BIT_VERSION" "/DSourceDir=$pwd\publish-installer" "installer\windows\MoveBit.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $setup = "dist\installer\MoveBit-Setup-windows-x64.exe"
+          if (-not (Test-Path $setup)) { throw "Installer output was not created." }
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  MoveBit-Setup-windows-x64.exe" | Set-Content "$setup.sha256" -NoNewline
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoveBit-windows-installer
+          if-no-files-found: error
+          path: |
+            dist/installer/MoveBit-Setup-windows-x64.exe
+            dist/installer/MoveBit-Setup-windows-x64.exe.sha256
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build, windows-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: read
     steps:
-      - name: Download all platform packages
+      - name: Download all release packages
         uses: actions/download-artifact@v4
         with:
           pattern: MoveBit-*
@@ -104,6 +159,7 @@ jobs:
         with:
           files: |
             dist/*.zip
+            dist/*.exe
             dist/*.sha256
           fail_on_unmatched_files: true
           generate_release_notes: true
