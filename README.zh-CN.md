@@ -1,12 +1,10 @@
 # MoveBit
 
-[![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml)
-[![Release](https://github.com/turinglambdaai/movebit/actions/workflows/release.yml/badge.svg)](https://github.com/turinglambdaai/movebit/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+一个托盘常驻的健康小卫士：监测你**真实的工作时长**，到点强制把你从椅子上请起来——久坐提醒用带倒计时的休息屏**接管所有显示器**，喝水提醒保持轻量弹窗。基于 **Avalonia 11** / .NET 10 构建，支持跨平台（Windows / macOS / Linux）。
 
-**起来动一动。** 一个跨平台托盘小工具：监测你真实的工作时长，到点强制把你从椅子上请起来——因为又一个会被你顺手点掉的气泡通知，正是你已经免疫的那种东西。
+![C#](https://img.shields.io/badge/C%23-512BD4?logo=csharp&logoColor=white) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[English README](README.md)
+[English](README.md) · **中文**
 
 ## 为什么做
 

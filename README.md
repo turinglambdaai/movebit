@@ -1,12 +1,10 @@
 # MoveBit
 
-[![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml)
-[![Release](https://github.com/turinglambdaai/movebit/actions/workflows/release.yml/badge.svg)](https://github.com/turinglambdaai/movebit/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+A tray-resident health companion that watches how long you **actually work** and forces you out of the chair — sit reminders lock **every monitor** with a countdown break screen, water reminders stay as toasts. Built with **Avalonia 11** / .NET 10. Cross-platform (Windows / macOS / Linux).
 
-**Move a bit.** A cross-platform tray app that watches how long you actually work and forces you out of the chair — because another passive toast notification is exactly the thing you've learned to ignore.
+![C#](https://img.shields.io/badge/C%23-512BD4?logo=csharp&logoColor=white) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[中文说明](README.zh-CN.md)
+**English** · [中文](README.zh-CN.md)
 
 ## Why
 
