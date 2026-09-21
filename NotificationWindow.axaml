@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MoveBit.NotificationWindow"
+        Title="MoveBit 提醒"
+        Width="380"
+        SizeToContent="Height"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False">
+
+    <Border CornerRadius="14"
+            Background="#FDFDFE"
+            BoxShadow="0 8 24 0 #33000000"
+            Margin="12"
+            Padding="20,16">
+        <StackPanel Spacing="10">
+            <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock x:Name="BodyText" FontSize="13.5" Opacity="0.75" TextWrapping="Wrap" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+                <Button Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
+                <Button Content="知道了" Click="OnAcknowledge" FontSize="12.5" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+
+    <Window.Styles>
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#E2E5EA" />
+        </Style>
+    </Window.Styles>
+</Window>

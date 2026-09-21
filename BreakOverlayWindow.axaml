@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MoveBit.BreakOverlayWindow"
+        Title="休息一下"
+        SystemDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False">
+
+    <Panel>
+        <!-- Full-coverage dim layer: the screen is not usable until the break ends. -->
+        <Rectangle Fill="#EE0E1116" />
+
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
+            <TextBlock x:Name="BreakTitle" Text="☕ 休息一下" FontSize="40" FontWeight="SemiBold"
+                       Foreground="#F0EEE6" HorizontalAlignment="Center" />
+            <TextBlock x:Name="BreakHint" Text="离开椅子 · 去趟厕所 · 喝口水 · 看看窗外"
+                       FontSize="17" Foreground="#A39E94" HorizontalAlignment="Center" />
+            <TextBlock x:Name="CountdownText" Text="5:00" FontSize="96" FontWeight="Bold"
+                       Foreground="#F0EEE6" HorizontalAlignment="Center" />
+            <TextBlock x:Name="CycleText" Text="" FontSize="13" Foreground="#6B675E"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <Button x:Name="SkipButton" Content="跳过本次休息" Click="OnSkip"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48"
+                IsVisible="False" FontSize="14"
+                Foreground="#A39E94" Background="Transparent" BorderBrush="#4A463E" />
+    </Panel>
+</Window>

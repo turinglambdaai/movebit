@@ -1,0 +1,59 @@
+name: release
+
+# Builds self-contained single-file exes on GitHub's runners and ships them
+# via GitHub Releases — end users just download their platform's zip and run.
+#   - workflow_dispatch : manual run, uploads build artifacts to the Actions run.
+#   - push tag v*        : creates a GitHub Release with the zips attached.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64,   platform: windows-x64 }
+          - { rid: osx-arm64, platform: macos-arm64 }
+          - { rid: linux-x64, platform: linux-x64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish (${{ matrix.rid }})
+        run: >-
+          dotnet publish MoveBit.csproj -c Release -r ${{ matrix.rid }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:PublishTrimmed=false
+          -o publish
+
+      - name: Package
+        working-directory: publish
+        run: zip -r "MoveBit-${{ matrix.platform }}.zip" . -x '*.pdb'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoveBit-${{ matrix.platform }}
+          path: publish/MoveBit-${{ matrix.platform }}.zip
+
+      - name: Attach to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/MoveBit-${{ matrix.platform }}.zip
+          generate_release_notes: true
