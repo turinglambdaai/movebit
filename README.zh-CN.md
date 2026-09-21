@@ -13,10 +13,11 @@
 - **尽量统计活跃工作时长，而不是盲目累计墙上时间。** Windows、macOS 和 Linux/X11 都有会话级空闲检测；Linux/Wayland 目前因为缺少适合本应用的统一全局空闲接口，会退化为自然时间提醒。
 - **让长休息变成一个明确动作。** 久坐提醒可以覆盖所有已连接显示器，显示倒计时；“跳过”按钮默认延迟 20 秒出现。
 - **真的休息过，就不要马上再催。** 离开电脑达到阈值后回来，三个提醒周期都会从零开始；完整完成一次强制休息也一样，而且休息本身不会被算进工作时长。
+- **已经安装的版本应该能自己跟上新版本。** MoveBit 会后台检查 GitHub Releases；发现新版本后明确提示，只有用户主动点击“更新并重启”才会下载、校验、替换并重新启动。
 
-## v1.0 行为保证
+## v1 产品保证
 
-MoveBit v1.0 把这些行为固定下来：
+MoveBit v1 把这些行为固定下来：
 
 - 第二次启动不会再创建第二套调度器，而是唤起已经运行的实例；
 - 强制休息时间不会污染“今日活跃时间”；
@@ -25,7 +26,9 @@ MoveBit v1.0 把这些行为固定下来：
 - 配置与历史数据采用“临时文件写入 + 替换”的持久化方式；
 - 历史数据最多保留 370 天；
 - 发布依赖固定版本，Git tag 必须和项目版本一致；
-- 每个发布压缩包都会同时生成 SHA-256 校验文件。
+- 每个发布压缩包都会同时生成 SHA-256 校验文件；
+- 在线更新必须先用 Release 同名 `.sha256` 校验下载包，通过后才允许进入替换阶段；
+- 更新先解压到 staging，程序退出后由独立 helper 替换应用文件；替换失败时会恢复已经覆盖的旧文件。
 
 ## 功能
 
@@ -40,6 +43,7 @@ MoveBit v1.0 把这些行为固定下来：
 - ⏸️ 托盘菜单**暂停 1 小时**，暂停结束时间按真实到期点恢复计算
 - 🧙 **首次运行引导**：先选择温和 / 标准 / 严格，再开始使用强制休息
 - 🔒 **单实例激活**：重复启动只会唤起已有实例
+- ⬆️ **在线更新**：设置页和托盘都能检查/安装新版本；Windows x64、macOS arm64、Linux x64 共用现有 GitHub Release ZIP + SHA-256 发布链路
 
 ## 安装
 
@@ -52,6 +56,24 @@ MoveBit v1.0 把这些行为固定下来：
 | Linux x64 | `MoveBit-linux-x64.zip` |
 
 > 当前 GitHub Release 二进制尚未做代码签名/公证，因此 Windows SmartScreen 或 macOS Gatekeeper 首次启动时可能给出提示。签名与原生安装包属于后续分发体验优化，不影响程序本身运行。
+
+## 在线更新
+
+MoveBit 1.0.1 起默认会在启动后稍作延迟检查一次最新 GitHub Release，之后大约每 6 小时检查一次。这个行为可以在设置页关闭。**自动检查不等于静默安装**：任何版本替换都需要用户明确点击“更新并重启”。
+
+发现新版本后的流程：
+
+1. 设置页与托盘菜单显示“更新并重启”。
+2. 下载当前平台对应的 Release ZIP 和 `.sha256` 文件。
+3. 本地重新计算 SHA-256；不一致立即停止，旧版本保持不变。
+4. 校验通过后解压到临时 staging 目录。
+5. MoveBit 先保存配置和当天统计，然后退出。
+6. 独立更新 helper 等待主进程完全退出，再替换应用文件并重新启动 MoveBit。
+7. 如果替换阶段失败，helper 会把已经覆盖的旧文件恢复回来。
+
+MoveBit 的配置与历史数据放在系统用户应用数据目录，而不是应用程序目录，因此程序更新不会覆盖用户数据。
+
+当前自动应用更新与正式 Release 的架构保持一致：**Windows x64、macOS arm64、Linux x64**。如果你把便携版放在无写权限目录中，MoveBit 会拒绝替换并保留当前版本，不会半更新。
 
 ## 工作原理
 
@@ -83,12 +105,13 @@ Windows 默认使用 `%APPDATA%\movebit\config.json`；macOS/Linux 使用对应�
 | `MicroBreakIntervalMinutes` | 30 | 10–60 |
 | `MicroBreakDurationSeconds` | 20 | 10–60 |
 | `SoundEnabled` | true | — |
+| `AutoCheckUpdates` | true | — |
 
 ## 平台说明
 
-- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；提示音使用 `MessageBeep`。
-- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间。
-- **Linux/X11**：通过 XScreenSaver 扩展的 `XScreenSaverQueryInfo` 获取空闲时间。
+- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；提示音使用 `MessageBeep`；在线更新使用 `MoveBit-windows-x64.zip`。
+- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间；在线更新使用 arm64 Release 包。
+- **Linux/X11**：通过 XScreenSaver 扩展的 `XScreenSaverQueryInfo` 获取空闲时间；Linux x64 支持在线更新。
 - **Linux/Wayland**：程序可正常使用，但空闲检测目前会退化为自然时间提醒；原生 Wayland 空闲支持仍在 Roadmap 中。
 
 强制休息使用的是置顶遮罩窗口，而不是全局键鼠钩子。这是有意为之：全局锁输入一旦程序异常，可能导致机器难以操作；MoveBit 的目标是让“跳过”变得有意识，而不是接管输入设备。
@@ -114,10 +137,11 @@ dotnet publish MoveBit.csproj -c Release -r win-x64 --self-contained true \
 
 ## 发布流程
 
-1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.0.0` ↔ `v1.0.0`。
+1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.0.1` ↔ `v1.0.1`。
 2. 只有 Windows / macOS / Linux 三平台 CI 全绿后再合并。
 3. 推送版本 tag。
 4. Release workflow 会先跑测试，再生成三个支持平台的压缩包和 SHA-256 文件，全部成功后只创建一次 GitHub Release。
+5. MoveBit 1.0.1+ 会通过 GitHub latest-release API 发现这个新版本，并在应用内使用对应平台的已校验 Release 包完成更新。
 
 ## Roadmap
 
