@@ -49,7 +49,7 @@ public class ConfigStoreTests : IDisposable
         };
 
         var store = new ConfigStore(_dir);
-        store.Save(expected);
+        Assert.True(store.TrySave(expected));
         var actual = store.Load();
 
         Assert.Equal(expected.SitReminderMinutes, actual.SitReminderMinutes);
@@ -65,6 +65,17 @@ public class ConfigStoreTests : IDisposable
         Assert.Equal(expected.AutoCheckUpdates, actual.AutoCheckUpdates);
         Assert.Equal(expected.WelcomeShown, actual.WelcomeShown);
         Assert.False(File.Exists(Path.Combine(_dir, "config.json.tmp")));
+    }
+
+    [Fact]
+    public void TrySave_returns_false_when_config_directory_is_a_file()
+    {
+        var blockedPath = Path.Combine(_dir, "not-a-directory");
+        File.WriteAllText(blockedPath, "block directory creation");
+
+        var store = new ConfigStore(blockedPath);
+
+        Assert.False(store.TrySave(new ReminderConfig()));
     }
 
     [Fact]
