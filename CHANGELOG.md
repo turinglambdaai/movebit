@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-09-21
+
+### Added
+
+- Windows x64 per-user installer (`MoveBit-Setup-windows-x64.exe`) with Start-menu launch, standard uninstall registration, and an optional desktop shortcut
+- Installer SHA-256 sidecar published next to the portable release archives
+- Windows CI installer smoke test that compiles the setup, performs a silent install into a temporary directory, verifies `MoveBit.exe`, then performs a silent uninstall
+- Installed Windows copies now refresh their Apps & Features display version after MoveBit's own in-app updater replaces the executable
+- Explicit settings persistence feedback (`✓ 已保存 · HH:mm:ss`) and clear failure feedback when a value is active in memory but cannot be written to disk
+
+### Changed
+
+- Bumped MoveBit to 1.0.2
+- Windows distribution is now installer-first for normal users while `MoveBit-windows-x64.zip` remains available as a portable build
+- The installer uses `%LOCALAPPDATA%\Programs\MoveBit`, avoiding administrator elevation and keeping the directory writable by MoveBit's existing in-app updater
+- Windows installer and portable copies intentionally share the same verified ZIP-based updater rather than introducing a second Windows-only update framework
+- Reminder/water/micro-break interval spinners now use practical 5-minute/5-second increments where appropriate; short durations retain 1-minute precision
+- Settings UI explicitly tells users that numeric values can be typed directly and are saved immediately
+- Release automation now waits for both the portable matrix and Windows installer before publishing a GitHub Release
+
+[1.0.2]: https://github.com/turinglambdaai/movebit/releases/tag/v1.0.2
+
 ## [1.0.1] - 2026-09-21
 
 ### Added

@@ -35,3 +35,79 @@ jobs:
 
       - name: Test
         run: dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
+
+      - name: Publish Windows installer payload
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          dotnet publish MoveBit.csproj -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:PublishTrimmed=false
+          -o publish-installer
+
+      - name: Install Inno Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content MoveBit.csproj
+          $version = $project.Project.PropertyGroup.Version | Select-Object -First 1
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler not found at $iscc" }
+          & $iscc "/DMyAppVersion=$version" "/DSourceDir=$pwd\publish-installer" "installer\windows\MoveBit.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "dist\installer\MoveBit-Setup-windows-x64.exe")) {
+            throw "Installer output was not created."
+          }
+
+      - name: Smoke-test Windows install and uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path "dist\installer\MoveBit-Setup-windows-x64.exe").Path
+          $installDir = Join-Path $env:RUNNER_TEMP "MoveBitInstallerSmoke"
+          $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{E4B9E01D-65D0-4C25-BCF1-3CC22B8C9E02}_is1'
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+
+          # Simulate a v1.0.1 portable user who already opted into autostart.
+          New-Item -Path $runKey -Force | Out-Null
+          Set-ItemProperty -Path $runKey -Name 'MoveBit' -Value '"C:\old-portable\MoveBit.exe"'
+
+          $install = Start-Process -FilePath $setup -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            "/DIR=$installDir"
+          ) -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer exited with code $($install.ExitCode)" }
+
+          $installedExe = Join-Path $installDir "MoveBit.exe"
+          if (-not (Test-Path $installedExe)) { throw "Installed MoveBit.exe is missing." }
+          if (-not (Test-Path $uninstallKey)) { throw "Windows uninstall registration is missing." }
+
+          $expectedRunCommand = '"' + $installedExe + '"'
+          $actualRunCommand = (Get-ItemProperty -Path $runKey -Name 'MoveBit').MoveBit
+          if ($actualRunCommand -ne $expectedRunCommand) {
+            throw "Autostart migration mismatch. Expected '$expectedRunCommand', got '$actualRunCommand'."
+          }
+
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing." }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART'
+          ) -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with code $($uninstall.ExitCode)" }
+          if (Test-Path $installedExe) { throw "MoveBit.exe remained after uninstall." }
+          if (Test-Path $uninstallKey) { throw "Windows uninstall registration remained after uninstall." }
+          if ((Get-ItemProperty -Path $runKey -Name 'MoveBit' -ErrorAction SilentlyContinue).MoveBit) {
+            throw "MoveBit autostart registration remained after uninstall."
+          }
