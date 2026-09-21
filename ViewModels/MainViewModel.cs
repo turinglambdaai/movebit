@@ -27,6 +27,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly ReminderScheduler _scheduler;
     private readonly ConfigStore _store;
     private readonly HistoryStore _history;
+    private string _settingsStatusText = "可直接输入数字 · 修改后自动保存";
     private string _updateStatusText = $"当前版本 v{UpdateService.CurrentVersionText}";
     private string _updateActionText = "检查更新";
     private bool _updateBusy;
@@ -42,6 +43,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     // --- Settings (saved on change) ---
+
+    public string SettingsStatusText => _settingsStatusText;
 
     public decimal? SitReminderMinutes
     {
@@ -69,7 +72,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (_config.ForceBreakEnabled != value)
             {
                 _config.ForceBreakEnabled = value;
-                _store.Save(_config);
+                PersistSettings();
                 OnPropertyChanged();
             }
         }
@@ -95,7 +98,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (_config.SoundEnabled != value)
             {
                 _config.SoundEnabled = value;
-                _store.Save(_config);
+                PersistSettings();
                 OnPropertyChanged();
             }
         }
@@ -109,7 +112,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (_config.MicroBreakEnabled != value)
             {
                 _config.MicroBreakEnabled = value;
-                _store.Save(_config);
+                PersistSettings();
                 OnPropertyChanged();
             }
         }
@@ -142,6 +145,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 AutoStart.Disable();
             }
 
+            _settingsStatusText = $"✓ 已应用 · {DateTime.Now:HH:mm:ss}";
+            OnPropertyChanged(nameof(SettingsStatusText));
             OnPropertyChanged();
         }
     }
@@ -154,7 +159,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (_config.AutoCheckUpdates != value)
             {
                 _config.AutoCheckUpdates = value;
-                _store.Save(_config);
+                PersistSettings();
                 OnPropertyChanged();
             }
         }
@@ -288,9 +293,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         apply((int)v);
-        _store.Save(_config);
+        PersistSettings();
         OnPropertyChanged();
         RefreshStats();
+    }
+
+    private void PersistSettings()
+    {
+        _settingsStatusText = _store.TrySave(_config)
+            ? $"✓ 已保存 · {DateTime.Now:HH:mm:ss}"
+            : "⚠ 已在本次运行中生效，但写入配置文件失败";
+        OnPropertyChanged(nameof(SettingsStatusText));
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)

@@ -49,7 +49,13 @@ public sealed class ConfigStore
         return new ReminderConfig();
     }
 
-    public void Save(ReminderConfig config)
+    public void Save(ReminderConfig config) => TrySave(config);
+
+    /// <summary>
+    /// Atomically persists the current configuration and reports whether it reached disk.
+    /// The in-memory settings remain usable even if persistence fails.
+    /// </summary>
+    public bool TrySave(ReminderConfig config)
     {
         try
         {
@@ -57,10 +63,12 @@ public sealed class ConfigStore
             var temporaryPath = ConfigPath + ".tmp";
             File.WriteAllText(temporaryPath, JsonSerializer.Serialize(config, JsonOptions));
             File.Move(temporaryPath, ConfigPath, overwrite: true);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Config persistence is best-effort; reminders keep working with in-memory settings.
+            return false;
         }
     }
 
