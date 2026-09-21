@@ -35,7 +35,6 @@ public class App : Application
     private TimeSpan _breakRemaining;
     private bool _breakActive;
     private ReminderEvent? _breakEvent;
-    private bool _breakSkipped;
 
     public MainViewModel ViewModel => _viewModel;
 
@@ -52,8 +51,7 @@ public class App : Application
         _history = new HistoryStore();
         _history.Load();
 
-        IIdleProvider idle = OperatingSystem.IsWindows() ? new Win32IdleProvider() : new NullIdleProvider();
-        _scheduler = new ReminderScheduler(_config, TimeProvider.System, idle);
+        _scheduler = new ReminderScheduler(_config, TimeProvider.System, IdleProviderFactory.Create());
         _scheduler.ReminderFired += OnReminderFired;
         _scheduler.DayCompleted += OnDayCompleted;
 
@@ -99,11 +97,11 @@ public class App : Application
         try
         {
             _activationListener = new System.Net.Sockets.TcpListener(
-                System.Net.IPAddress.Loopback, Services.SingleInstanceGuard.ActivationPort);
+                System.Net.IPAddress.Loopback, SingleInstanceGuard.ActivationPort);
             _activationListener.Start();
             _ = AcceptActivationsAsync();
         }
-        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or System.IO.IOException)
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or IOException)
         {
             _activationListener = null;
         }
@@ -132,7 +130,7 @@ public class App : Application
         try
         {
             using var _ = client;
-            using var reader = new System.IO.StreamReader(client.GetStream());
+            using var reader = new StreamReader(client.GetStream());
             var line = await reader.ReadLineAsync();
 
             if (line == "activate")
@@ -148,7 +146,7 @@ public class App : Application
                 });
             }
         }
-        catch (Exception ex) when (ex is System.IO.IOException or System.Net.Sockets.SocketException)
+        catch (Exception ex) when (ex is IOException or System.Net.Sockets.SocketException)
         {
             // A poke that never finishes is fine; the sender already gave up fast.
         }
@@ -156,7 +154,17 @@ public class App : Application
 
     private void OnTimerTick()
     {
-        _scheduler.Tick();
+        if (_breakActive)
+        {
+            // A forced break is rest, not active work. Keep the scheduler's wall-clock
+            // anchor current without advancing any reminder cycle or daily active time.
+            _scheduler.DiscardElapsedSinceLastTick();
+        }
+        else
+        {
+            _scheduler.Tick();
+        }
+
         _viewModel.RefreshStats();
         UpdateTrayState();
 
@@ -192,17 +200,22 @@ public class App : Application
 
     private void ShowReminder(ReminderEvent e)
     {
+        // A scheduler tick can make sit/water/micro become due together. The sit event
+        // is emitted first; once it starts a forced break, suppress queued lower-priority
+        // reminders so nothing pops over the screen-covering break UI.
+        if (_breakActive)
+        {
+            return;
+        }
+
         // Micro breaks: screen-center nudge, silent by design (they fire often).
         if (e.Kind == ReminderKind.Micro)
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                _microWindow?.Close();
-                _microWindow = new MicroBreakWindow(
-                    BreakCopy.Pick(BreakCopy.MicroLines),
-                    TimeSpan.FromSeconds(_config.MicroBreakDurationSeconds));
-                _microWindow.Show();
-            });
+            _microWindow?.Close();
+            _microWindow = new MicroBreakWindow(
+                BreakCopy.Pick(BreakCopy.MicroLines),
+                TimeSpan.FromSeconds(_config.MicroBreakDurationSeconds));
+            _microWindow.Show();
             return;
         }
 
@@ -238,7 +251,17 @@ public class App : Application
     /// <summary>Takes over every connected screen with a topmost break lock.</summary>
     private void StartForcedBreak(ReminderEvent e)
     {
-        FinishBreakInternal(); // a second sit reminder while a break is still up: restart it
+        if (_breakActive || _overlays.Count > 0)
+        {
+            FinishBreakInternal();
+        }
+
+        // A full-screen break has priority over transient nudges/toasts that may
+        // already be visible from a previous cycle.
+        _notification?.Close();
+        _notification = null;
+        _microWindow?.Close();
+        _microWindow = null;
 
         var screens = EnumerateScreens();
         if (screens.Count == 0)
@@ -263,7 +286,6 @@ public class App : Application
 
         _breakActive = true;
         _breakEvent = e;
-        _breakSkipped = false;
         _breakRemaining = TimeSpan.FromMinutes(_config.BreakDurationMinutes);
         var hint = BreakCopy.Pick(BreakCopy.BreakHints);
         foreach (var overlay in _overlays)
@@ -276,11 +298,11 @@ public class App : Application
         }
 
         _breakTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _breakTimer.Tick += (_, _) => OnBreakTimerTick(e);
+        _breakTimer.Tick += (_, _) => OnBreakTimerTick();
         _breakTimer.Start();
     }
 
-    private void OnBreakTimerTick(ReminderEvent e)
+    private void OnBreakTimerTick()
     {
         _breakRemaining -= TimeSpan.FromSeconds(1);
 
@@ -300,38 +322,57 @@ public class App : Application
 
         if (_breakRemaining <= TimeSpan.Zero)
         {
-            FinishBreakInternal();
+            FinishBreakInternal(completed: true);
         }
     }
 
     private void OnBreakSkipped(object? sender, EventArgs e)
     {
-        _breakSkipped = true;
         FinishBreakInternal();
         _scheduler.Snooze(ReminderKind.Sit, minutes: 10);
     }
 
-    private void FinishBreakInternal()
+    private void FinishBreakInternal(bool completed = false)
     {
+        var completedCount = completed ? _breakEvent?.CountToday ?? 0 : 0;
+
         _breakTimer?.Stop();
         _breakTimer = null;
         _breakActive = false;
+        _breakEvent = null;
 
         foreach (var overlay in _overlays)
         {
             overlay.SkipRequested -= OnBreakSkipped;
-            overlay.PlayGoodbye(overlay.ForceClose); // goodbye anim on primary, instant on others
+            if (completed)
+            {
+                overlay.PlayGoodbye(overlay.ForceClose);
+            }
+            else
+            {
+                overlay.ForceClose();
+            }
         }
 
         _overlays.Clear();
 
-        // Milestone cheer: only for breaks that ran to completion, low-frequency by design.
-        var completed = _breakEvent?.CountToday ?? 0;
-        if (!_breakSkipped && BreakCopy.ShouldCelebrate(completed))
+        if (completed)
+        {
+            // A completed forced break is a real break: restart every reminder cycle,
+            // just like returning after being away from the desk.
+            _scheduler.CompleteBreak();
+        }
+        else
+        {
+            // Skipping/teardown still must not count time spent under the overlay as work.
+            _scheduler.DiscardElapsedSinceLastTick();
+        }
+
+        if (completed && BreakCopy.ShouldCelebrate(completedCount))
         {
             Dispatcher.UIThread.Post(() => ShowNotification(
                 "水滴为你鼓掌 💧",
-                $"今天第 {completed} 次久坐休息，你的身体谢谢你。",
+                $"今天第 {completedCount} 次久坐休息，你的身体谢谢你。",
                 ReminderKind.Sit));
         }
     }
@@ -503,6 +544,7 @@ public class App : Application
     {
         FinishBreakInternal();
         _notification?.Close();
+        _microWindow?.Close();
 
         if (_mainWindow is { } window)
         {

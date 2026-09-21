@@ -35,7 +35,7 @@ public class HistoryStoreTests : IDisposable
         store.Load();
         store.SaveDay(yesterday, new DayRecord(123, 2, 4, 6));
 
-        var reloaded = new HistoryStore(_dir); // fresh instance reads from disk only
+        var reloaded = new HistoryStore(_dir);
         reloaded.Load();
 
         var (_, record) = Assert.Single(reloaded.GetRecent(3), x => x.Date == yesterday);
@@ -60,7 +60,7 @@ public class HistoryStoreTests : IDisposable
         Assert.Equal(today.AddDays(-6), week[0].Date);
         Assert.Equal(today, week[6].Date);
         Assert.Equal(90, week[6].Record.ActiveMinutes);
-        Assert.Equal(0, week[0].Record.ActiveMinutes); // hole day
+        Assert.Equal(0, week[0].Record.ActiveMinutes);
         Assert.All(week.GetRange(0, 6), day => Assert.Equal(0, day.Record.SitBreaks));
     }
 
@@ -77,5 +77,24 @@ public class HistoryStoreTests : IDisposable
         var (date, record) = Assert.Single(store.GetRecent(1));
         Assert.Equal(today, date);
         Assert.Equal(42, record.ActiveMinutes);
+    }
+
+    [Fact]
+    public void SaveDay_prunes_entries_outside_retention_window()
+    {
+        var store = new HistoryStore(_dir);
+        store.Load();
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var expired = today.AddDays(-HistoryStore.RetentionDays);
+        var oldestKept = today.AddDays(-(HistoryStore.RetentionDays - 1));
+
+        store.SaveDay(expired, new DayRecord(10, 1, 1, 1));
+        store.SaveDay(oldestKept, new DayRecord(20, 2, 2, 2));
+        store.SaveDay(today, new DayRecord(30, 3, 3, 3));
+
+        var json = File.ReadAllText(Path.Combine(_dir, "history.json"));
+        Assert.DoesNotContain(expired.ToString("yyyy-MM-dd"), json, StringComparison.Ordinal);
+        Assert.Contains(oldestKept.ToString("yyyy-MM-dd"), json, StringComparison.Ordinal);
+        Assert.Contains(today.ToString("yyyy-MM-dd"), json, StringComparison.Ordinal);
     }
 }

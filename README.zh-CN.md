@@ -1,6 +1,6 @@
 # MoveBit
 
-一个托盘常驻的健康小卫士：监测你**真实的工作时长**，到点强制把你从椅子上请起来——久坐提醒用带倒计时的休息屏**接管所有显示器**，喝水提醒保持轻量弹窗。基于 **Avalonia 11** / .NET 10 构建，支持跨平台（Windows / macOS / Linux）。
+一个托盘常驻的健康小卫士：监测你**真正处于电脑前工作的时间**，到点把你从椅子上请起来——久坐提醒可用带倒计时的休息屏**覆盖所有显示器**，喝水提醒保持轻量。基于 **Avalonia 11** / .NET 10 构建，支持 Windows、macOS 和 Linux。
 
 ![C#](https://img.shields.io/badge/C%23-512BD4?logo=csharp&logoColor=white) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -8,49 +8,68 @@
 
 ## 为什么做
 
-久坐正在悄悄搞坏你的身体。常见的提醒工具弹个小气泡，你手一滑关掉，人没站起来，循环继续。MoveBit 认真对待「强制」二字：
+很多提醒工具的问题不是“不会提醒”，而是提醒太容易被随手关掉。MoveBit 把下面几件事当成产品契约：
 
-- **统计的是活跃工作时长**，不是挂机时间。人离开，时钟就停。
-- **久坐提醒直接接管整个屏幕**——所有已连接的显示器都会被置顶遮罩盖住，带倒计时。「跳过」按钮延迟出现（默认 20 秒），让跳过成为一个主动决定，而不是条件反射。
-- **你真的休息过了？它就不烦你。** 空闲超过离开阈值（默认 5 分钟）后回来，两个计时周期都从零开始。
+- **尽量统计活跃工作时长，而不是盲目累计墙上时间。** Windows、macOS 和 Linux/X11 都有会话级空闲检测；Linux/Wayland 目前因为缺少适合本应用的统一全局空闲接口，会退化为自然时间提醒。
+- **让长休息变成一个明确动作。** 久坐提醒可以覆盖所有已连接显示器，显示倒计时；“跳过”按钮默认延迟 20 秒出现。
+- **真的休息过，就不要马上再催。** 离开电脑达到阈值后回来，三个提醒周期都会从零开始；完整完成一次强制休息也一样，而且休息本身不会被算进工作时长。
+
+## v1.0 行为保证
+
+MoveBit v1.0 把这些行为固定下来：
+
+- 第二次启动不会再创建第二套调度器，而是唤起已经运行的实例；
+- 强制休息时间不会污染“今日活跃时间”；
+- 同一个 Tick 同时到期的喝水/微休息，不会盖到强制休息界面上；
+- 完成长休息后，久坐、喝水、微休息三个周期一起重新开始；
+- 配置与历史数据采用“临时文件写入 + 替换”的持久化方式；
+- 历史数据最多保留 370 天；
+- 发布依赖固定版本，Git tag 必须和项目版本一致；
+- 每个发布压缩包都会同时生成 SHA-256 校验文件。
 
 ## 功能
 
-- 🪟 **托盘常驻**，启动不弹窗口；左键托盘图标打开设置与统计
-- ⏱️ **工作时间监测**：会话级空闲检测（任何应用的键鼠输入都算）
-- 🚨 **强制休息**：全屏多显示器遮罩 + 环形倒计时，Alt+F4 关不掉；跳过按钮延迟出现
-- 👀 **微休息**：每 30 分钟（默认）在屏幕中央轻提示「站 20 秒，看看远处」，不锁屏不出声——长休息之间的证据友好层
-- 💧 **喝水提醒**轻量右下角弹窗（喝口水不需要锁屏）
-- 📊 **今日统计 + 最近 7 天图表**：活跃时长、提醒次数、每日柱状图，重启不丢历史
-- 🌗 **深浅色主题**跟随系统：白天暖纸色，夜间暖暗色
-- 🔁 **开机自启**（Windows 注册表 / macOS LaunchAgent / Linux XDG），一个开关
-- ⏸️ 托盘菜单**暂停 1 小时**（开会、共享屏幕时用）
-- 🧙 **水滴人格**：首次运行四步引导选定强度档位（温和/标准/严格贴证据）；第一人称随机文案；里程碑喝彩
-- 🛠️ 全部可配置，设置持久化到 `config.json`
+- 🪟 **托盘常驻**：启动后不会强行弹设置窗口
+- ⏱️ **活跃工作监测**：Windows `GetLastInputInfo`、macOS CoreGraphics、Linux/X11 XScreenSaver
+- 🚨 **强制休息**：多显示器全屏遮罩 + 倒计时；Alt+F4 无法直接退出；跳过按钮延迟出现
+- 👀 **微休息**：短时屏幕中央提示，不锁屏、不出声
+- 💧 **喝水提醒**：独立周期的轻量弹窗
+- 📊 **今日 + 历史统计**：实时活跃时长与提醒次数、最近 7 天图表，后台最多保存 370 天
+- 🌗 **深浅色主题**跟随系统
+- 🔁 **登录自启**：Windows 注册表 / macOS LaunchAgent / Linux XDG autostart
+- ⏸️ 托盘菜单**暂停 1 小时**，暂停结束时间按真实到期点恢复计算
+- 🧙 **首次运行引导**：先选择温和 / 标准 / 严格，再开始使用强制休息
+- 🔒 **单实例激活**：重复启动只会唤起已有实例
 
 ## 安装
 
-从 [Releases](https://github.com/turinglambdaai/movebit/releases) 下载对应平台的自包含单文件构建，解压即用，无需安装 .NET 运行时。
+从 [Releases](https://github.com/turinglambdaai/movebit/releases) 下载对应平台压缩包；需要时可用同名 `.sha256` 文件校验完整性。解压即可运行，不需要单独安装 .NET 运行时。
 
 | 平台 | 压缩包 |
-| --- | --- | 
+| --- | --- |
 | Windows x64 | `MoveBit-windows-x64.zip` |
 | macOS arm64 | `MoveBit-macos-arm64.zip` |
 | Linux x64 | `MoveBit-linux-x64.zip` |
 
+> 当前 GitHub Release 二进制尚未做代码签名/公证，因此 Windows SmartScreen 或 macOS Gatekeeper 首次启动时可能给出提示。签名与原生安装包属于后续分发体验优化，不影响程序本身运行。
+
 ## 工作原理
 
-两个独立周期加一层轻提示，每 30 秒推进一次：
+三个独立周期由 30 秒调度 Tick 推进：
 
-- **久坐周期**只在活跃时累计，到间隔（默认 45 分钟）触发——强制休息开启时为全屏遮罩（默认 5 分钟），否则弹窗。
-- **喝水周期**按自己的间隔（默认 30 分钟）弹窗。
-- **微休息周期**每 30 分钟在屏幕中央轻提示（默认 20 秒）：站起来，看远处。它不重置久坐周期——证据支持「多次小打断 + 偶尔长休息」的组合。
+- **久坐周期**只累计活跃工作时间。达到配置间隔（默认 45 分钟）后，如果启用了强制休息就进入全屏休息，否则弹窗提醒。
+- **喝水周期**独立运行，默认 30 分钟。
+- **微休息周期**独立运行，默认每 30 分钟提示 20 秒，不会替代长休息周期。
 
-空闲 ≥ 离开阈值（默认 5 分钟）判定为「人离开了」：所有周期冻结，回来时从零开始——休息已经发生，不再补催。系统休眠等时钟跳变会被钳制，唤醒后不会被积压的提醒轰炸。每日统计每几分钟落盘到 `history.json`，午夜自动归档。
+空闲时间达到离开阈值（默认 5 分钟）后，所有周期停止累计；回来时三个周期从零重新开始。系统休眠等超大时间跳变会被钳制，不会在唤醒后一次性倾倒积压提醒。
+
+强制休息被明确视为“休息时间”：期间不会累计活跃时长，也不会推进其他提醒周期。倒计时完整结束后三个周期重新计时。如果同一个 Tick 恰好同时触发多个提醒，强制久坐休息优先，喝水和微休息 UI 不会叠在它上面。
+
+每日统计每隔几分钟写入 `history.json`，跨天自动归档，并裁剪为最近 370 天。
 
 ## 配置
 
-配置文件在 `%APPDATA%\movebit\config.json`（Windows）或 `~/.config/movebit/config.json`（macOS/Linux），所有项均可在设置窗口修改：
+Windows 默认使用 `%APPDATA%\movebit\config.json`；macOS/Linux 使用对应的平台应用数据目录。所有面向用户的配置都可以在设置窗口修改：
 
 | 配置项 | 默认值 | 范围 |
 | --- | --- | --- |
@@ -67,29 +86,45 @@
 
 ## 平台说明
 
-- **Windows**：全功能——`GetLastInputInfo` 空闲检测、`MessageBeep` 提示音。
-- **macOS / Linux**：可用；空闲检测尚未实现，提醒按自然时间计（产物正常构建，但未在真实硬件上持续测试）。
+- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；提示音使用 `MessageBeep`。
+- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间。
+- **Linux/X11**：通过 XScreenSaver 扩展的 `XScreenSaverQueryInfo` 获取空闲时间。
+- **Linux/Wayland**：程序可正常使用，但空闲检测目前会退化为自然时间提醒；原生 Wayland 空闲支持仍在 Roadmap 中。
 
-强制休息是置顶窗口，不是键鼠钩子——这是有意为之。全局锁输入是危险动作（钩子崩溃会让机器没法用）；屏幕遮罩 + 延迟跳过足以把你请离椅子，又不承担那个风险。
+强制休息使用的是置顶遮罩窗口，而不是全局键鼠钩子。这是有意为之：全局锁输入一旦程序异常，可能导致机器难以操作；MoveBit 的目标是让“跳过”变得有意识，而不是接管输入设备。
 
 ## 从源码构建
 
 ```bash
 git clone https://github.com/turinglambdaai/movebit.git
 cd movebit
-dotnet run        # 源码运行
-dotnet test       # 调度器单元测试
-dotnet publish -c Release -r win-x64 --self-contained true \
-  -p:PublishSingleFile=true -o publish
+dotnet restore MoveBit.slnx
+dotnet build MoveBit.slnx -c Release --no-restore
+dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
 ```
 
 需要 .NET 10 SDK。
 
+本地发布 Windows x64：
+
+```bash
+dotnet publish MoveBit.csproj -c Release -r win-x64 --self-contained true \
+  -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish
+```
+
+## 发布流程
+
+1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.0.0` ↔ `v1.0.0`。
+2. 只有 Windows / macOS / Linux 三平台 CI 全绿后再合并。
+3. 推送版本 tag。
+4. Release workflow 会先跑测试，再生成三个支持平台的压缩包和 SHA-256 文件，全部成功后只创建一次 GitHub Release。
+
 ## Roadmap
 
-- [ ] macOS/Linux 空闲检测（CGEventSource / XScreenSaver）
-- [ ] 7 天图表之外的周/月历史视图
-- [ ] 工作模式洞察（最长连续久坐、单次最长会话）
+- [ ] Linux/Wayland 原生空闲检测
+- [ ] 代码签名、公证和原生安装包
+- [ ] 最近 7 天之外的周/月历史视图
+- [ ] 工作模式洞察（最长连续久坐、最长单次会话等）
 
 ## 许可
 

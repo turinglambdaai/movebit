@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-09-21
+
+### Added
+
+- Native session-wide idle detection on macOS through CoreGraphics
+- Native idle detection on Linux/X11 through the XScreenSaver extension, with a safe elapsed-time fallback for Wayland/unsupported sessions
+- SHA-256 checksum files for every release archive
+- Config-store unit tests covering roundtrip persistence, clamping, and corrupt JSON recovery
+- Scheduler coverage for precise pause expiry and forced-break time semantics
+
+### Changed
+
+- Promoted the application version to 1.0.0 and pinned Avalonia/test dependencies for reproducible restores
+- Forced breaks are now first-class scheduler breaks: time under the overlay is excluded from active-work statistics and a completed break restarts sit, water, and micro cycles
+- Release automation now verifies tag/version consistency, runs tests first, builds artifacts independently, and creates the GitHub Release exactly once after all packages succeed
+- CI now has explicit restore/build/test stages, read-only permissions, and stale-run cancellation
+- Autostart generation now escapes macOS plist and Linux desktop-entry executable paths and handles permission failures without crashing the UI
+- Configuration writes now use same-directory write-then-replace persistence
+
+### Fixed
+
+- Water or micro-break UI could appear over a forced break when multiple cycles became due on the same scheduler tick
+- Skipping a forced break incorrectly played the "break completed" goodbye animation
+- Forced-break duration could be counted as active work after the next scheduler tick
+- Pause expiry between timer ticks could count paused time as active work
+- History claimed a 370-day retention policy but never actually pruned old records
+- `ReminderConfig.Clone()` omitted micro-break and onboarding state
+- Release matrix jobs could race while updating the same GitHub Release body
+
+[1.0.0]: https://github.com/turinglambdaai/movebit/releases/tag/v1.0.0
+
 ## [0.2.3] - 2026-09-21
 
 ### Fixed

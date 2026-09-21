@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -10,8 +11,8 @@ namespace MoveBit.Services;
 public sealed record DayRecord(int ActiveMinutes, int SitBreaks, int WaterReminders, int MicroBreaks);
 
 /// <summary>
-/// Appends daily stats to history.json under the config directory. One line per day,
-/// trivially small — JSON beats SQLite at this scale and keeps the app dependency-free.
+/// Persists daily stats to history.json under the config directory. The data set is
+/// intentionally tiny and human-readable, so JSON is a better fit than a database.
 /// The current day lives in memory (scheduler) and is flushed here periodically.
 /// </summary>
 public sealed class HistoryStore
@@ -41,10 +42,11 @@ public sealed class HistoryStore
         }
     }
 
-    /// Upsert one day and persist atomically (write-then-swap).
+    /// Upsert one day, prune expired entries, and persist atomically (write-then-swap).
     public void SaveDay(DateOnly date, DayRecord record)
     {
-        _days[date.ToString("yyyy-MM-dd")] = record;
+        _days[date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)] = record;
+        PruneExpired(date);
 
         try
         {
@@ -68,13 +70,29 @@ public sealed class HistoryStore
         for (var i = count - 1; i >= 0; i--)
         {
             var date = today.AddDays(-i);
-            _days.TryGetValue(date.ToString("yyyy-MM-dd"), out var record);
+            _days.TryGetValue(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), out var record);
             result.Add((date, record ?? new DayRecord(0, 0, 0, 0)));
         }
 
         return result;
     }
 
-    /// Days kept in the file; older entries are pruned on save.
+    /// Days kept in the file. Pruning happens on every save.
     public static int RetentionDays => 370;
+
+    private void PruneExpired(DateOnly savedDate)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var anchor = savedDate > today ? savedDate : today;
+        var cutoff = anchor.AddDays(-(RetentionDays - 1));
+
+        foreach (var key in _days.Keys.ToArray())
+        {
+            if (DateOnly.TryParse(key, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                && parsed < cutoff)
+            {
+                _days.Remove(key);
+            }
+        }
+    }
 }

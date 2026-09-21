@@ -1,9 +1,7 @@
 name: release
 
-# Builds self-contained single-file exes on GitHub's runners and ships them
-# via GitHub Releases — end users just download their platform's zip and run.
-#   - workflow_dispatch : manual run, uploads build artifacts to the Actions run.
-#   - push tag v*        : creates a GitHub Release with the zips attached.
+# Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
+# one GitHub Release after every platform package has built successfully.
 on:
   workflow_dispatch:
   push:
@@ -11,10 +9,38 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
+  actions: read
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify tag matches project version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          VERSION="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match MoveBit.csproj version v${VERSION}." >&2
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore MoveBit.slnx
+
+      - name: Test
+        run: dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-restore
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,19 +67,43 @@ jobs:
           -p:PublishTrimmed=false
           -o publish
 
-      - name: Package
-        working-directory: publish
-        run: zip -r "MoveBit-${{ matrix.platform }}.zip" . -x '*.pdb'
+      - name: Package and checksum
+        shell: bash
+        run: |
+          cd publish
+          zip -r "../MoveBit-${{ matrix.platform }}.zip" . -x '*.pdb'
+          cd ..
+          sha256sum "MoveBit-${{ matrix.platform }}.zip" > "MoveBit-${{ matrix.platform }}.zip.sha256"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: MoveBit-${{ matrix.platform }}
-          path: publish/MoveBit-${{ matrix.platform }}.zip
+          if-no-files-found: error
+          path: |
+            MoveBit-${{ matrix.platform }}.zip
+            MoveBit-${{ matrix.platform }}.zip.sha256
 
-      - name: Attach to Release
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download all platform packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: MoveBit-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: publish/MoveBit-${{ matrix.platform }}.zip
+          files: |
+            dist/*.zip
+            dist/*.sha256
+          fail_on_unmatched_files: true
           generate_release_notes: true
