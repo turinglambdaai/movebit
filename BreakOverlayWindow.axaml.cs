@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace MoveBit;
 
@@ -12,6 +13,9 @@ namespace MoveBit;
 /// </summary>
 public partial class BreakOverlayWindow : Window
 {
+    // Circumference of the 270 DIP progress ring, measured on the stroke mid-line (260).
+    private const double RingCircumference = Math.PI * 260;
+
     private bool _allowClose;
 
     /// Device-pixel bounds of the screen this overlay should cover.
@@ -30,20 +34,59 @@ public partial class BreakOverlayWindow : Window
         InitializeComponent();
     }
 
-    public void UpdateCountdown(TimeSpan remaining, bool skipAvailable)
+    public void UpdateCountdown(TimeSpan remaining, TimeSpan total, bool skipAvailable)
     {
         CountdownText.Text = $"{(int)remaining.TotalMinutes:0}:{remaining.Seconds:00}";
-        CountdownText.IsVisible = IsPrimary;
-        BreakTitle.IsVisible = IsPrimary;
-        BreakHint.IsVisible = IsPrimary;
-        CycleText.IsVisible = IsPrimary;
         SkipButton.IsVisible = IsPrimary && skipAvailable;
+
+        // Warm arc drains clockwise from 12 o'clock as the break passes.
+        var totalSeconds = Math.Max(total.TotalSeconds, 1);
+        var fraction = Math.Clamp(remaining.TotalSeconds / totalSeconds, 0, 1);
+        var arc = RingCircumference * fraction;
+        ProgressRing.StrokeDashArray = [arc, RingCircumference - arc];
+        ProgressRing.StrokeDashOffset = RingCircumference / 4; // rotate start to 12 o'clock
     }
 
-    /// Rotate the break tip text (driven by App every ~25 s during the break).
+    /// <summary>Rotate the break tip text (driven by App every ~25 s during the break).</summary>
     public void SetHint(string hint)
     {
         BreakHint.Text = hint;
+    }
+
+    /// <summary>
+    /// Droplet goodbye: title flips, icon floats away, then the caller closes the window.
+    /// Secondary overlays (no visible content) skip straight to <paramref name="onDone"/>.
+    /// </summary>
+    public void PlayGoodbye(Action onDone)
+    {
+        if (!IsPrimary)
+        {
+            onDone();
+            return;
+        }
+
+        BreakTitle.Text = "休息完成";
+        CountdownText.Text = "💪";
+        CountdownText.FontSize = 56;
+        RingSub.IsVisible = false;
+        BreakHint.Text = "回去工作吧，我随叫随到";
+        ProgressRing.Opacity = 0.35;
+
+        // Float the droplet up and out (~0.6 s), then hand control back on the UI thread.
+        var step = 0;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(42) };
+        timer.Tick += (_, _) =>
+        {
+            step++;
+            DropIcon.Opacity = Math.Max(0, 1.0 - (double)step / 14);
+            DropIcon.Margin = new Thickness(0, -3 * step, 0, 0);
+            if (step >= 14)
+            {
+                timer.Stop();
+                onDone();
+            }
+        };
+        timer.Start();
     }
 
     public void ForceClose()
@@ -60,6 +103,18 @@ public partial class BreakOverlayWindow : Window
         Position = TargetBounds.Position;
         Width = TargetBounds.Width / TargetScaling;
         Height = TargetBounds.Height / TargetScaling;
+
+        // Secondary overlays only dim their screen; hide the countdown furniture for one
+        // clean frame instead of flashing it until the first UpdateCountdown call.
+        if (!IsPrimary)
+        {
+            DropIcon.IsVisible = false;
+            BreakTitle.IsVisible = false;
+            CountdownText.IsVisible = false;
+            RingSub.IsVisible = false;
+            BreakHint.IsVisible = false;
+            CycleText.IsVisible = false;
+        }
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)

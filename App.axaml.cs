@@ -31,6 +31,8 @@ public class App : Application
     private DispatcherTimer? _breakTimer;
     private TimeSpan _breakRemaining;
     private bool _breakActive;
+    private ReminderEvent? _breakEvent;
+    private bool _breakSkipped;
 
     public MainViewModel ViewModel => _viewModel;
 
@@ -81,15 +83,18 @@ public class App : Application
 
     private void ShowReminder(ReminderEvent e)
     {
+        if (e.Kind == ReminderKind.Sit && _config.ForceBreakEnabled)
+        {
+            // The full-screen takeover is its own notification — silent on purpose,
+            // a loud beep plus a screen lock is exactly the office embarrassment
+            // that gets health tools uninstalled.
+            StartForcedBreak(e);
+            return;
+        }
+
         if (_config.SoundEnabled)
         {
             ReminderSound.Play();
-        }
-
-        if (e.Kind == ReminderKind.Sit && _config.ForceBreakEnabled)
-        {
-            StartForcedBreak(e);
-            return;
         }
 
         var (title, body) = e.Kind switch
@@ -134,11 +139,13 @@ public class App : Application
         }
 
         _breakActive = true;
+        _breakEvent = e;
+        _breakSkipped = false;
         _breakRemaining = TimeSpan.FromMinutes(_config.BreakDurationMinutes);
         var hint = BreakCopy.Pick(BreakCopy.BreakHints);
         foreach (var overlay in _overlays)
         {
-            overlay.UpdateCountdown(_breakRemaining, skipAvailable: false);
+            overlay.UpdateCountdown(_breakRemaining, _breakRemaining, skipAvailable: false);
             if (overlay.IsPrimary)
             {
                 overlay.SetHint(hint);
@@ -155,12 +162,13 @@ public class App : Application
         _breakRemaining -= TimeSpan.FromSeconds(1);
 
         var elapsed = TimeSpan.FromMinutes(_config.BreakDurationMinutes) - _breakRemaining;
+        var total = TimeSpan.FromMinutes(_config.BreakDurationMinutes);
         var skipAvailable = elapsed >= TimeSpan.FromSeconds(_config.SkipAfterSeconds);
         var rotateHint = (int)elapsed.TotalSeconds > 0 && (int)elapsed.TotalSeconds % 25 == 0;
 
         foreach (var overlay in _overlays)
         {
-            overlay.UpdateCountdown(_breakRemaining, skipAvailable);
+            overlay.UpdateCountdown(_breakRemaining, total, skipAvailable);
             if (rotateHint && overlay.IsPrimary)
             {
                 overlay.SetHint(BreakCopy.Pick(BreakCopy.BreakHints));
@@ -175,7 +183,7 @@ public class App : Application
 
     private void OnBreakSkipped(object? sender, EventArgs e)
     {
-        // The user insisted on skipping: re-arm the sit cycle for 10 minutes later.
+        _breakSkipped = true;
         FinishBreakInternal();
         _scheduler.Snooze(ReminderKind.Sit, minutes: 10);
     }
@@ -189,10 +197,20 @@ public class App : Application
         foreach (var overlay in _overlays)
         {
             overlay.SkipRequested -= OnBreakSkipped;
-            overlay.ForceClose();
+            overlay.PlayGoodbye(overlay.ForceClose); // goodbye anim on primary, instant on others
         }
 
         _overlays.Clear();
+
+        // Milestone cheer: only for breaks that ran to completion, low-frequency by design.
+        var completed = _breakEvent?.CountToday ?? 0;
+        if (!_breakSkipped && BreakCopy.ShouldCelebrate(completed))
+        {
+            Dispatcher.UIThread.Post(() => ShowNotification(
+                "水滴为你鼓掌 💧",
+                $"今天第 {completed} 次久坐休息，你的身体谢谢你。",
+                ReminderKind.Sit));
+        }
     }
 
     /// True while the break lock covers the screens (used by tests / future tray state).
@@ -325,14 +343,6 @@ public class App : Application
         _viewModel.RefreshStats();
         _mainWindow.Show();
         _mainWindow.Activate();
-    }
-
-    public void TestNotification()
-    {
-        ShowNotification(
-            "这是一条测试提醒 🫧",
-            "正式提醒会在你连续工作后弹出：\n久坐提醒和喝水提醒，离开电脑会自动重置。",
-            ReminderKind.Sit);
     }
 
     private void Shutdown()

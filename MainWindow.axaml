@@ -100,16 +100,11 @@
                     <Grid ColumnDefinitions="Auto, *, Auto, *" ColumnSpacing="12">
                         <TextBlock Grid.Column="0" Text="接管全屏" VerticalAlignment="Center" Foreground="#26241F" />
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceBreakEnabled}" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="2" Text="提示音" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="2" Text="提示音（办公室可关）" VerticalAlignment="Center" Foreground="#26241F" />
                         <ToggleSwitch Grid.Column="3" IsChecked="{Binding SoundEnabled}" HorizontalAlignment="Right" />
                     </Grid>
                 </StackPanel>
             </Border>
-
-            <Button Content="✨ 发送一条测试提醒" Click="OnTestNotification"
-                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                    Background="#26241F" Foreground="#F5F2EB"
-                    CornerRadius="12" Padding="0,12" BorderThickness="0" />
 
             <TextBlock Text="{Binding ConfigPathText, StringFormat='配置文件：{0}'}"
                        FontSize="11" Foreground="#B0AA9C" TextWrapping="Wrap" />
