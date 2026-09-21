@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MoveBit — Get up. Actually.</title>
-    <meta name="description" content="MoveBit measures how long you actually work and forces you out of the chair: sit reminders lock every monitor with a countdown break screen, water reminders stay as toasts. Cross-platform, open source.">
+    <meta name="description" content="MoveBit measures how long you actually work and forces you out of the chair: forced breaks lock every monitor, micro breaks nudge every 30 minutes, water reminders stay as toasts, and your work-time history survives restarts. Cross-platform, open source.">
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -119,7 +119,7 @@
         /* Cycle cards */
        .cycle-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 18px;
             margin-top: 44px;
         }
@@ -262,6 +262,22 @@
                 </div>
                 <div class="bento-card animate-on-scroll">
                     <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </div>
+                    <h3 data-en="Micro breaks, no lock" data-zh="微休息，不锁屏">Micro breaks, no lock</h3>
+                    <p data-en="Every 30 minutes a gentle screen-center nudge — stand up, look far away for 20 seconds. No lock, no sound, Esc to dismiss. The evidence-friendly layer between long breaks."
+                       data-zh="每 30 分钟一次屏幕中央的轻提示——站起来，看 20 秒远处。不锁屏、不出声，Esc 即收。长休息之间的证据友好层。">Every 30 minutes a gentle screen-center nudge — stand up, look far away for 20 seconds. No lock, no sound, Esc to dismiss.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    </div>
+                    <h3 data-en="History that survives restarts" data-zh="重启不丢的历史">History that survives restarts</h3>
+                    <p data-en="Today's stats plus a last-7-days chart: active minutes per day, break counts, all persisted to disk — the answer to “how long did I actually work this week?”"
+                       data-zh="今日统计加最近 7 天图表：每日活跃分钟、休息次数，全部落盘——回答「这周我到底工作了多久？」">Today's stats plus a last-7-days chart: active minutes per day, break counts, all persisted to disk.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s6 6.9 6 11a6 6 0 0 1-12 0c0-4.1 6-11 6-11z"/></svg>
                     </div>
                     <h3 data-en="Water reminders stay toasts" data-zh="喝水提醒只是提示">Water reminders stay toasts</h3>
@@ -270,19 +286,27 @@
                 </div>
                 <div class="bento-card animate-on-scroll">
                     <div class="card-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                    </div>
-                    <h3 data-en="Today stats in the tray" data-zh="托盘里看今日统计">Today stats in the tray</h3>
-                    <p data-en="Active time, sit/water reminder counts, and current cycle progress live in the tray tooltip — left-click for the full panel."
-                       data-zh="活跃时长、久坐/喝水提醒次数、当前周期进度都在托盘提示里——左键打开完整面板。">Active time, sit/water reminder counts, and current cycle progress live in the tray tooltip.</p>
-                </div>
-                <div class="bento-card animate-on-scroll">
-                    <div class="card-icon">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     </div>
                     <h3 data-en="Pause for an hour" data-zh="暂停一小时">Pause for an hour</h3>
                     <p data-en="Meetings and screen sharing get a one-hour pause from the tray menu. No dialogs, no fiddling."
                        data-zh="开会、共享屏幕时，从托盘菜单一键暂停一小时。没有对话框，不用折腾。">Meetings and screen sharing get a one-hour pause from the tray menu.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 1-8.49-8.49 7 7 0 1 0 8.49 8.49z"/></svg>
+                    </div>
+                    <h3 data-en="Light & dark, follow the system" data-zh="深浅色跟随系统">Light & dark, follow the system</h3>
+                    <p data-en="Paper-warm for the workday, warm-dark for night use — the theme follows your system automatically. The break screen stays night-colored either way."
+                       data-zh="白天暖纸色，夜间暖暗色——主题自动跟随系统。休息屏无论如何都保持夜色。">Paper-warm for the workday, warm-dark for night use — the theme follows your system automatically.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                    </div>
+                    <h3 data-en="Autostarts, quietly" data-zh="自启，安静地">Autostarts, quietly</h3>
+                    <p data-en="A health tool only works if it's running. One toggle in settings registers MoveBit to start with your login — Windows, macOS, and Linux."
+                       data-zh="健康工具只有在运行时才有意义。设置里一个开关，MoveBit 随登录自启——Windows、macOS、Linux 都支持。">A health tool only works if it's running. One toggle in settings registers MoveBit to start with your login.</p>
                 </div>
                 <div class="bento-card animate-on-scroll">
                     <div class="card-icon">
@@ -301,7 +325,7 @@
         <div class="container">
             <span class="eyebrow animate-on-scroll" data-en="How it works" data-zh="工作原理">How it works</span>
             <h2 class="section-title animate-on-scroll">
-                <span data-en="Two cycles, one" data-zh="两个周期，">Two cycles, one</span>
+                <span data-en="Three cycles, one" data-zh="三个周期，">Three cycles, one</span>
                 <span class="accent" data-en="honest clock." data-zh="一座诚实的钟。">honest clock.</span>
             </h2>
 
@@ -312,6 +336,11 @@
                        data-zh="只在你活跃时累计。到点触发：开启强制休息时，在每台显示器上弹出全屏休息锁（默认 5 分钟）；未开启则弹 toast。">Accumulates only while you're active. At the interval it fires a full-screen break lock (default 5 min) when forced breaks are on, otherwise a toast.</p>
                 </div>
                 <div class="cycle-card animate-on-scroll">
+                    <h3><span data-en="Micro break cycle" data-zh="微休息周期">Micro break cycle</span> <span class="num">30 min</span></h3>
+                    <p data-en="A screen-center nudge to stand and look far away for 20 seconds — no lock, no sound. Many small breaks plus occasional long ones is the combination the research supports."
+                       data-zh="屏幕中央的轻提示：站起来看 20 秒远处——不锁屏、不出声。「多次小打断 + 偶尔长休息」正是研究支持的组合。">A screen-center nudge to stand and look far away for 20 seconds — no lock, no sound.</p>
+                </div>
+                <div class="cycle-card animate-on-scroll">
                     <h3><span data-en="Water cycle" data-zh="喝水周期">Water cycle</span> <span class="num">30 min</span></h3>
                     <p data-en="Runs on its own interval as a lightweight bottom-right toast. A sip shouldn't cost you the screen."
                        data-zh="按自己的周期运行，右下角轻量 toast。喝一口水不该以锁屏为代价。">Runs on its own interval as a lightweight bottom-right toast.</p>
@@ -319,9 +348,9 @@
             </div>
 
             <div class="callout animate-on-scroll">
-                <strong data-en="Stepped away? Both cycles reset." data-zh="走开了？两个周期都归零。">Stepped away? Both cycles reset.</strong>
-                <span data-en=" Idle beyond the away threshold (default 5 min) means you already took the break — when you return, both cycles restart from zero. Oversized clock jumps after system sleep are clamped, so you never get dogpiled by stale reminders."
-                      data-zh=" 空闲超过离席阈值（默认 5 分钟）说明休息已经发生——回来时两个周期都从零开始。系统休眠造成的时钟跳变会被截断，唤醒后不会被积压的提醒轰炸。"> Idle beyond the away threshold (default 5 min) means you already took the break — both cycles restart from zero when you return.</span>
+                <strong data-en="Stepped away? All cycles reset." data-zh="走开了？所有周期都归零。">Stepped away? All cycles reset.</strong>
+                <span data-en=" Idle beyond the away threshold (default 5 min) means you already took the break — when you return, every cycle restarts from zero. Daily stats are flushed to disk every few minutes, so your history survives restarts. Oversized clock jumps after system sleep are clamped, so you never get dogpiled by stale reminders."
+                      data-zh=" 空闲超过离席阈值（默认 5 分钟）说明休息已经发生——回来时所有周期都从零开始。每日统计每隔几分钟落盘，重启不丢历史。系统休眠造成的时钟跳变会被截断，唤醒后不会被积压的提醒轰炸。"> Idle beyond the away threshold (default 5 min) means you already took the break — every cycle restarts from zero when you return.</span>
             </div>
         </div>
     </section>
@@ -362,7 +391,7 @@
             </div>
 
             <div class="download-cta animate-on-scroll">
-                <span class="version-badge"><span data-en="Latest" data-zh="最新版本">Latest</span>: <span class="ver">v0.1.1</span></span>
+                <span class="version-badge"><span data-en="Latest" data-zh="最新版本">Latest</span>: <span class="ver">v0.2.0</span></span>
             </div>
 
             <div class="callout animate-on-scroll" style="text-align: left;">
