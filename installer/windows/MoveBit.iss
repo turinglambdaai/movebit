@@ -52,3 +52,41 @@ Name: "{autodesktop}\MoveBit"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch MoveBit"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+const
+  WindowsRunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
+  WindowsRunValue = 'MoveBit';
+
+function InstalledRunCommand(): String;
+begin
+  Result := '"' + ExpandConstant('{app}\{#MyAppExeName}') + '"';
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ExistingRunCommand: String;
+begin
+  if CurStep <> ssPostInstall then
+    Exit;
+
+  { Preserve an existing autostart preference from a portable copy, but migrate
+    its executable path to the stable installer directory. Do not enable autostart
+    for users who had never opted in. }
+  if RegQueryStringValue(HKCU, WindowsRunKey, WindowsRunValue, ExistingRunCommand) then
+    RegWriteStringValue(HKCU, WindowsRunKey, WindowsRunValue, InstalledRunCommand());
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ExistingRunCommand: String;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+
+  { Remove only the startup entry that still belongs to this installed copy.
+    If the user later pointed MoveBit at another portable copy, leave it alone. }
+  if RegQueryStringValue(HKCU, WindowsRunKey, WindowsRunValue, ExistingRunCommand) and
+     (CompareText(ExistingRunCommand, InstalledRunCommand()) = 0) then
+    RegDeleteValue(HKCU, WindowsRunKey, WindowsRunValue);
+end;
