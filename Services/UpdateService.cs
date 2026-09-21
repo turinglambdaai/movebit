@@ -1,7 +1,6 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Net.Http.Headers;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -56,12 +55,9 @@ public sealed record UpdateInstallResult(
     string? ErrorMessage = null);
 
 /// <summary>
-/// Portable, cross-platform update client for MoveBit's existing GitHub Release assets.
-/// It downloads the platform ZIP plus its SHA-256 sidecar, verifies integrity, extracts
-/// into a staging directory, then launches a tiny helper that waits for MoveBit to exit,
-/// replaces the app files, rolls back overwritten files on failure, and restarts MoveBit.
-/// User configuration/history are stored outside the application directory and are never
-/// touched by the updater.
+/// Cross-platform updater for MoveBit's existing GitHub Release ZIPs. It never silently
+/// installs an update: discovery may be automatic, but applying requires an explicit user
+/// action. The package is verified against its published SHA-256 sidecar before extraction.
 /// </summary>
 public static class UpdateService
 {
@@ -100,7 +96,7 @@ public static class UpdateService
                 return new UpdateCheckResult(UpdateCheckStatus.Failed, ErrorMessage: "GitHub 返回了无效的版本信息。");
             }
 
-            if (remoteVersion <= CurrentVersion)
+            if (remoteVersion.CompareTo(CurrentVersion) <= 0)
             {
                 return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
             }
@@ -156,7 +152,7 @@ public static class UpdateService
             return new UpdateInstallResult(UpdateInstallStatus.Failed, "更新包与当前平台不匹配。");
         }
 
-        if (update.Version <= CurrentVersion)
+        if (update.Version.CompareTo(CurrentVersion) <= 0)
         {
             return new UpdateInstallResult(UpdateInstallStatus.NoUpdate);
         }
@@ -208,8 +204,7 @@ public static class UpdateService
             ExtractZipSafely(packagePath, stagingDirectory);
 
             var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "MoveBit.exe" : "MoveBit";
-            var stagedExecutable = Path.Combine(stagingDirectory, executableName);
-            if (!File.Exists(stagedExecutable))
+            if (!File.Exists(Path.Combine(stagingDirectory, executableName)))
             {
                 throw new InvalidDataException($"更新包中缺少 {executableName}。");
             }
@@ -231,7 +226,12 @@ public static class UpdateService
             TryDeleteDirectory(root);
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or CryptographicException)
+        catch (Exception ex) when (ex is HttpRequestException
+                                   or IOException
+                                   or InvalidDataException
+                                   or UnauthorizedAccessException
+                                   or CryptographicException
+                                   or Win32Exception)
         {
             TryLogFailure("install", ex);
             TryDeleteDirectory(root);
@@ -242,7 +242,7 @@ public static class UpdateService
     /// <summary>Pure helper used by tests and release validation.</summary>
     public static bool IsNewerRelease(string tagName, Version currentVersion)
         => TryParseVersionTag(tagName, out var candidate)
-           && candidate > NormalizeVersion(currentVersion);
+           && candidate.CompareTo(NormalizeVersion(currentVersion)) > 0;
 
     /// <summary>Verifies a sha256sum-style sidecar against a downloaded file.</summary>
     public static bool ChecksumMatches(string filePath, string checksumText)
@@ -275,13 +275,11 @@ public static class UpdateService
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient
-        {
-            Timeout = TimeSpan.FromMinutes(5),
-        };
-        client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("MoveBit", CurrentVersionText));
-        client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(+" + ProductUrl + ")"));
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "User-Agent",
+            $"MoveBit/{CurrentVersionText} (+{ProductUrl})");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/vnd.github+json");
         return client;
     }
 
@@ -365,12 +363,18 @@ public static class UpdateService
 
         var total = response.Content.Headers.ContentLength;
         await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+        await using var output = new FileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            useAsync: true);
 
         var buffer = new byte[81920];
         long received = 0;
         int read;
-        while ((read = await input.ReadAsync(buffer, cancellationToken)) > 0)
+        while ((read = await input.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
         {
             await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             received += read;
@@ -385,11 +389,15 @@ public static class UpdateService
     private static void ExtractZipSafely(string zipPath, string destinationDirectory)
     {
         var destinationRoot = Path.GetFullPath(destinationDirectory) + Path.DirectorySeparatorChar;
+        var pathComparison = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
         using var archive = ZipFile.OpenRead(zipPath);
         foreach (var entry in archive.Entries)
         {
             var destinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, entry.FullName));
-            if (!destinationPath.StartsWith(destinationRoot, StringComparison.Ordinal))
+            if (!destinationPath.StartsWith(destinationRoot, pathComparison))
             {
                 throw new InvalidDataException("更新包包含不安全的文件路径。");
             }
@@ -474,7 +482,11 @@ public static class UpdateService
         psi.ArgumentList.Add(executableName);
         psi.ArgumentList.Add(root);
 
-        Process.Start(psi) ?? throw new IOException("无法启动更新辅助进程。");
+        var started = Process.Start(psi);
+        if (started is null)
+        {
+            throw new IOException("无法启动更新辅助进程。");
+        }
     }
 
     private static void TryCleanupStaleUpdates()
@@ -496,7 +508,7 @@ public static class UpdateService
                 }
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Temp cleanup is best-effort.
         }
@@ -616,8 +628,7 @@ try {
     Get-ChildItem -LiteralPath $Source -Recurse -File -Force | ForEach-Object {
         $relative = $_.FullName.Substring($sourceRoot.Length).TrimStart('\')
         $destination = Join-Path $Target $relative
-        $destinationDir = Split-Path -Parent $destination
-        New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null
+        New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
 
         if (Test-Path -LiteralPath $destination) {
             $backupPath = Join-Path $Backup $relative
