@@ -74,6 +74,11 @@ jobs:
           $setup = (Resolve-Path "dist\installer\MoveBit-Setup-windows-x64.exe").Path
           $installDir = Join-Path $env:RUNNER_TEMP "MoveBitInstallerSmoke"
           $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{E4B9E01D-65D0-4C25-BCF1-3CC22B8C9E02}_is1'
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+
+          # Simulate a v1.0.1 portable user who already opted into autostart.
+          New-Item -Path $runKey -Force | Out-Null
+          Set-ItemProperty -Path $runKey -Name 'MoveBit' -Value '"C:\old-portable\MoveBit.exe"'
 
           $install = Start-Process -FilePath $setup -ArgumentList @(
             '/VERYSILENT',
@@ -82,8 +87,16 @@ jobs:
             "/DIR=$installDir"
           ) -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer exited with code $($install.ExitCode)" }
-          if (-not (Test-Path (Join-Path $installDir "MoveBit.exe"))) { throw "Installed MoveBit.exe is missing." }
+
+          $installedExe = Join-Path $installDir "MoveBit.exe"
+          if (-not (Test-Path $installedExe)) { throw "Installed MoveBit.exe is missing." }
           if (-not (Test-Path $uninstallKey)) { throw "Windows uninstall registration is missing." }
+
+          $expectedRunCommand = '"' + $installedExe + '"'
+          $actualRunCommand = (Get-ItemProperty -Path $runKey -Name 'MoveBit').MoveBit
+          if ($actualRunCommand -ne $expectedRunCommand) {
+            throw "Autostart migration mismatch. Expected '$expectedRunCommand', got '$actualRunCommand'."
+          }
 
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing." }
@@ -93,5 +106,8 @@ jobs:
             '/NORESTART'
           ) -Wait -PassThru
           if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with code $($uninstall.ExitCode)" }
-          if (Test-Path (Join-Path $installDir "MoveBit.exe")) { throw "MoveBit.exe remained after uninstall." }
+          if (Test-Path $installedExe) { throw "MoveBit.exe remained after uninstall." }
           if (Test-Path $uninstallKey) { throw "Windows uninstall registration remained after uninstall." }
+          if ((Get-ItemProperty -Path $runKey -Name 'MoveBit' -ErrorAction SilentlyContinue).MoveBit) {
+            throw "MoveBit autostart registration remained after uninstall."
+          }
