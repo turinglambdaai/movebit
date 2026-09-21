@@ -27,6 +27,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly ReminderScheduler _scheduler;
     private readonly ConfigStore _store;
     private readonly HistoryStore _history;
+    private string _updateStatusText = $"当前版本 v{UpdateService.CurrentVersionText}";
+    private string _updateActionText = "检查更新";
+    private bool _updateBusy;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -141,6 +144,40 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             OnPropertyChanged();
         }
+    }
+
+    public bool AutoCheckUpdates
+    {
+        get => _config.AutoCheckUpdates;
+        set
+        {
+            if (_config.AutoCheckUpdates != value)
+            {
+                _config.AutoCheckUpdates = value;
+                _store.Save(_config);
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // --- Online update -----------------------------------------------------
+
+    public string VersionText => $"MoveBit v{UpdateService.CurrentVersionText}";
+
+    public string UpdateStatusText => _updateStatusText;
+
+    public string UpdateActionText => _updateActionText;
+
+    public bool CanUpdateAction => !_updateBusy;
+
+    public void SetUpdateState(string statusText, string actionText, bool busy = false)
+    {
+        _updateStatusText = statusText;
+        _updateActionText = actionText;
+        _updateBusy = busy;
+        OnPropertyChanged(nameof(UpdateStatusText));
+        OnPropertyChanged(nameof(UpdateActionText));
+        OnPropertyChanged(nameof(CanUpdateAction));
     }
 
     // --- Today stats (refreshed on every scheduler tick) ---
