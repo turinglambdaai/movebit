@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-09-21
+
+### Added
+
+- Real four-step onboarding replaces the welcome card: meet the droplet → pick a
+  strictness pact (gentle toast-only / standard / strict-research-backed, the
+  30-min tier is labeled as closest to the evidence) → water cadence and sound →
+  summary of the pact with live values
+- Choices write through to the config immediately; skipping applies clean defaults;
+  closing the window counts as seen so onboarding never nags on every launch
+
+[0.1.4]: https://github.com/turinglambdaai/movebit/releases/tag/v0.1.4
+
 ## [0.1.3] - 2026-09-21
 
 ### Added

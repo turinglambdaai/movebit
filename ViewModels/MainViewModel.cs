@@ -99,21 +99,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public bool IsPaused => _scheduler.IsPaused;
 
-    /// First-run welcome card visibility; goes away once dismissed or window closed.
-    public bool WelcomeVisible => !_config.WelcomeShown;
-
-    public void DismissWelcome()
-    {
-        if (_config.WelcomeShown)
-        {
-            return;
-        }
-
-        _config.WelcomeShown = true;
-        _store.Save(_config);
-        OnPropertyChanged(nameof(WelcomeVisible));
-    }
-
     public string PauseText => _scheduler.PausedUntil is { } until
         ? $"已暂停至 {until.LocalDateTime:HH:mm}"
         : "运行中";

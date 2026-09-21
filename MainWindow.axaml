@@ -22,33 +22,6 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- First-run welcome card -->
-            <Border x:Name="WelcomeCard" Classes="welcome" IsVisible="{Binding WelcomeVisible}">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="你好，我是小水滴 💧" FontSize="17" FontWeight="SemiBold" Foreground="#26241F" />
-                    <TextBlock Foreground="#4A453C" FontSize="13" TextWrapping="Wrap" LineHeight="21">
-                        <Run Text="接下来我会安静待在系统托盘，只在必要时出现：" />
-                        <LineBreak />
-                        <Run Text="· 连续工作 " /><Run Text="{Binding SitReminderMinutes}" FontWeight="SemiBold" />
-                        <Run Text=" 分钟，我会锁定全部屏幕，陪你休息 " /><Run Text="{Binding BreakDurationMinutes}" FontWeight="SemiBold" />
-                        <Run Text=" 分钟（「跳过」按钮 " /><Run Text="{Binding SkipAfterSeconds}" FontWeight="SemiBold" />
-                        <Run Text=" 秒后才出现）" />
-                        <LineBreak />
-                        <Run Text="· 每 " /><Run Text="{Binding WaterReminderMinutes}" FontWeight="SemiBold" />
-                        <Run Text=" 分钟提醒你喝口水（办公室可关提示音）" />
-                        <LineBreak />
-                        <Run Text="· 离开电脑超过 " /><Run Text="{Binding AwayResetMinutes}" FontWeight="SemiBold" />
-                        <Run Text=" 分钟，计时自动重置，不会补催" />
-                        <LineBreak />
-                        <Run Text="· 关闭本窗口我不会退出；退出请走托盘图标右键菜单" />
-                    </TextBlock>
-                    <Button Content="知道了，开始使用" Click="OnDismissWelcome"
-                            HorizontalAlignment="Left" FontSize="13"
-                            Background="#C25E3E" Foreground="#FFF8F3"
-                            BorderThickness="0" CornerRadius="10" Padding="18,8" />
-                </StackPanel>
-            </Border>
-
             <!-- Today card -->
             <Border Classes="card">
                 <StackPanel Spacing="14">
@@ -145,13 +118,6 @@
             <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Padding" Value="20,16" />
             <Setter Property="BoxShadow" Value="0 2 8 0 #14000000" />
-        </Style>
-        <Style Selector="Border.welcome">
-            <Setter Property="Background" Value="#FBEFE2" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="20,16" />
-            <Setter Property="BorderBrush" Value="#F0D9C4" />
-            <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="NumericUpDown">
             <Setter Property="FontSize" Value="13" />

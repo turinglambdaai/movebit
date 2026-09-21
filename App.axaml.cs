@@ -66,11 +66,11 @@ public class App : Application
             desktop.Exit += OnExit;
         }
 
-        // First run: greet the user and surface the settings. A tool that locks every
-        // screen in 45 minutes owes the user an explanation before it does.
+        // First run: walk the user through a strictness pact with the droplet. A tool
+        // that locks every screen in 45 minutes owes the user an explicit agreement.
         if (!_config.WelcomeShown)
         {
-            ShowMainWindow();
+            ShowOnboarding();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -338,9 +338,6 @@ public class App : Application
             _mainWindow = new MainWindow { DataContext = _viewModel };
             _mainWindow.Closing += (_, e) =>
             {
-                // Seen-it-once semantics: closing the window counts as reading the welcome.
-                _viewModel.DismissWelcome();
-
                 // Tray app: closing the window hides it; exit goes through the tray menu.
                 if (_mainWindow.HideOnClose)
                 {
@@ -355,9 +352,35 @@ public class App : Application
         _mainWindow.Activate();
     }
 
-    public void DismissWelcome()
+    private void ShowOnboarding()
     {
-        _viewModel.DismissWelcome();
+        var onboarding = new OnboardingWindow(_config)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+        };
+
+        // Finished (or skipped): persist the pact and slip into the tray.
+        onboarding.Finished += () =>
+        {
+            _config.WelcomeShown = true;
+            _configStore.Save(_config);
+            _viewModel.RefreshStats();
+            ShowNotification("就位 💧", "我会安静待在托盘，到点见。", ReminderKind.Water);
+        };
+
+        // Closed via the title bar without finishing: still counts as seen, so the
+        // onboarding cannot nag on every launch. Whatever was selected last is kept.
+        onboarding.Closed += (_, _) =>
+        {
+            if (!_config.WelcomeShown)
+            {
+                _config.WelcomeShown = true;
+                _configStore.Save(_config);
+                _viewModel.RefreshStats();
+            }
+        };
+
+        onboarding.Show();
     }
 
     private void Shutdown()
