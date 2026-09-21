@@ -2,33 +2,49 @@ name: release
 
 # Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
 # one GitHub Release after every portable package and the Windows installer have built successfully.
+# The main/path trigger below is a one-time v1.0.2 publication bootstrap because the
+# connected GitHub API cannot create a tag directly. Every source/build step is pinned
+# to the already validated release candidate commit.
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths:
+      - '.github/workflows/release.yml'
 
 permissions:
   contents: read
   actions: read
+
+env:
+  RELEASE_SHA: 59973769bcaba4ae6a8429a62f0d57b6aa9c0172
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/main' && env.RELEASE_SHA || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Verify tag matches project version
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Verify release version
         shell: bash
         run: |
           VERSION="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
-          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            if [ "${VERSION}" != "1.0.2" ]; then
+              echo "Bootstrap release expected MoveBit.csproj version 1.0.2, got ${VERSION}." >&2
+              exit 1
+            fi
+          elif [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
             echo "Tag ${GITHUB_REF_NAME} does not match MoveBit.csproj version v${VERSION}." >&2
             exit 1
           fi
@@ -51,6 +67,8 @@ jobs:
           - { rid: linux-x64, platform: linux-x64 }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/main' && env.RELEASE_SHA || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -89,6 +107,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/main' && env.RELEASE_SHA || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -140,13 +160,25 @@ jobs:
             dist/installer/MoveBit-Setup-windows-x64.exe.sha256
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
     needs: [build, windows-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: read
     steps:
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "target=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v1.0.2" >> "$GITHUB_OUTPUT"
+            echo "target=${RELEASE_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download all release packages
         uses: actions/download-artifact@v4
         with:
@@ -157,9 +189,26 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ steps.meta.outputs.target }}
+          name: ${{ steps.meta.outputs.tag }}
+          body: |
+            ## MoveBit v1.0.2
+
+            MoveBit now has an installer-first Windows experience while keeping portable builds for every supported platform.
+
+            - **Windows installer:** `MoveBit-Setup-windows-x64.exe` installs per-user under `%LOCALAPPDATA%\Programs\MoveBit` with no administrator elevation, Start-menu launch, standard uninstall support, and an optional desktop shortcut.
+            - **Portable stays available:** Windows x64, macOS arm64, and Linux x64 ZIP builds remain first-class release assets.
+            - **One updater, not two:** installed and portable copies continue to use MoveBit's verified ZIP + SHA-256 in-app updater.
+            - **Portable-to-installer migration:** an existing opted-in Windows autostart entry is migrated from the old portable path to the stable installed path.
+            - **Faster settings:** common reminder intervals now use practical 5-minute / 5-second spinner steps, direct numeric entry is documented in the UI, and every change shows explicit saved/failed persistence feedback.
+            - **Installer lifecycle tested:** CI compiles the setup and performs a real silent install/uninstall smoke test including uninstall registration and autostart migration.
+
+            Existing **v1.0.1** users can discover **v1.0.2** from inside MoveBit and use **Update & Restart**. Windows users who want the new stable Start-menu installation can instead install the Setup once; future upgrades remain in-app.
+
+            Current GitHub binaries and the installer are still unsigned, so Windows SmartScreen or macOS Gatekeeper may show a first-launch warning.
           files: |
             dist/*.zip
             dist/*.exe
             dist/*.sha256
           fail_on_unmatched_files: true
-          generate_release_notes: true
