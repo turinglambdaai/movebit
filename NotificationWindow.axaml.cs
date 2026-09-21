@@ -37,6 +37,11 @@ public partial class NotificationWindow : Window
         TitleText.Text = NotificationTitle;
         BodyText.Text = NotificationBody;
 
+        // Color-code by kind: orange = move, blue = water.
+        AccentBar.Background = ReminderKind == ReminderKind.Water
+            ? new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#3E7EC2"))
+            : new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#EA580C"));
+
         PositionAtBottomRight();
         RestartAutoClose();
 

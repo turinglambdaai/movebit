@@ -40,6 +40,12 @@ public partial class BreakOverlayWindow : Window
         SkipButton.IsVisible = IsPrimary && skipAvailable;
     }
 
+    /// Rotate the break tip text (driven by App every ~25 s during the break).
+    public void SetHint(string hint)
+    {
+        BreakHint.Text = hint;
+    }
+
     public void ForceClose()
     {
         _allowClose = true;

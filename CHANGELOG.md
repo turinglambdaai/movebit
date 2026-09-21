@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-21
+
+### Added
+
+- Fun copy pools: randomized break hints (rotated every 25 s during the break) and
+  randomized water/sit toast lines — same-message fatigue is the enemy of attention
+- Color-coded notification toasts: orange accent bar for sit, blue for water
+- Sit cycle progress bar and live status dot in the main window
+
+### Changed
+
+- Visual redesign: warm paper palette for the main window (cream canvas, ink text,
+  terracotta accents), night-sky gradient break screen with a breathing countdown
+- Break screen typography: oversized countdown, calmer hint layout, quieter skip button
+
+[0.1.1]: https://github.com/turinglambdaai/movebit/releases/tag/v0.1.1
+
 ## [0.1.0] - 2026-09-21
 
 ### Added

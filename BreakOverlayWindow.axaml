@@ -7,26 +7,65 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
-        ShowActivated="False">
+        ShowActivated="False"
+        FontFamily="Segoe UI, Microsoft YaHei UI">
 
     <Panel>
-        <!-- Full-coverage dim layer: the screen is not usable until the break ends. -->
-        <Rectangle Fill="#EE0E1116" />
+        <!-- Night-sky gradient: the break screen is the product's moment, not a punishment. -->
+        <Rectangle>
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#F2141B2E" Offset="0" />
+                    <GradientStop Color="#F21B1233" Offset="0.55" />
+                    <GradientStop Color="#F20D1220" Offset="1" />
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
 
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
-            <TextBlock x:Name="BreakTitle" Text="☕ 休息一下" FontSize="40" FontWeight="SemiBold"
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
+            <Image Source="avares://MoveBit/Assets/icon.png" Width="72" Height="72"
+                   HorizontalAlignment="Center" Margin="0,0,0,6" />
+
+            <TextBlock x:Name="BreakTitle" Text="休息时间 ☕" FontSize="34" FontWeight="SemiBold"
                        Foreground="#F0EEE6" HorizontalAlignment="Center" />
-            <TextBlock x:Name="BreakHint" Text="离开椅子 · 去趟厕所 · 喝口水 · 看看窗外"
-                       FontSize="17" Foreground="#A39E94" HorizontalAlignment="Center" />
-            <TextBlock x:Name="CountdownText" Text="5:00" FontSize="96" FontWeight="Bold"
-                       Foreground="#F0EEE6" HorizontalAlignment="Center" />
-            <TextBlock x:Name="CycleText" Text="" FontSize="13" Foreground="#6B675E"
-                       HorizontalAlignment="Center" />
+
+            <TextBlock x:Name="CountdownText" Text="5:00" FontSize="128" FontWeight="Bold"
+                       Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,-8,0,0" />
+
+            <TextBlock x:Name="BreakHint" Text="站起来，晃晃肩膀" FontSize="18"
+                       Foreground="#B8B2C7" HorizontalAlignment="Center" />
+
+            <TextBlock x:Name="CycleText" Text="倒计时结束后自动解锁" FontSize="12.5"
+                       Foreground="#6E6884" HorizontalAlignment="Center" Margin="0,6,0,0" />
         </StackPanel>
 
         <Button x:Name="SkipButton" Content="跳过本次休息" Click="OnSkip"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48"
-                IsVisible="False" FontSize="14"
-                Foreground="#A39E94" Background="Transparent" BorderBrush="#4A463E" />
+                IsVisible="False" FontSize="13.5"
+                Foreground="#8A849E" Background="Transparent" BorderBrush="#3A3550"
+                Padding="16,7" CornerRadius="8" />
     </Panel>
+
+    <Window.Styles>
+        <!-- Breathing countdown: a calm pulse instead of an aggressive blink. -->
+        <Style Selector="TextBlock#CountdownText">
+            <Style.Animations>
+                <Animation Duration="0:0:4" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0.72" />
+                    </KeyFrame>
+                    <KeyFrame Cue="50%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="0.72" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Button#SkipButton:pointerover">
+            <Setter Property="Foreground" Value="#D8D4E4" />
+            <Setter Property="BorderBrush" Value="#5A5478" />
+        </Style>
+    </Window.Styles>
 </Window>

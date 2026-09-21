@@ -2,6 +2,21 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="MoveBit.App"
              RequestedThemeVariant="Light">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Warm paper palette: moves MoveBit away from stock Fluent grey. -->
+            <SolidColorBrush x:Key="AppBg" Color="#F5F2EB"/>
+            <SolidColorBrush x:Key="CardBg" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="CardBorder" Color="#15000000"/>
+            <SolidColorBrush x:Key="TextPrimary" Color="#26241F"/>
+            <SolidColorBrush x:Key="TextSecondary" Color="#6E6A5E"/>
+            <SolidColorBrush x:Key="AccentBlue" Color="#2563EB"/>
+            <SolidColorBrush x:Key="AccentOrange" Color="#EA580C"/>
+            <SolidColorBrush x:Key="AccentGreen" Color="#16A34A"/>
+            <SolidColorBrush x:Key="TrackBg" Color="#EAE6DC"/>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>

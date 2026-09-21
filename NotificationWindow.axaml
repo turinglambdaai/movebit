@@ -9,28 +9,41 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
-        ShowActivated="False">
+        ShowActivated="False"
+        FontFamily="Segoe UI, Microsoft YaHei UI">
 
     <Border CornerRadius="14"
-            Background="#FDFDFE"
+            Background="#FFFDFB"
             BoxShadow="0 8 24 0 #33000000"
             Margin="12"
-            Padding="20,16">
-        <StackPanel Spacing="10">
-            <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock x:Name="BodyText" FontSize="13.5" Opacity="0.75" TextWrapping="Wrap" />
+            ClipToBounds="True">
+        <DockPanel>
+            <!-- Accent bar: orange for sit, blue for water (set in code-behind). -->
+            <Border x:Name="AccentBar" DockPanel.Dock="Left" Width="5" Background="#EA580C" />
 
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
-                <Button Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
-                <Button Content="知道了" Click="OnAcknowledge" FontSize="12.5" />
+            <StackPanel Spacing="10" Margin="20,16,20,14">
+                <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold"
+                           TextWrapping="Wrap" Foreground="#26241F" />
+                <TextBlock x:Name="BodyText" FontSize="13.5" Opacity="0.75"
+                           TextWrapping="Wrap" Foreground="#4A453C" />
+
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+                    <Button Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
+                    <Button Content="知道了" Click="OnAcknowledge" FontSize="12.5" />
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
+        </DockPanel>
     </Border>
 
     <Window.Styles>
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#E2E5EA" />
+            <Setter Property="BorderBrush" Value="#E2DCCC" />
+            <Setter Property="Foreground" Value="#6E6A5E" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#F3EEE3" />
         </Style>
     </Window.Styles>
 </Window>

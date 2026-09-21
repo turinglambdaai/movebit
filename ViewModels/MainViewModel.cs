@@ -89,6 +89,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string SitCycleText =>
         IsPaused ? "—" : $"{(int)_scheduler.SitCycleElapsed.TotalMinutes} / {_config.SitReminderMinutes} 分钟";
 
+    public int SitCycleMinutes => IsPaused ? 0 : (int)_scheduler.SitCycleElapsed.TotalMinutes;
+
+    public int SitIntervalMax => _config.SitReminderMinutes;
+
     public int SitReminders => _scheduler.Stats.SitReminders;
 
     public int WaterReminders => _scheduler.Stats.WaterReminders;
@@ -96,8 +100,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsPaused => _scheduler.IsPaused;
 
     public string PauseText => _scheduler.PausedUntil is { } until
-        ? $"提醒已暂停，至 {until.LocalDateTime:HH:mm}"
-        : "提醒运行中";
+        ? $"已暂停至 {until.LocalDateTime:HH:mm}"
+        : "运行中";
+
+    /// Green dot while running, orange while paused.
+    public Avalonia.Media.IBrush StatusDotBrush =>
+        IsPaused ? new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0xEA, 0x58, 0x0C))
+                 : new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(0x16, 0xA3, 0x4A));
 
     public string ConfigPathText => _store.ToString();
 
@@ -105,10 +114,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         OnPropertyChanged(nameof(ActiveTimeText));
         OnPropertyChanged(nameof(SitCycleText));
+        OnPropertyChanged(nameof(SitCycleMinutes));
+        OnPropertyChanged(nameof(SitIntervalMax));
         OnPropertyChanged(nameof(SitReminders));
         OnPropertyChanged(nameof(WaterReminders));
         OnPropertyChanged(nameof(IsPaused));
         OnPropertyChanged(nameof(PauseText));
+        OnPropertyChanged(nameof(StatusDotBrush));
     }
 
     private void SetSetting(decimal? value, Action<int> apply)

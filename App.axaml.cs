@@ -96,10 +96,10 @@ public class App : Application
         {
             ReminderKind.Sit => (
                 "该起身动一动了 🚶",
-                $"已连续工作 {FormatDuration(e.ActiveTimeToday)}，今天第 {e.CountToday} 次提醒。\n去趟厕所、接杯水，或者伸个懒腰吧。"),
+                $"已连续工作 {FormatDuration(e.ActiveTimeToday)}，今天第 {e.CountToday} 次提醒。\n{BreakCopy.Pick(BreakCopy.SitLines)}"),
             _ => (
                 "喝口水吧 💧",
-                $"今天第 {e.CountToday} 次提醒。\n站起来接水，顺便活动一下。"),
+                $"今天第 {e.CountToday} 次提醒。\n{BreakCopy.Pick(BreakCopy.WaterLines)}"),
         };
 
         ShowNotification(title, body, e.Kind);
@@ -135,9 +135,14 @@ public class App : Application
 
         _breakActive = true;
         _breakRemaining = TimeSpan.FromMinutes(_config.BreakDurationMinutes);
+        var hint = BreakCopy.Pick(BreakCopy.BreakHints);
         foreach (var overlay in _overlays)
         {
             overlay.UpdateCountdown(_breakRemaining, skipAvailable: false);
+            if (overlay.IsPrimary)
+            {
+                overlay.SetHint(hint);
+            }
         }
 
         _breakTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -151,10 +156,15 @@ public class App : Application
 
         var elapsed = TimeSpan.FromMinutes(_config.BreakDurationMinutes) - _breakRemaining;
         var skipAvailable = elapsed >= TimeSpan.FromSeconds(_config.SkipAfterSeconds);
+        var rotateHint = (int)elapsed.TotalSeconds > 0 && (int)elapsed.TotalSeconds % 25 == 0;
 
         foreach (var overlay in _overlays)
         {
             overlay.UpdateCountdown(_breakRemaining, skipAvailable);
+            if (rotateHint && overlay.IsPrimary)
+            {
+                overlay.SetHint(BreakCopy.Pick(BreakCopy.BreakHints));
+            }
         }
 
         if (_breakRemaining <= TimeSpan.Zero)
