@@ -2,8 +2,8 @@ name: release
 
 # Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
 # one GitHub Release after every platform package has built successfully.
-# The main/path trigger below is a one-time v1.0.0 bootstrap: it publishes the already
-# validated release candidate at 62c3368, then the workflow is restored to tag-only.
+# The main/path trigger below is the one-time v1.0.0 publication trigger. It publishes
+# the already validated release candidate at 62c3368, then the workflow is restored.
 on:
   workflow_dispatch:
   push:
