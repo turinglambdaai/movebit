@@ -73,13 +73,25 @@ jobs:
         run: |
           $setup = (Resolve-Path "dist\installer\MoveBit-Setup-windows-x64.exe").Path
           $installDir = Join-Path $env:RUNNER_TEMP "MoveBitInstallerSmoke"
-          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$installDir" /TASKS=""
-          if ($LASTEXITCODE -ne 0) { throw "Installer exited with code $LASTEXITCODE" }
+          $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{E4B9E01D-65D0-4C25-BCF1-3CC22B8C9E02}_is1'
+
+          $install = Start-Process -FilePath $setup -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            "/DIR=$installDir"
+          ) -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer exited with code $($install.ExitCode)" }
           if (-not (Test-Path (Join-Path $installDir "MoveBit.exe"))) { throw "Installed MoveBit.exe is missing." }
+          if (-not (Test-Path $uninstallKey)) { throw "Windows uninstall registration is missing." }
 
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing." }
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Uninstaller exited with code $LASTEXITCODE" }
-          Start-Sleep -Milliseconds 500
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART'
+          ) -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with code $($uninstall.ExitCode)" }
           if (Test-Path (Join-Path $installDir "MoveBit.exe")) { throw "MoveBit.exe remained after uninstall." }
+          if (Test-Path $uninstallKey) { throw "Windows uninstall registration remained after uninstall." }
