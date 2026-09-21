@@ -12,9 +12,9 @@ public sealed class ConfigStore
 
     private readonly string _directory;
 
-    public ConfigStore()
+    public ConfigStore(string? directory = null)
     {
-        _directory = Path.Combine(
+        _directory = directory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "movebit");
     }
@@ -54,7 +54,9 @@ public sealed class ConfigStore
         try
         {
             Directory.CreateDirectory(_directory);
-            File.WriteAllText(ConfigPath, JsonSerializer.Serialize(config, JsonOptions));
+            var temporaryPath = ConfigPath + ".tmp";
+            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(config, JsonOptions));
+            File.Move(temporaryPath, ConfigPath, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

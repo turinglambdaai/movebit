@@ -13,10 +13,11 @@ public enum ReminderKind
 public sealed record ReminderEvent(ReminderKind Kind, int CountToday, TimeSpan ActiveTimeToday);
 
 /// <summary>
-/// The core state machine. Two independent reminder cycles advance on <see cref="Tick"/>:
+/// The core state machine. Three independent reminder cycles advance on <see cref="Tick"/>:
 ///   - Sit cycle: accumulates ACTIVE time only. Fires "stand up" reminders.
 ///   - Water cycle: same accumulation (only meaningful while the user is at the desk).
-/// When the user goes idle beyond the away threshold, both cycles freeze; when they
+///   - Micro cycle: lightweight short-break nudges when enabled.
+/// When the user goes idle beyond the away threshold, all cycles freeze; when they
 /// come back the cycles reset — the break already happened, no nagging after it.
 /// </summary>
 public sealed class ReminderScheduler
@@ -79,10 +80,22 @@ public sealed class ReminderScheduler
         var now = _time.GetLocalNow();
         RollDayIfNeeded(now);
 
-        if (IsPaused)
+        if (_pausedUntil is { } until)
         {
-            _lastTick = now;
-            return;
+            if (now < until)
+            {
+                _lastTick = now;
+                return;
+            }
+
+            // The pause may expire between timer ticks. Count only the portion after
+            // the exact pause deadline rather than charging the whole tick as work.
+            if (_lastTick < until)
+            {
+                _lastTick = until;
+            }
+
+            _pausedUntil = null;
         }
 
         var delta = now - _lastTick;
@@ -110,9 +123,7 @@ public sealed class ReminderScheduler
         {
             // Back from a real break: restart every cycle instead of dumping a stale reminder.
             _wasAway = false;
-            _sitAccum = TimeSpan.Zero;
-            _waterAccum = TimeSpan.Zero;
-            _microAccum = TimeSpan.Zero;
+            ResetCycles();
             UserReturned?.Invoke(this, EventArgs.Empty);
         }
 
@@ -157,6 +168,25 @@ public sealed class ReminderScheduler
         _lastTick = _time.GetLocalNow();
     }
 
+    /// <summary>
+    /// Discard wall-clock time since the previous scheduler tick without changing any
+    /// cycle progress. Used while a forced break owns the screen: resting is not work.
+    /// </summary>
+    public void DiscardElapsedSinceLastTick()
+    {
+        _lastTick = _time.GetLocalNow();
+    }
+
+    /// <summary>
+    /// Record a completed real break. All reminder cycles restart and time spent on the
+    /// break is discarded, matching the same semantics as returning from an away period.
+    /// </summary>
+    public void CompleteBreak()
+    {
+        ResetCycles();
+        _lastTick = _time.GetLocalNow();
+    }
+
     /// <summary>"Remind me later": push the cycle so it fires again in <paramref name="minutes"/>.</summary>
     public void Snooze(ReminderKind kind, int minutes)
     {
@@ -174,6 +204,13 @@ public sealed class ReminderScheduler
         {
             _waterAccum = MaxOfZero(WaterInterval - target);
         }
+    }
+
+    private void ResetCycles()
+    {
+        _sitAccum = TimeSpan.Zero;
+        _waterAccum = TimeSpan.Zero;
+        _microAccum = TimeSpan.Zero;
     }
 
     private static TimeSpan MaxOfZero(TimeSpan value) => value < TimeSpan.Zero ? TimeSpan.Zero : value;

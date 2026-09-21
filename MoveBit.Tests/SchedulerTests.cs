@@ -82,7 +82,7 @@ public class SchedulerTests
         var h = new Harness(sitMinutes: 45, waterMinutes: 300);
 
         h.StepMinutes(40);
-        Assert.Empty(h.Fired); // 40 min < 45 min
+        Assert.Empty(h.Fired);
 
         h.StepMinutes(10);
 
@@ -109,38 +109,38 @@ public class SchedulerTests
     {
         var h = new Harness(sitMinutes: 45, waterMinutes: 300);
 
-        h.StepMinutes(40); // 40 min active, no fire yet
+        h.StepMinutes(40);
 
-        h.Idle.Idle = TimeSpan.FromMinutes(10); // user left
-        h.StepMinutes(20); // away: nothing accumulates, nothing fires
+        h.Idle.Idle = TimeSpan.FromMinutes(10);
+        h.StepMinutes(20);
         Assert.Empty(h.Fired);
         Assert.Equal(TimeSpan.FromMinutes(40), h.Scheduler.Stats.ActiveTime);
 
-        h.Idle.Idle = TimeSpan.Zero; // user is back: cycles restart
+        h.Idle.Idle = TimeSpan.Zero;
         h.StepMinutes(40);
-        Assert.Empty(h.Fired); // no stale reminder dumped after the break
+        Assert.Empty(h.Fired);
 
-        h.StepMinutes(10); // 50 min since return
+        h.StepMinutes(10);
         Assert.Equal(ReminderKind.Sit, Assert.Single(h.Fired).Kind);
-        Assert.Equal(TimeSpan.FromMinutes(90), h.Scheduler.Stats.ActiveTime); // 40 + 40 + 10
+        Assert.Equal(TimeSpan.FromMinutes(90), h.Scheduler.Stats.ActiveTime);
     }
 
     [Fact]
-    public void Pause_blocks_reminders_and_accumulation()
+    public void Pause_blocks_reminders_and_counts_only_time_after_exact_expiry()
     {
         var h = new Harness();
 
         h.StepMinutes(20);
         h.Scheduler.PauseFor(TimeSpan.FromHours(1));
 
-        h.StepMinutes(50); // still inside the pause window
+        h.StepMinutes(50);
         Assert.Empty(h.Fired);
         Assert.True(h.Scheduler.IsPaused);
         Assert.Equal(TimeSpan.FromMinutes(20), h.Scheduler.Stats.ActiveTime);
 
-        h.StepMinutes(15); // pause expires 10 min into this stretch: only 5 min counts
+        h.StepMinutes(15); // pause expires 10 minutes into this interval: only final 5 minutes count
         Assert.False(h.Scheduler.IsPaused);
-        Assert.Equal(TimeSpan.FromMinutes(30), h.Scheduler.Stats.ActiveTime);
+        Assert.Equal(TimeSpan.FromMinutes(25), h.Scheduler.Stats.ActiveTime);
     }
 
     [Fact]
@@ -148,14 +148,14 @@ public class SchedulerTests
     {
         var h = new Harness(sitMinutes: 45, waterMinutes: 300);
 
-        h.StepMinutes(50); // sit fired once
+        h.StepMinutes(50);
         Assert.Single(h.Fired);
 
         h.Scheduler.Snooze(ReminderKind.Sit, minutes: 10);
         h.StepMinutes(9, stepMinutes: 3);
-        Assert.Single(h.Fired); // not yet
+        Assert.Single(h.Fired);
 
-        h.StepMinutes(2, stepMinutes: 1); // past the snooze window
+        h.StepMinutes(2, stepMinutes: 1);
         Assert.Equal(2, h.Fired.Count);
     }
 
@@ -163,12 +163,12 @@ public class SchedulerTests
     public void Day_rollover_resets_stats()
     {
         var h = new Harness(sitMinutes: 45, waterMinutes: 300);
-        h.Time.Advance(TimeSpan.FromHours(14)); // start was 09:00, now 23:00
-        h.StepMinutes(55); // 23:55, stats accumulated
+        h.Time.Advance(TimeSpan.FromHours(14));
+        h.StepMinutes(55);
 
         Assert.True(h.Scheduler.Stats.ActiveTime > TimeSpan.Zero);
 
-        h.StepMinutes(10); // crossed midnight
+        h.StepMinutes(10);
 
         Assert.Equal(TimeSpan.FromMinutes(10), h.Scheduler.Stats.ActiveTime);
         Assert.Equal(0, h.Scheduler.Stats.SitReminders);
@@ -180,17 +180,17 @@ public class SchedulerTests
     {
         var h = new Harness(sitMinutes: 45, waterMinutes: 300);
 
-        h.Step(TimeSpan.FromHours(3)); // e.g. system slept; one big tick gets clamped
+        h.Step(TimeSpan.FromHours(3));
 
         Assert.Equal(TimeSpan.FromMinutes(10), h.Scheduler.Stats.ActiveTime);
-        Assert.Empty(h.Fired); // 10 < 45, no reminder dumped after wake
+        Assert.Empty(h.Fired);
     }
 
     [Fact]
     public void Null_idle_provider_degrades_to_natural_time()
     {
         var h = new Harness(sitMinutes: 45, waterMinutes: 300);
-        h.Idle.Idle = null; // platform without idle detection
+        h.Idle.Idle = null;
 
         h.StepMinutes(50);
 
@@ -200,7 +200,6 @@ public class SchedulerTests
     [Fact]
     public void Micro_break_fires_on_its_own_cycle_and_survives_long_breaks()
     {
-        // Micro every 30 min; sit and water far away so only micro fires.
         var h = new Harness(sitMinutes: 300, waterMinutes: 300);
         h.Scheduler.Config.MicroBreakEnabled = true;
         h.Scheduler.Config.MicroBreakIntervalMinutes = 30;
@@ -218,7 +217,7 @@ public class SchedulerTests
         var h = new Harness(sitMinutes: 300, waterMinutes: 300);
         h.Scheduler.Config.MicroBreakEnabled = false;
 
-        h.StepMinutes(120); // way past the micro interval
+        h.StepMinutes(120);
 
         Assert.Empty(h.Fired);
         Assert.Equal(0, h.Scheduler.Stats.MicroBreaks);
@@ -233,13 +232,13 @@ public class SchedulerTests
 
         h.StepMinutes(20);
         h.Idle.Idle = TimeSpan.FromMinutes(10);
-        h.StepMinutes(20); // away: nothing accumulates
+        h.StepMinutes(20);
         h.Idle.Idle = TimeSpan.Zero;
-        h.StepMinutes(20); // cycle restarted on return: 20 < 30
+        h.StepMinutes(20);
 
         Assert.Empty(h.Fired);
 
-        h.StepMinutes(11); // 31 min since return
+        h.StepMinutes(11);
         Assert.Equal(ReminderKind.Micro, Assert.Single(h.Fired).Kind);
     }
 
@@ -247,17 +246,51 @@ public class SchedulerTests
     public void Day_rollover_archives_the_closing_day_and_resets()
     {
         var h = new Harness(sitMinutes: 300, waterMinutes: 300);
-        h.Time.Advance(TimeSpan.FromHours(14)); // 09:00 -> 23:00 local
-        h.Scheduler.Tick(); // absorb the clock-jump clamp (10 min) before accumulating
-        h.StepMinutes(55); // 10 + 55 = 65 min active, now 23:55
+        h.Time.Advance(TimeSpan.FromHours(14));
+        h.Scheduler.Tick();
+        h.StepMinutes(55);
 
         DayStats? archived = null;
         h.Scheduler.DayCompleted += (_, stats) => archived = stats;
 
-        h.StepMinutes(10); // cross midnight -> DayCompleted with the closing day
+        h.StepMinutes(10);
 
         Assert.NotNull(archived);
         Assert.Equal(TimeSpan.FromMinutes(65), archived!.ActiveTime);
         Assert.Equal(TimeSpan.FromMinutes(10), h.Scheduler.Stats.ActiveTime);
+    }
+
+    [Fact]
+    public void Forced_break_elapsed_time_can_be_discarded_without_losing_cycle_progress()
+    {
+        var h = new Harness(sitMinutes: 60, waterMinutes: 300);
+
+        h.StepMinutes(20);
+        h.Time.Advance(TimeSpan.FromMinutes(30)); // simulated time under the break overlay
+        h.Scheduler.DiscardElapsedSinceLastTick();
+        h.StepMinutes(20);
+
+        Assert.Equal(TimeSpan.FromMinutes(40), h.Scheduler.Stats.ActiveTime);
+        Assert.Equal(TimeSpan.FromMinutes(40), h.Scheduler.SitCycleElapsed);
+        Assert.Empty(h.Fired);
+    }
+
+    [Fact]
+    public void Completed_break_restarts_all_reminder_cycles()
+    {
+        var h = new Harness(sitMinutes: 300, waterMinutes: 300);
+        h.Scheduler.Config.MicroBreakEnabled = true;
+        h.Scheduler.Config.MicroBreakIntervalMinutes = 30;
+
+        h.StepMinutes(25);
+        h.Time.Advance(TimeSpan.FromMinutes(5));
+        h.Scheduler.CompleteBreak();
+
+        h.StepMinutes(29);
+        Assert.Empty(h.Fired);
+
+        h.StepMinutes(2, stepMinutes: 1);
+        Assert.Equal(ReminderKind.Micro, Assert.Single(h.Fired).Kind);
+        Assert.Equal(TimeSpan.FromMinutes(56), h.Scheduler.Stats.ActiveTime); // 25 + 29 + 2; break excluded
     }
 }

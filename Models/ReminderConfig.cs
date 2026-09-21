@@ -9,7 +9,7 @@ public sealed class ReminderConfig
     /// Minutes of active computer use before a water reminder.
     public int WaterReminderMinutes { get; set; } = 30;
 
-    /// Idle duration that counts as "user stepped away"; both cycles reset on return.
+    /// Idle duration that counts as "user stepped away"; all cycles reset on return.
     public int AwayResetMinutes { get; set; } = 5;
 
     /// When true, sit reminders take over all screens with a full-screen break lock
@@ -44,6 +44,10 @@ public sealed class ReminderConfig
         ForceBreakEnabled = ForceBreakEnabled,
         BreakDurationMinutes = BreakDurationMinutes,
         SkipAfterSeconds = SkipAfterSeconds,
+        MicroBreakEnabled = MicroBreakEnabled,
+        MicroBreakIntervalMinutes = MicroBreakIntervalMinutes,
+        MicroBreakDurationSeconds = MicroBreakDurationSeconds,
         SoundEnabled = SoundEnabled,
+        WelcomeShown = WelcomeShown,
     };
 }

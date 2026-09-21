@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Security;
 using Microsoft.Win32;
 
 namespace MoveBit.Services;
@@ -12,30 +13,42 @@ namespace MoveBit.Services;
 public static class AutoStart
 {
     private const string Name = "MoveBit";
+    private const string WindowsRunPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
-    public static bool IsEnabled() => OperatingSystem.IsWindows() ? WindowsIsEnabled() : UnixIsEnabled();
-
-    public static void Enable()
+    public static bool IsEnabled()
     {
-        if (OperatingSystem.IsWindows())
+        try
         {
-            WindowsSet(true);
+            return OperatingSystem.IsWindows() ? WindowsIsEnabled() : UnixIsEnabled();
         }
-        else
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {
-            UnixSet(true);
+            Debug.WriteLine($"autostart state check failed: {ex.Message}");
+            return false;
         }
     }
 
-    public static void Disable()
+    public static void Enable() => SetEnabled(true);
+
+    public static void Disable() => SetEnabled(false);
+
+    private static void SetEnabled(bool enable)
     {
-        if (OperatingSystem.IsWindows())
+        try
         {
-            WindowsSet(false);
+            if (OperatingSystem.IsWindows())
+            {
+                WindowsSet(enable);
+            }
+            else
+            {
+                UnixSet(enable);
+            }
         }
-        else
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {
-            UnixSet(false);
+            // Autostart is best-effort; the app itself keeps running either way.
+            Debug.WriteLine($"autostart toggle failed: {ex.Message}");
         }
     }
 
@@ -44,20 +57,18 @@ public static class AutoStart
 
     // --- Windows -----------------------------------------------------------
 
-    private static RegistryKey? OpenRunKey(bool writable)
-    {
-        return Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable);
-    }
-
     private static bool WindowsIsEnabled()
     {
-        using var key = OpenRunKey(writable: false);
+        using var key = Registry.CurrentUser.OpenSubKey(WindowsRunPath, writable: false);
         return key?.GetValue(Name) is not null;
     }
 
     private static void WindowsSet(bool enable)
     {
-        using var key = OpenRunKey(writable: true);
+        using var key = enable
+            ? Registry.CurrentUser.CreateSubKey(WindowsRunPath, writable: true)
+            : Registry.CurrentUser.OpenSubKey(WindowsRunPath, writable: true);
+
         if (key is null)
         {
             return;
@@ -89,57 +100,56 @@ public static class AutoStart
 
     private static void UnixSet(bool enable)
     {
-        try
+        if (OperatingSystem.IsMacOS())
         {
-            if (OperatingSystem.IsMacOS())
+            if (enable)
             {
-                if (enable)
-                {
-                    var exe = ExePath;
-                    var plist = $"""
-                        <?xml version="1.0" encoding="UTF-8"?>
-                        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-                        <plist version="1.0">
-                        <dict>
-                          <key>Label</key><string>com.turinglambdaai.movebit</string>
-                          <key>ProgramArguments</key>
-                          <array><string>{exe}</string></array>
-                          <key>RunAtLoad</key><true/>
-                        </dict>
-                        </plist>
-                        """;
-                    Directory.CreateDirectory(Path.GetDirectoryName(PlistPath)!);
-                    File.WriteAllText(PlistPath, plist);
-                }
-                else if (File.Exists(PlistPath))
-                {
-                    File.Delete(PlistPath);
-                }
+                var exe = SecurityElement.Escape(ExePath) ?? string.Empty;
+                var plist = $"""
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                    <plist version="1.0">
+                    <dict>
+                      <key>Label</key><string>com.turinglambdaai.movebit</string>
+                      <key>ProgramArguments</key>
+                      <array><string>{exe}</string></array>
+                      <key>RunAtLoad</key><true/>
+                    </dict>
+                    </plist>
+                    """;
+                Directory.CreateDirectory(Path.GetDirectoryName(PlistPath)!);
+                File.WriteAllText(PlistPath, plist);
             }
-            else
+            else if (File.Exists(PlistPath))
             {
-                if (enable)
-                {
-                    var entry = $"""
-                        [Desktop Entry]
-                        Type=Application
-                        Name=MoveBit
-                        Exec={ExePath}
-                        X-GNOME-Autostart-enabled=true
-                        """;
-                    Directory.CreateDirectory(Path.GetDirectoryName(DesktopPath)!);
-                    File.WriteAllText(DesktopPath, entry);
-                }
-                else if (File.Exists(DesktopPath))
-                {
-                    File.Delete(DesktopPath);
-                }
+                File.Delete(PlistPath);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        else
         {
-            // Autostart is best-effort; the app itself keeps running either way.
-            Debug.WriteLine($"autostart toggle failed: {ex.Message}");
+            if (enable)
+            {
+                var entry = $"""
+                    [Desktop Entry]
+                    Type=Application
+                    Name=MoveBit
+                    Exec={QuoteDesktopExec(ExePath)}
+                    X-GNOME-Autostart-enabled=true
+                    """;
+                Directory.CreateDirectory(Path.GetDirectoryName(DesktopPath)!);
+                File.WriteAllText(DesktopPath, entry);
+            }
+            else if (File.Exists(DesktopPath))
+            {
+                File.Delete(DesktopPath);
+            }
         }
     }
+
+    private static string QuoteDesktopExec(string value) =>
+        "\"" + value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal)
+            .Replace("`", "\\`", StringComparison.Ordinal)
+            .Replace("$", "\\$", StringComparison.Ordinal) + "\"";
 }
