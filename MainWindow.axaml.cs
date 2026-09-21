@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 
 namespace MoveBit;
 
@@ -11,4 +12,9 @@ public partial class MainWindow : Window
 
     /// True while the app is running: closing hides to tray. Set false only on real shutdown.
     public bool HideOnClose { get; set; } = true;
+
+    private void OnDismissWelcome(object? sender, RoutedEventArgs e)
+    {
+        (App.Current as App)?.DismissWelcome();
+    }
 }

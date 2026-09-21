@@ -25,6 +25,9 @@ public sealed class ReminderConfig
     /// Play a system sound when a reminder pops up.
     public bool SoundEnabled { get; set; } = true;
 
+    /// False until the user has seen the first-run welcome card (config absent = first run).
+    public bool WelcomeShown { get; set; }
+
     public ReminderConfig Clone() => new()
     {
         SitReminderMinutes = SitReminderMinutes,

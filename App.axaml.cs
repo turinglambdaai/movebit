@@ -66,6 +66,13 @@ public class App : Application
             desktop.Exit += OnExit;
         }
 
+        // First run: greet the user and surface the settings. A tool that locks every
+        // screen in 45 minutes owes the user an explanation before it does.
+        if (!_config.WelcomeShown)
+        {
+            ShowMainWindow();
+        }
+
         base.OnFrameworkInitializationCompleted();
     }
 
@@ -331,6 +338,9 @@ public class App : Application
             _mainWindow = new MainWindow { DataContext = _viewModel };
             _mainWindow.Closing += (_, e) =>
             {
+                // Seen-it-once semantics: closing the window counts as reading the welcome.
+                _viewModel.DismissWelcome();
+
                 // Tray app: closing the window hides it; exit goes through the tray menu.
                 if (_mainWindow.HideOnClose)
                 {
@@ -343,6 +353,11 @@ public class App : Application
         _viewModel.RefreshStats();
         _mainWindow.Show();
         _mainWindow.Activate();
+    }
+
+    public void DismissWelcome()
+    {
+        _viewModel.DismissWelcome();
     }
 
     private void Shutdown()
