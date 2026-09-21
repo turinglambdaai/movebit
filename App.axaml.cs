@@ -26,6 +26,9 @@ public class App : Application
     private NotificationWindow? _notification;
     private MainViewModel _viewModel = null!;
     private NativeMenuItem _pauseItem = null!;
+    private HistoryStore _history = null!;
+    private MicroBreakWindow? _microWindow;
+    private int _flushCounter;
 
     private readonly List<BreakOverlayWindow> _overlays = [];
     private DispatcherTimer? _breakTimer;
@@ -46,11 +49,15 @@ public class App : Application
         _configStore = new ConfigStore();
         _config = _configStore.Load();
 
+        _history = new HistoryStore();
+        _history.Load();
+
         IIdleProvider idle = OperatingSystem.IsWindows() ? new Win32IdleProvider() : new NullIdleProvider();
         _scheduler = new ReminderScheduler(_config, TimeProvider.System, idle);
         _scheduler.ReminderFired += OnReminderFired;
+        _scheduler.DayCompleted += OnDayCompleted;
 
-        _viewModel = new MainViewModel(_config, _scheduler, _configStore);
+        _viewModel = new MainViewModel(_config, _scheduler, _configStore, _history);
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _timer.Tick += (_, _) => OnTimerTick();
@@ -81,7 +88,31 @@ public class App : Application
         _scheduler.Tick();
         _viewModel.RefreshStats();
         UpdateTrayState();
+
+        // Flush today's stats every ~5 minutes so a crash or power loss never
+        // costs more than a few minutes of history.
+        if (++_flushCounter >= 10)
+        {
+            _flushCounter = 0;
+            FlushToday();
+        }
     }
+
+    private void OnDayCompleted(object? sender, DayStats closingDay)
+    {
+        _history.SaveDay(closingDay.Date, ToRecord(closingDay));
+    }
+
+    private void FlushToday()
+    {
+        _history.SaveDay(_scheduler.Stats.Date, ToRecord(_scheduler.Stats));
+    }
+
+    private static DayRecord ToRecord(DayStats stats) => new(
+        (int)stats.ActiveTime.TotalMinutes,
+        stats.SitReminders,
+        stats.WaterReminders,
+        stats.MicroBreaks);
 
     private void OnReminderFired(object? sender, ReminderEvent e)
     {
@@ -90,6 +121,20 @@ public class App : Application
 
     private void ShowReminder(ReminderEvent e)
     {
+        // Micro breaks: screen-center nudge, silent by design (they fire often).
+        if (e.Kind == ReminderKind.Micro)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _microWindow?.Close();
+                _microWindow = new MicroBreakWindow(
+                    BreakCopy.Pick(BreakCopy.MicroLines),
+                    TimeSpan.FromSeconds(_config.MicroBreakDurationSeconds));
+                _microWindow.Show();
+            });
+            return;
+        }
+
         if (e.Kind == ReminderKind.Sit && _config.ForceBreakEnabled)
         {
             // The full-screen takeover is its own notification — silent on purpose,
@@ -401,6 +446,7 @@ public class App : Application
 
     private void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
+        FlushToday();
         _configStore.Save(_config);
         _timer.Stop();
         _trayIcon?.Dispose();

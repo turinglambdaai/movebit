@@ -35,6 +35,8 @@ public sealed class ConfigStore
                     config.AwayResetMinutes = Clamp(config.AwayResetMinutes, 1, 60);
                     config.BreakDurationMinutes = Clamp(config.BreakDurationMinutes, 1, 30);
                     config.SkipAfterSeconds = Clamp(config.SkipAfterSeconds, 0, 120);
+                    config.MicroBreakIntervalMinutes = Clamp(config.MicroBreakIntervalMinutes, 10, 60);
+                    config.MicroBreakDurationSeconds = Clamp(config.MicroBreakDurationSeconds, 10, 60);
                     return config;
                 }
             }

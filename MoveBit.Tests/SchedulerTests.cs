@@ -44,6 +44,7 @@ internal sealed class Harness
             SitReminderMinutes = sitMinutes,
             WaterReminderMinutes = waterMinutes,
             AwayResetMinutes = awayMinutes,
+            MicroBreakEnabled = false, // tests opt in explicitly; keeps legacy cases clean
         };
         Scheduler = new ReminderScheduler(config, Time, Idle);
         Scheduler.ReminderFired += (_, e) => Fired.Add(e);
@@ -194,5 +195,69 @@ public class SchedulerTests
         h.StepMinutes(50);
 
         Assert.Equal(ReminderKind.Sit, Assert.Single(h.Fired).Kind);
+    }
+
+    [Fact]
+    public void Micro_break_fires_on_its_own_cycle_and_survives_long_breaks()
+    {
+        // Micro every 30 min; sit and water far away so only micro fires.
+        var h = new Harness(sitMinutes: 300, waterMinutes: 300);
+        h.Scheduler.Config.MicroBreakEnabled = true;
+        h.Scheduler.Config.MicroBreakIntervalMinutes = 30;
+
+        h.StepMinutes(35);
+
+        var micro = Assert.Single(h.Fired);
+        Assert.Equal(ReminderKind.Micro, micro.Kind);
+        Assert.Equal(1, h.Scheduler.Stats.MicroBreaks);
+    }
+
+    [Fact]
+    public void Micro_break_disabled_never_fires()
+    {
+        var h = new Harness(sitMinutes: 300, waterMinutes: 300);
+        h.Scheduler.Config.MicroBreakEnabled = false;
+
+        h.StepMinutes(120); // way past the micro interval
+
+        Assert.Empty(h.Fired);
+        Assert.Equal(0, h.Scheduler.Stats.MicroBreaks);
+    }
+
+    [Fact]
+    public void Away_return_resets_micro_cycle_too()
+    {
+        var h = new Harness(sitMinutes: 300, waterMinutes: 300);
+        h.Scheduler.Config.MicroBreakEnabled = true;
+        h.Scheduler.Config.MicroBreakIntervalMinutes = 30;
+
+        h.StepMinutes(20);
+        h.Idle.Idle = TimeSpan.FromMinutes(10);
+        h.StepMinutes(20); // away: nothing accumulates
+        h.Idle.Idle = TimeSpan.Zero;
+        h.StepMinutes(20); // cycle restarted on return: 20 < 30
+
+        Assert.Empty(h.Fired);
+
+        h.StepMinutes(11); // 31 min since return
+        Assert.Equal(ReminderKind.Micro, Assert.Single(h.Fired).Kind);
+    }
+
+    [Fact]
+    public void Day_rollover_archives_the_closing_day_and_resets()
+    {
+        var h = new Harness(sitMinutes: 300, waterMinutes: 300);
+        h.Time.Advance(TimeSpan.FromHours(14)); // 09:00 -> 23:00 local
+        h.Scheduler.Tick(); // absorb the clock-jump clamp (10 min) before accumulating
+        h.StepMinutes(55); // 10 + 55 = 65 min active, now 23:55
+
+        DayStats? archived = null;
+        h.Scheduler.DayCompleted += (_, stats) => archived = stats;
+
+        h.StepMinutes(10); // cross midnight -> DayCompleted with the closing day
+
+        Assert.NotNull(archived);
+        Assert.Equal(TimeSpan.FromMinutes(65), archived!.ActiveTime);
+        Assert.Equal(TimeSpan.FromMinutes(10), h.Scheduler.Stats.ActiveTime);
     }
 }

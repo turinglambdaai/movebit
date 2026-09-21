@@ -1,25 +1,41 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media;
 using MoveBit.Models;
 using MoveBit.Services;
 
 namespace MoveBit.ViewModels;
 
+/// One bar in the weekly activity chart.
+public sealed record WeekBar(
+    string DayLabel,
+    string MinutesText,
+    string Tooltip,
+    double BarHeight,
+    IBrush BarBrush,
+    bool IsToday);
+
 /// Bindable wrapper around the config + scheduler stats for the main window.
 public sealed class MainViewModel : INotifyPropertyChanged
 {
+    private static readonly IBrush TodayBrush = new SolidColorBrush(Color.FromRgb(0xC2, 0x5E, 0x3E));
+    private static readonly IBrush PastBrush = new SolidColorBrush(Color.FromRgb(0xD8, 0xD2, 0xC4));
+
     private readonly ReminderConfig _config;
     private readonly ReminderScheduler _scheduler;
     private readonly ConfigStore _store;
+    private readonly HistoryStore _history;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public MainViewModel(ReminderConfig config, ReminderScheduler scheduler, ConfigStore store)
+    public MainViewModel(ReminderConfig config, ReminderScheduler scheduler, ConfigStore store, HistoryStore history)
     {
         _config = config;
         _scheduler = scheduler;
         _store = store;
+        _history = history;
     }
 
     // --- Settings (saved on change) ---
@@ -82,6 +98,51 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool MicroBreakEnabled
+    {
+        get => _config.MicroBreakEnabled;
+        set
+        {
+            if (_config.MicroBreakEnabled != value)
+            {
+                _config.MicroBreakEnabled = value;
+                _store.Save(_config);
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public decimal? MicroBreakIntervalMinutes
+    {
+        get => _config.MicroBreakIntervalMinutes;
+        set => SetSetting(value, v => _config.MicroBreakIntervalMinutes = Clamp(v, 10, 60));
+    }
+
+    public decimal? MicroBreakDurationSeconds
+    {
+        get => _config.MicroBreakDurationSeconds;
+        set => SetSetting(value, v => _config.MicroBreakDurationSeconds = Clamp(v, 10, 60));
+    }
+
+    /// Login autostart lives in the OS (registry / LaunchAgent / XDG), not in config.json.
+    public bool AutoStartEnabled
+    {
+        get => AutoStart.IsEnabled();
+        set
+        {
+            if (value)
+            {
+                AutoStart.Enable();
+            }
+            else
+            {
+                AutoStart.Disable();
+            }
+
+            OnPropertyChanged();
+        }
+    }
+
     // --- Today stats (refreshed on every scheduler tick) ---
 
     public string ActiveTimeText => FormatDuration(_scheduler.Stats.ActiveTime);
@@ -97,6 +158,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public int WaterReminders => _scheduler.Stats.WaterReminders;
 
+    public int MicroBreaks => _scheduler.Stats.MicroBreaks;
+
     public bool IsPaused => _scheduler.IsPaused;
 
     public string PauseText => _scheduler.PausedUntil is { } until
@@ -110,14 +173,71 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public string ConfigPathText => _store.ToString();
 
+    // --- Weekly chart -------------------------------------------------------
+
+    private IReadOnlyList<WeekBar> _weekBars = [];
+
+    public IReadOnlyList<WeekBar> WeekBars => _weekBars;
+
+    public string WeekTotalText { get; private set; } = "本周：暂无记录";
+
+    private void RebuildWeek()
+    {
+        var days = _history.GetRecent(7);
+        var byDate = new Dictionary<DateOnly, DayRecord>();
+        foreach (var (date, record) in days)
+        {
+            byDate[date] = record;
+        }
+
+        // Today runs on live scheduler data — the history file lags up to one flush.
+        var live = _scheduler.Stats;
+        if (byDate.TryGetValue(live.Date, out _))
+        {
+            byDate[live.Date] = new DayRecord(
+                (int)live.ActiveTime.TotalMinutes, live.SitReminders, live.WaterReminders, live.MicroBreaks);
+        }
+
+        var totalMinutes = 0;
+        var maxMinutes = 60.0; // baseline keeps one light day from filling the whole chart
+        foreach (var record in byDate.Values)
+        {
+            totalMinutes += record.ActiveMinutes;
+            maxMinutes = Math.Max(maxMinutes, record.ActiveMinutes);
+        }
+
+        var bars = new List<WeekBar>(days.Count);
+        foreach (var (date, _) in days)
+        {
+            var record = byDate[date];
+            var isToday = date == live.Date;
+            bars.Add(new WeekBar(
+                date.ToString("ddd"),
+                record.ActiveMinutes >= 60 ? $"{record.ActiveMinutes / 60}h{record.ActiveMinutes % 60:D2}" : $"{record.ActiveMinutes}m",
+                $"{date:MM-dd} · 活跃 {record.ActiveMinutes} 分钟 · 休息 {record.SitBreaks} 次 · 微休息 {record.MicroBreaks} 次",
+                8 + 72.0 * record.ActiveMinutes / maxMinutes,
+                isToday ? TodayBrush : PastBrush,
+                isToday));
+        }
+
+        _weekBars = bars;
+        WeekTotalText = totalMinutes >= 60
+            ? $"本周活跃 {totalMinutes / 60} 小时 {totalMinutes % 60} 分钟"
+            : $"本周活跃 {totalMinutes} 分钟";
+    }
+
     public void RefreshStats()
     {
+        RebuildWeek();
+        OnPropertyChanged(nameof(WeekBars));
+        OnPropertyChanged(nameof(WeekTotalText));
         OnPropertyChanged(nameof(ActiveTimeText));
         OnPropertyChanged(nameof(SitCycleText));
         OnPropertyChanged(nameof(SitCycleMinutes));
         OnPropertyChanged(nameof(SitIntervalMax));
         OnPropertyChanged(nameof(SitReminders));
         OnPropertyChanged(nameof(WaterReminders));
+        OnPropertyChanged(nameof(MicroBreaks));
         OnPropertyChanged(nameof(IsPaused));
         OnPropertyChanged(nameof(PauseText));
         OnPropertyChanged(nameof(StatusDotBrush));

@@ -5,7 +5,7 @@
         Width="500" Height="640"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Background="#F5F2EB"
+        Background="{DynamicResource AppBg}"
         FontFamily="Segoe UI, Microsoft YaHei UI">
 
     <Grid RowDefinitions="*, Auto" Margin="32,28">
@@ -18,79 +18,79 @@
                 <Image Source="avares://MoveBit/Assets/icon.png" Width="84" Height="84"
                        HorizontalAlignment="Center" Margin="0,24,0,8" />
                 <TextBlock Text="你好，我是小水滴 💧" FontSize="26" FontWeight="Bold"
-                           Foreground="#26241F" HorizontalAlignment="Center" />
+                           Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                 <TextBlock Text="我会在托盘里安静待命，盯着你到底工作了多久——
 然后在你需要的时候，把你从椅子上请起来。"
-                           FontSize="14.5" Foreground="#4A453C" TextWrapping="Wrap"
+                           FontSize="14.5" Foreground="{DynamicResource InkSecondary}" TextWrapping="Wrap"
                            LineHeight="24" HorizontalAlignment="Center" TextAlignment="Center" />
-                <TextBlock Text="只需三步，让我们认识一下。" FontSize="13" Foreground="#A39B8D"
+                <TextBlock Text="只需三步，让我们认识一下。" FontSize="13" Foreground="{DynamicResource InkMuted}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
 
             <!-- Page 1: strictness -->
             <StackPanel x:Name="Page1" IsVisible="False" Spacing="12">
-                <TextBlock Text="我该多严格？" FontSize="22" FontWeight="Bold" Foreground="#26241F" />
-                <TextBlock Text="连续工作多久后，我可以打断你？" FontSize="13" Foreground="#6E6A5E" />
+                <TextBlock Text="我该多严格？" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
+                <TextBlock Text="连续工作多久后，我可以打断你？" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
 
                 <Border x:Name="ModeGentle" Classes="choice">
                     <StackPanel Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="温和" FontSize="15.5" FontWeight="SemiBold" Foreground="#26241F" />
-                            <TextBlock Text="我自己知道分寸" FontSize="12" Foreground="#A39B8D" VerticalAlignment="Center" />
+                            <TextBlock Text="温和" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="我自己知道分寸" FontSize="12" Foreground="{DynamicResource InkMuted}" VerticalAlignment="Center" />
                         </StackPanel>
-                        <TextBlock Text="每 60 分钟弹窗提醒，不锁屏" FontSize="13" Foreground="#6E6A5E" />
+                        <TextBlock Text="每 60 分钟弹窗提醒，不锁屏" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                     </StackPanel>
                 </Border>
 
                 <Border x:Name="ModeStandard" Classes="choice">
                     <StackPanel Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="标准" FontSize="15.5" FontWeight="SemiBold" Foreground="#26241F" />
+                            <TextBlock Text="标准" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
                             <Border Classes="badge">
-                                <TextBlock Text="推荐" FontSize="11" Foreground="#C25E3E" />
+                                <TextBlock Text="推荐" FontSize="11" Foreground="{DynamicResource Accent}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="每 45 分钟锁定全部屏幕，休息 5 分钟" FontSize="13" Foreground="#6E6A5E" />
+                        <TextBlock Text="每 45 分钟锁定全部屏幕，休息 5 分钟" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                     </StackPanel>
                 </Border>
 
                 <Border x:Name="ModeStrict" Classes="choice">
                     <StackPanel Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="严格" FontSize="15.5" FontWeight="SemiBold" Foreground="#26241F" />
+                            <TextBlock Text="严格" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
                             <Border Classes="badge">
-                                <TextBlock Text="贴合研究证据" FontSize="11" Foreground="#4E9A6A" />
+                                <TextBlock Text="贴合研究证据" FontSize="11" Foreground="{DynamicResource OkGreen}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="每 30 分钟锁定全部屏幕，休息 5 分钟" FontSize="13" Foreground="#6E6A5E" />
+                        <TextBlock Text="每 30 分钟锁定全部屏幕，休息 5 分钟" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                     </StackPanel>
                 </Border>
 
                 <TextBlock Text="「跳过」按钮会延迟 20 秒出现；离开电脑 5 分钟以上，计时自动重置。"
-                           FontSize="11.5" Foreground="#A39B8D" TextWrapping="Wrap" Margin="0,4,0,0" />
+                           FontSize="11.5" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" Margin="0,4,0,0" />
             </StackPanel>
 
             <!-- Page 2: water & sound -->
             <StackPanel x:Name="Page2" IsVisible="False" Spacing="12">
-                <TextBlock Text="多久提醒你喝水？" FontSize="22" FontWeight="Bold" Foreground="#26241F" />
+                <TextBlock Text="多久提醒你喝水？" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
 
                 <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
                     <Border x:Name="Water30" Classes="choice" Grid.Column="0">
-                        <TextBlock Text="30 分钟" FontSize="14" FontWeight="SemiBold" Foreground="#26241F" HorizontalAlignment="Center" />
+                        <TextBlock Text="30 分钟" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                     </Border>
                     <Border x:Name="Water45" Classes="choice" Grid.Column="1">
-                        <TextBlock Text="45 分钟" FontSize="14" FontWeight="SemiBold" Foreground="#26241F" HorizontalAlignment="Center" />
+                        <TextBlock Text="45 分钟" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                     </Border>
                     <Border x:Name="Water60" Classes="choice" Grid.Column="2">
-                        <TextBlock Text="60 分钟" FontSize="14" FontWeight="SemiBold" Foreground="#26241F" HorizontalAlignment="Center" />
+                        <TextBlock Text="60 分钟" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                     </Border>
                 </Grid>
 
                 <Border Classes="card">
                     <Grid ColumnDefinitions="*, Auto" Margin="4,2">
                         <StackPanel Spacing="3">
-                            <TextBlock Text="提醒提示音" FontSize="14.5" Foreground="#26241F" />
-                            <TextBlock Text="全屏休息永远静默；仅弹窗提示音，办公室可关" FontSize="11.5" Foreground="#A39B8D" />
+                            <TextBlock Text="提醒提示音" FontSize="14.5" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="全屏休息永远静默；仅弹窗提示音，办公室可关" FontSize="11.5" Foreground="{DynamicResource InkMuted}" />
                         </StackPanel>
                         <ToggleSwitch x:Name="SoundToggle" Grid.Column="1" IsChecked="True" VerticalAlignment="Center" />
                     </Grid>
@@ -99,12 +99,12 @@
 
             <!-- Page 3: the pact -->
             <StackPanel x:Name="Page3" IsVisible="False" Spacing="14">
-                <TextBlock Text="就这么说定了 🤝" FontSize="22" FontWeight="Bold" Foreground="#26241F" />
+                <TextBlock Text="就这么说定了 🤝" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
                 <Border Classes="card">
-                    <TextBlock x:Name="SummaryText" FontSize="14.5" Foreground="#4A453C"
+                    <TextBlock x:Name="SummaryText" FontSize="14.5" Foreground="{DynamicResource InkSecondary}"
                                TextWrapping="Wrap" LineHeight="26" />
                 </Border>
-                <TextBlock Text="现在，回去工作吧。我盯着。" FontSize="13.5" Foreground="#A39B8D"
+                <TextBlock Text="现在，回去工作吧。我盯着。" FontSize="13.5" Foreground="{DynamicResource InkMuted}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
         </Panel>
@@ -123,7 +123,7 @@
                         Classes="ghost" Click="OnSkip" FontSize="13" />
                 <Button x:Name="NextButton" Grid.Column="1" Content="开始"
                         Click="OnNext" FontSize="14"
-                        Background="#C25E3E" Foreground="#FFF8F3" BorderThickness="0"
+                        Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" BorderThickness="0"
                         CornerRadius="11" Padding="0,11" HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center" />
             </Grid>
@@ -132,47 +132,47 @@
 
     <Window.Styles>
         <Style Selector="Border.card">
-            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource CardBg}" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="18,14" />
-            <Setter Property="BorderBrush" Value="#EAE2D6" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="Border.choice">
-            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource CardBg}" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="16,12" />
-            <Setter Property="BorderBrush" Value="#EAE2D6" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Border.choice:selected">
-            <Setter Property="BorderBrush" Value="#C25E3E" />
-            <Setter Property="Background" Value="#FBEFE2" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
         </Style>
         <Style Selector="Border.badge">
-            <Setter Property="Background" Value="#FBEFE2" />
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
             <Setter Property="CornerRadius" Value="7" />
             <Setter Property="Padding" Value="8,2" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#E2DCCC" />
-            <Setter Property="Foreground" Value="#6E6A5E" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GhostBorder}" />
+            <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14,9" />
         </Style>
         <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F3EEE3" />
+            <Setter Property="Background" Value="{DynamicResource GhostHover}" />
         </Style>
         <Style Selector="Ellipse.dot">
             <Setter Property="Width" Value="8" />
             <Setter Property="Height" Value="8" />
-            <Setter Property="Fill" Value="#D8D2C4" />
+            <Setter Property="Fill" Value="{DynamicResource InkMuted}" />
         </Style>
         <Style Selector="Ellipse.dot.active">
-            <Setter Property="Fill" Value="#C25E3E" />
+            <Setter Property="Fill" Value="{DynamicResource Accent}" />
             <Setter Property="Width" Value="22" />
         </Style>
     </Window.Styles>

@@ -42,6 +42,16 @@ internal static class BreakCopy
         "站起来，让血液重新认识一下下半身",
     ];
 
+    // Micro break lines: short, one glance readable, no lock needed.
+    internal static readonly string[] MicroLines =
+    [
+        "站 20 秒，看看远处 👀",
+        "眼睛离开屏幕，找窗外最远的东西",
+        "站起来，肩膀向后绕两圈",
+        "看一眼 6 米外的任何东西，20 秒就够",
+        "掌心捂眼十秒，让眼睛歇口气",
+    ];
+
     // Milestone celebration counts (completed sit breaks per day).
     internal static readonly int[] CelebrateAt = [3, 5, 8];
 

@@ -1,6 +1,6 @@
 namespace MoveBit.Models;
 
-/// Per-day activity counters shown in the main window and tray tooltip.
+/// Per-day activity counters shown in the main window, tray tooltip, and history.
 public sealed class DayStats
 {
     public DateOnly Date { get; set; }
@@ -11,4 +11,6 @@ public sealed class DayStats
     public int SitReminders { get; set; }
 
     public int WaterReminders { get; set; }
+
+    public int MicroBreaks { get; set; }
 }

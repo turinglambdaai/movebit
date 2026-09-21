@@ -1,19 +1,49 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="MoveBit.App"
-             RequestedThemeVariant="Light">
+             RequestedThemeVariant="Default">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Warm paper palette: moves MoveBit away from stock Fluent grey. -->
-            <SolidColorBrush x:Key="AppBg" Color="#F5F2EB"/>
-            <SolidColorBrush x:Key="CardBg" Color="#FFFFFF"/>
-            <SolidColorBrush x:Key="CardBorder" Color="#15000000"/>
-            <SolidColorBrush x:Key="TextPrimary" Color="#26241F"/>
-            <SolidColorBrush x:Key="TextSecondary" Color="#6E6A5E"/>
-            <SolidColorBrush x:Key="AccentBlue" Color="#2563EB"/>
-            <SolidColorBrush x:Key="AccentOrange" Color="#EA580C"/>
-            <SolidColorBrush x:Key="AccentGreen" Color="#16A34A"/>
-            <SolidColorBrush x:Key="TrackBg" Color="#EAE6DC"/>
+            <!-- Warm palette in both directions: paper-light for the workday, warm-dark
+                 for night use. The break screen stays night-colored regardless of theme. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBg" Color="#F5F2EB"/>
+                    <SolidColorBrush x:Key="CardBg" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="CardBorder" Color="#EAE2D6"/>
+                    <SolidColorBrush x:Key="InkPrimary" Color="#26241F"/>
+                    <SolidColorBrush x:Key="InkSecondary" Color="#6E6A5E"/>
+                    <SolidColorBrush x:Key="InkMuted" Color="#A39B8D"/>
+                    <SolidColorBrush x:Key="Accent" Color="#C25E3E"/>
+                    <SolidColorBrush x:Key="AccentSoft" Color="#FBEFE2"/>
+                    <SolidColorBrush x:Key="OnAccent" Color="#FFF8F3"/>
+                    <SolidColorBrush x:Key="BadgeBg" Color="#FBEFE2"/>
+                    <SolidColorBrush x:Key="GhostBorder" Color="#E2DCCC"/>
+                    <SolidColorBrush x:Key="GhostHover" Color="#F3EEE3"/>
+                    <SolidColorBrush x:Key="GhostText" Color="#6E6A5E"/>
+                    <SolidColorBrush x:Key="TrackBg" Color="#EAE6DC"/>
+                    <SolidColorBrush x:Key="WaterBlue" Color="#3E7EC2"/>
+                    <SolidColorBrush x:Key="OkGreen" Color="#4E9A6A"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBg" Color="#201D1A"/>
+                    <SolidColorBrush x:Key="CardBg" Color="#2A2622"/>
+                    <SolidColorBrush x:Key="CardBorder" Color="#3A352E"/>
+                    <SolidColorBrush x:Key="InkPrimary" Color="#EDE7DA"/>
+                    <SolidColorBrush x:Key="InkSecondary" Color="#B0A696"/>
+                    <SolidColorBrush x:Key="InkMuted" Color="#7A7264"/>
+                    <SolidColorBrush x:Key="Accent" Color="#D97B54"/>
+                    <SolidColorBrush x:Key="AccentSoft" Color="#3A2A20"/>
+                    <SolidColorBrush x:Key="OnAccent" Color="#FFF1E8"/>
+                    <SolidColorBrush x:Key="BadgeBg" Color="#3A2A20"/>
+                    <SolidColorBrush x:Key="GhostBorder" Color="#4A443C"/>
+                    <SolidColorBrush x:Key="GhostHover" Color="#34302B"/>
+                    <SolidColorBrush x:Key="GhostText" Color="#B0A696"/>
+                    <SolidColorBrush x:Key="TrackBg" Color="#38332D"/>
+                    <SolidColorBrush x:Key="WaterBlue" Color="#7AB0E8"/>
+                    <SolidColorBrush x:Key="OkGreen" Color="#6FBF8A"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 

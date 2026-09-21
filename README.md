@@ -1,7 +1,6 @@
 # MoveBit
 
 A tray-resident health companion that watches how long you **actually work** and forces you out of the chair — sit reminders lock **every monitor** with a countdown break screen, water reminders stay as toasts. Built with **Avalonia 11** / .NET 10. Cross-platform (Windows / macOS / Linux).
-
 ![C#](https://img.shields.io/badge/C%23-512BD4?logo=csharp&logoColor=white) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **English** · [中文](README.zh-CN.md)
@@ -18,10 +17,14 @@ Sitting for hours is quietly wrecking you. The usual reminder tools pop a little
 
 - 🪟 **Tray-resident**, no window in your face at startup; left-click the tray icon for settings & stats
 - ⏱️ **Work-time monitoring** via session-wide idle detection (keyboard/mouse anywhere, any app)
-- 🚨 **Forced break**: full-screen, multi-monitor break lock with countdown; Alt+F4-proof; delayed skip button
-- 💧 **Water reminders** stay as lightweight bottom-right toasts (no need to lock the screen for a sip)
-- 📊 **Today stats**: active time, sit/water reminder counts, current cycle progress in the tray tooltip
+- 🚨 **Forced break**: full-screen, multi-monitor break lock with countdown ring; Alt+F4-proof; delayed skip button
+- 👀 **Micro breaks**: a screen-center "stand up, look far away" nudge every 30 min (default), 20 s, no lock, no sound — the evidence-friendly layer between long breaks
+- 💧 **Water reminders** as lightweight bottom-right toasts (no need to lock the screen for a sip)
+- 📊 **Today stats + last-7-days chart**: active time, reminder counts, per-day bars; history persists across restarts
+- 🌗 **Light/dark theme** following the system: paper-warm for the workday, warm-dark for night use
+- 🔁 **Autostart on login** (Windows registry / macOS LaunchAgent / Linux XDG autostart), one toggle
 - ⏸️ **Pause for 1 hour** from the tray (meetings, screen sharing)
+- 🧙 **Droplet persona**: first-run onboarding picks a strictness pact (gentle / standard / strict-evidence-backed); rotating in-first-person copy; milestone cheers
 - 🛠️ Everything configurable; settings persist to `config.json`
 
 ## Install
@@ -36,12 +39,13 @@ Grab a self-contained single-file build from [Releases](https://github.com/turin
 
 ## How it works
 
-Two independent cycles advance on a 30-second tick:
+Two independent cycles plus a light third layer advance on a 30-second tick:
 
 - **Sit cycle** accumulates only while you're active. At the interval (default 45 min) it fires — a full-screen break lock (default 5 min) if forced breaks are on, otherwise a toast.
 - **Water cycle** runs on its own interval (default 30 min) as a toast.
+- **Micro break cycle** fires every 30 min as a screen-center nudge (default 20 s): stand, look far away. It doesn't reset the sit cycle — the evidence suggests many small breaks plus occasional longer ones.
 
-Idle ≥ the away threshold (default 5 min) means you stepped away: both cycles freeze, and when you come back they restart from zero — the break already happened. Oversized clock jumps (system sleep) are clamped so you never get dogpiled by stale reminders after waking the machine.
+Idle ≥ the away threshold (default 5 min) means you stepped away: all cycles freeze, and when you come back they restart from zero — the break already happened. Oversized clock jumps (system sleep) are clamped so you never get dogpiled by stale reminders after waking the machine. Daily stats are flushed to `history.json` every few minutes and archived at midnight.
 
 ## Configuration
 
@@ -55,6 +59,9 @@ Settings live in `%APPDATA%\movebit\config.json` (Windows) or `~/.config/movebit
 | `ForceBreakEnabled` | true | — |
 | `BreakDurationMinutes` | 5 | 1–30 |
 | `SkipAfterSeconds` | 20 | 0–120 |
+| `MicroBreakEnabled` | true | — |
+| `MicroBreakIntervalMinutes` | 30 | 10–60 |
+| `MicroBreakDurationSeconds` | 20 | 10–60 |
 | `SoundEnabled` | true | — |
 
 ## Platform notes
@@ -80,9 +87,8 @@ Requires the .NET 10 SDK.
 ## Roadmap
 
 - [ ] macOS/Linux idle detection (CGEventSource / XScreenSaver)
-- [ ] Daily/weekly stats history
-- [ ] Autostart on login
-- [ ] Micro-break mode (20 s every 10 min) alongside the long break
+- [ ] Weekly / monthly history views beyond the 7-day chart
+- [ ] Work-hours pattern insights (sedentary streaks, longest session)
 
 ## License
 

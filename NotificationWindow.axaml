@@ -23,9 +23,9 @@
 
             <StackPanel Spacing="10" Margin="20,16,20,14">
                 <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold"
-                           TextWrapping="Wrap" Foreground="#26241F" />
+                           TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                 <TextBlock x:Name="BodyText" FontSize="13.5" Opacity="0.75"
-                           TextWrapping="Wrap" Foreground="#4A453C" />
+                           TextWrapping="Wrap" Foreground="{DynamicResource InkSecondary}" />
 
                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
                     <Button Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
@@ -38,12 +38,12 @@
     <Window.Styles>
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#E2DCCC" />
-            <Setter Property="Foreground" Value="#6E6A5E" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GhostBorder}" />
+            <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
             <Setter Property="CornerRadius" Value="8" />
         </Style>
         <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#F3EEE3" />
+            <Setter Property="Background" Value="{DynamicResource GhostHover}" />
         </Style>
     </Window.Styles>
 </Window>

@@ -22,6 +22,14 @@ public sealed class ReminderConfig
     /// Seconds after the break starts before the "skip" button appears (0 = immediately).
     public int SkipAfterSeconds { get; set; } = 20;
 
+    /// Micro breaks: a light "stand up, look far away" nudge on its own faster cycle.
+    /// Screen-center card, no lock, no sound — the evidence-friendly layer between long breaks.
+    public bool MicroBreakEnabled { get; set; } = true;
+
+    public int MicroBreakIntervalMinutes { get; set; } = 30;
+
+    public int MicroBreakDurationSeconds { get; set; } = 20;
+
     /// Play a system sound when a reminder pops up.
     public bool SoundEnabled { get; set; } = true;
 

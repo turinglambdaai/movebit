@@ -4,10 +4,10 @@
         x:Class="MoveBit.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="MoveBit"
-        Width="460" Height="660"
+        Width="480" Height="780"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Background="#F5F2EB"
+        Background="{DynamicResource AppBg}"
         FontFamily="Segoe UI, Microsoft YaHei UI">
 
     <ScrollViewer>
@@ -17,8 +17,8 @@
             <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,0,0,4">
                 <Image Source="avares://MoveBit/Assets/icon.png" Width="48" Height="48" VerticalAlignment="Center" />
                 <StackPanel VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="MoveBit" FontSize="24" FontWeight="Bold" Foreground="#26241F" />
-                    <TextBlock Text="起来动一动 · 保护你的腰和眼睛" FontSize="12.5" Foreground="#6E6A5E" />
+                    <TextBlock Text="MoveBit" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
+                    <TextBlock Text="起来动一动 · 保护你的腰和眼睛" FontSize="12.5" Foreground="{DynamicResource InkSecondary}" />
                 </StackPanel>
             </StackPanel>
 
@@ -26,7 +26,7 @@
             <Border Classes="card">
                 <StackPanel Spacing="14">
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBlock Text="今日活跃" FontSize="13" Foreground="#6E6A5E" VerticalAlignment="Center" />
+                        <TextBlock Text="今日活跃" FontSize="13" Foreground="{DynamicResource InkSecondary}" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <Ellipse Width="8" Height="8" Fill="{Binding StatusDotBrush}" />
                             <TextBlock Text="{Binding PauseText}" FontSize="12.5" Foreground="{Binding StatusDotBrush}" />
@@ -34,89 +34,149 @@
                     </Grid>
 
                     <TextBlock Text="{Binding ActiveTimeText}" FontSize="52" FontWeight="Bold"
-                               Foreground="#26241F" Margin="0,-10,0,-4" />
+                               Foreground="{DynamicResource InkPrimary}" Margin="0,-10,0,-4" />
 
                     <ProgressBar Minimum="0" Maximum="{Binding SitIntervalMax}" Value="{Binding SitCycleMinutes}"
-                                 Height="9" CornerRadius="5" Foreground="#2563EB" Background="#EAE6DC" />
+                                 Height="9" CornerRadius="5" Foreground="{DynamicResource Accent}"
+                                 Background="{DynamicResource TrackBg}" />
 
-                    <Grid ColumnDefinitions="*, *, *" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="*, *, *, *" ColumnSpacing="8">
                         <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="{Binding SitCycleText}" FontSize="14" FontWeight="SemiBold" Foreground="#26241F" />
-                            <TextBlock Text="本轮久坐进度" FontSize="11" Foreground="#6E6A5E" />
+                            <TextBlock Text="{Binding SitCycleText}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="本轮久坐进度" FontSize="11" Foreground="{DynamicResource InkSecondary}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="🚶" FontSize="14" />
-                                <TextBlock Text="{Binding SitReminders}" FontSize="14" FontWeight="SemiBold" Foreground="#26241F" />
+                                <TextBlock Text="{Binding SitReminders}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
                             </StackPanel>
-                            <TextBlock Text="久坐提醒" FontSize="11" Foreground="#6E6A5E" />
+                            <TextBlock Text="久坐提醒" FontSize="11" Foreground="{DynamicResource InkSecondary}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="💧" FontSize="14" />
-                                <TextBlock Text="{Binding WaterReminders}" FontSize="14" FontWeight="SemiBold" Foreground="#26241F" />
+                                <TextBlock Text="{Binding WaterReminders}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
                             </StackPanel>
-                            <TextBlock Text="喝水提醒" FontSize="11" Foreground="#6E6A5E" />
+                            <TextBlock Text="喝水提醒" FontSize="11" Foreground="{DynamicResource InkSecondary}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="👀" FontSize="14" />
+                                <TextBlock Text="{Binding MicroBreaks}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            </StackPanel>
+                            <TextBlock Text="微休息" FontSize="11" Foreground="{DynamicResource InkSecondary}" />
                         </StackPanel>
                     </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Week card -->
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Text="最近 7 天" FontSize="13" Foreground="{DynamicResource InkSecondary}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding WeekTotalText}" FontSize="12.5" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource InkPrimary}" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding WeekBars}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="7" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Spacing="4" HorizontalAlignment="Center" ToolTip.Tip="{Binding Tooltip}">
+                                    <TextBlock Text="{Binding MinutesText}" FontSize="10"
+                                               Foreground="{DynamicResource InkMuted}" HorizontalAlignment="Center" />
+                                    <Rectangle Width="22" Height="{Binding BarHeight}" RadiusX="6" RadiusY="6"
+                                               Fill="{Binding BarBrush}" HorizontalAlignment="Center"
+                                               VerticalAlignment="Bottom" />
+                                    <TextBlock Text="{Binding DayLabel}" FontSize="10.5"
+                                               Foreground="{DynamicResource InkSecondary}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 
             <!-- Settings card -->
             <Border Classes="card">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="提醒设置" FontSize="13" Foreground="#6E6A5E" />
+                    <TextBlock Text="提醒设置" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
 
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Grid.Column="0" Text="久坐提醒间隔（分钟）" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="0" Text="久坐提醒间隔（分钟）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SitReminderMinutes}"
                                       Minimum="10" Maximum="240" HorizontalAlignment="Right" Width="120" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Grid.Column="0" Text="喝水提醒间隔（分钟）" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="0" Text="喝水提醒间隔（分钟）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding WaterReminderMinutes}"
                                       Minimum="5" Maximum="180" HorizontalAlignment="Right" Width="120" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Grid.Column="0" Text="离开多久算休息（分钟）" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="0" Text="离开多久算休息（分钟）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding AwayResetMinutes}"
                                       Minimum="1" Maximum="60" HorizontalAlignment="Right" Width="120" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Grid.Column="0" Text="强制休息时长（分钟）" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="0" Text="强制休息时长（分钟）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding BreakDurationMinutes}"
                                       Minimum="1" Maximum="30" HorizontalAlignment="Right" Width="120" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Grid.Column="0" Text="「跳过」按钮出现延迟（秒）" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="0" Text="「跳过」按钮出现延迟（秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SkipAfterSeconds}"
                                       Minimum="0" Maximum="120" HorizontalAlignment="Right" Width="120" />
                     </Grid>
 
+                    <Grid ColumnDefinitions="Auto, *">
+                        <TextBlock Grid.Column="0" Text="微休息：每 X 分钟站 Y 秒" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding MicroBreakEnabled}" HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="10">
+                        <TextBlock Grid.Column="0" Text="微休息间隔（分）/ 时长（秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkSecondary}" FontSize="12.5" />
+                        <NumericUpDown Grid.Column="1" Value="{Binding MicroBreakIntervalMinutes}"
+                                      Minimum="10" Maximum="60" Width="95" FontSize="12.5" />
+                        <NumericUpDown Grid.Column="2" Value="{Binding MicroBreakDurationSeconds}"
+                                      Minimum="10" Maximum="60" Width="95" FontSize="12.5" />
+                    </Grid>
+
                     <Grid ColumnDefinitions="Auto, *, Auto, *" ColumnSpacing="12">
-                        <TextBlock Grid.Column="0" Text="接管全屏" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="0" Text="接管全屏" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceBreakEnabled}" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="2" Text="提示音（办公室可关）" VerticalAlignment="Center" Foreground="#26241F" />
+                        <TextBlock Grid.Column="2" Text="提示音（办公室可关）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <ToggleSwitch Grid.Column="3" IsChecked="{Binding SoundEnabled}" HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto, *">
+                        <TextBlock Grid.Column="0" Text="开机自启" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoStartEnabled}" HorizontalAlignment="Right" />
                     </Grid>
                 </StackPanel>
             </Border>
 
             <TextBlock Text="{Binding ConfigPathText, StringFormat='配置文件：{0}'}"
-                       FontSize="11" Foreground="#B0AA9C" TextWrapping="Wrap" />
+                       FontSize="11" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" />
 
         </StackPanel>
     </ScrollViewer>
 
     <Window.Styles>
         <Style Selector="Border.card">
-            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource CardBg}" />
             <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Padding" Value="20,16" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BoxShadow" Value="0 2 8 0 #14000000" />
         </Style>
         <Style Selector="NumericUpDown">

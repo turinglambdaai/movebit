@@ -7,6 +7,7 @@ public enum ReminderKind
 {
     Sit,
     Water,
+    Micro,
 }
 
 public sealed record ReminderEvent(ReminderKind Kind, int CountToday, TimeSpan ActiveTimeToday);
@@ -29,6 +30,7 @@ public sealed class ReminderScheduler
     private bool _wasAway;
     private TimeSpan _sitAccum;
     private TimeSpan _waterAccum;
+    private TimeSpan _microAccum;
     private DateTimeOffset? _pausedUntil;
 
     public event EventHandler<ReminderEvent>? ReminderFired;
@@ -36,9 +38,16 @@ public sealed class ReminderScheduler
     /// Raised on the away -> active transition (user just sat back down).
     public event EventHandler? UserReturned;
 
-    public ReminderConfig Config { get; }
+    /// Raised with the closing day's stats right before the daily reset (archive hook).
+    public event EventHandler<DayStats>? DayCompleted;
 
-    public DayStats Stats { get; }
+    private readonly ReminderConfig _config;
+
+    public ReminderConfig Config => _config;
+
+    private DayStats _stats;
+
+    public DayStats Stats => _stats;
 
     /// Active time accumulated in the current sit cycle (for UI progress display).
     public TimeSpan SitCycleElapsed => _sitAccum;
@@ -49,16 +58,18 @@ public sealed class ReminderScheduler
 
     public ReminderScheduler(ReminderConfig config, TimeProvider time, IIdleProvider idle)
     {
-        Config = config;
+        _config = config;
         _time = time;
         _idle = idle;
-        Stats = new DayStats { Date = DateOnly.FromDateTime(_time.GetLocalNow().LocalDateTime) };
+        _stats = new DayStats { Date = DateOnly.FromDateTime(_time.GetLocalNow().LocalDateTime) };
         _lastTick = _time.GetLocalNow();
     }
 
     private TimeSpan SitInterval => TimeSpan.FromMinutes(Config.SitReminderMinutes);
 
     private TimeSpan WaterInterval => TimeSpan.FromMinutes(Config.WaterReminderMinutes);
+
+    private TimeSpan MicroInterval => TimeSpan.FromMinutes(Config.MicroBreakIntervalMinutes);
 
     private TimeSpan AwayThreshold => TimeSpan.FromMinutes(Config.AwayResetMinutes);
 
@@ -97,29 +108,38 @@ public sealed class ReminderScheduler
 
         if (_wasAway)
         {
-            // Back from a real break: restart both cycles instead of dumping a stale reminder.
+            // Back from a real break: restart every cycle instead of dumping a stale reminder.
             _wasAway = false;
             _sitAccum = TimeSpan.Zero;
             _waterAccum = TimeSpan.Zero;
+            _microAccum = TimeSpan.Zero;
             UserReturned?.Invoke(this, EventArgs.Empty);
         }
 
         _sitAccum += delta;
         _waterAccum += delta;
-        Stats.ActiveTime += delta;
+        _microAccum += delta;
+        _stats.ActiveTime += delta;
 
         if (_sitAccum >= SitInterval)
         {
             _sitAccum = TimeSpan.Zero;
-            Stats.SitReminders++;
-            ReminderFired?.Invoke(this, new ReminderEvent(ReminderKind.Sit, Stats.SitReminders, Stats.ActiveTime));
+            _stats.SitReminders++;
+            ReminderFired?.Invoke(this, new ReminderEvent(ReminderKind.Sit, _stats.SitReminders, _stats.ActiveTime));
         }
 
         if (_waterAccum >= WaterInterval)
         {
             _waterAccum = TimeSpan.Zero;
-            Stats.WaterReminders++;
-            ReminderFired?.Invoke(this, new ReminderEvent(ReminderKind.Water, Stats.WaterReminders, Stats.ActiveTime));
+            _stats.WaterReminders++;
+            ReminderFired?.Invoke(this, new ReminderEvent(ReminderKind.Water, _stats.WaterReminders, _stats.ActiveTime));
+        }
+
+        if (Config.MicroBreakEnabled && _microAccum >= MicroInterval)
+        {
+            _microAccum = TimeSpan.Zero;
+            _stats.MicroBreaks++;
+            ReminderFired?.Invoke(this, new ReminderEvent(ReminderKind.Micro, _stats.MicroBreaks, _stats.ActiveTime));
         }
     }
 
@@ -141,33 +161,30 @@ public sealed class ReminderScheduler
     public void Snooze(ReminderKind kind, int minutes)
     {
         var target = TimeSpan.FromMinutes(minutes);
+
         if (kind == ReminderKind.Sit)
         {
-            _sitAccum = SitInterval - target;
-            if (_sitAccum < TimeSpan.Zero)
-            {
-                _sitAccum = TimeSpan.Zero;
-            }
+            _sitAccum = MaxOfZero(SitInterval - target);
+        }
+        else if (kind == ReminderKind.Micro)
+        {
+            _microAccum = MaxOfZero(MicroInterval - target);
         }
         else
         {
-            _waterAccum = WaterInterval - target;
-            if (_waterAccum < TimeSpan.Zero)
-            {
-                _waterAccum = TimeSpan.Zero;
-            }
+            _waterAccum = MaxOfZero(WaterInterval - target);
         }
     }
+
+    private static TimeSpan MaxOfZero(TimeSpan value) => value < TimeSpan.Zero ? TimeSpan.Zero : value;
 
     private void RollDayIfNeeded(DateTimeOffset now)
     {
         var today = DateOnly.FromDateTime(now.LocalDateTime);
-        if (Stats.Date != today)
+        if (_stats.Date != today)
         {
-            Stats.Date = today;
-            Stats.ActiveTime = TimeSpan.Zero;
-            Stats.SitReminders = 0;
-            Stats.WaterReminders = 0;
+            DayCompleted?.Invoke(this, _stats); // let the app archive the closing day first
+            _stats = new DayStats { Date = today };
         }
     }
 }
