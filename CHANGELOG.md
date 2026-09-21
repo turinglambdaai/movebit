@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-09-21
+
+### Fixed
+
+- Micro-break interval/duration number boxes were too narrow (95 DIP) to show
+  two-digit values — widened to match the other settings rows
+- Week card header: "本周活跃 …" total overlapped the "最近 7 天" label (missing
+  `Grid.Column` assignment); now sits on the right as intended
+
+[0.2.1]: https://github.com/turinglambdaai/movebit/releases/tag/v0.2.1
+
 ## [0.2.0] - 2026-09-21
 
 ### Added

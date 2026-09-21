@@ -75,8 +75,8 @@
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*, Auto">
                         <TextBlock Text="最近 7 天" FontSize="13" Foreground="{DynamicResource InkSecondary}" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding WeekTotalText}" FontSize="12.5" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource InkPrimary}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding WeekTotalText}" FontSize="12.5" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource InkPrimary}" VerticalAlignment="Center" Margin="12,0,0,0" />
                     </Grid>
 
                     <ItemsControl ItemsSource="{Binding WeekBars}">
@@ -145,9 +145,9 @@
                     <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="微休息间隔（分）/ 时长（秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkSecondary}" FontSize="12.5" />
                         <NumericUpDown Grid.Column="1" Value="{Binding MicroBreakIntervalMinutes}"
-                                      Minimum="10" Maximum="60" Width="95" FontSize="12.5" />
+                                      Minimum="10" Maximum="60" Width="120" />
                         <NumericUpDown Grid.Column="2" Value="{Binding MicroBreakDurationSeconds}"
-                                      Minimum="10" Maximum="60" Width="95" FontSize="12.5" />
+                                      Minimum="10" Maximum="60" Width="120" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *, Auto, *" ColumnSpacing="12">
