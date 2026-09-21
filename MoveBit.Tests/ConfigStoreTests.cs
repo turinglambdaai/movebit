@@ -44,6 +44,7 @@ public class ConfigStoreTests : IDisposable
             MicroBreakIntervalMinutes = 25,
             MicroBreakDurationSeconds = 30,
             SoundEnabled = false,
+            AutoCheckUpdates = false,
             WelcomeShown = true,
         };
 
@@ -61,6 +62,7 @@ public class ConfigStoreTests : IDisposable
         Assert.Equal(expected.MicroBreakIntervalMinutes, actual.MicroBreakIntervalMinutes);
         Assert.Equal(expected.MicroBreakDurationSeconds, actual.MicroBreakDurationSeconds);
         Assert.Equal(expected.SoundEnabled, actual.SoundEnabled);
+        Assert.Equal(expected.AutoCheckUpdates, actual.AutoCheckUpdates);
         Assert.Equal(expected.WelcomeShown, actual.WelcomeShown);
         Assert.False(File.Exists(Path.Combine(_dir, "config.json.tmp")));
     }
@@ -89,6 +91,7 @@ public class ConfigStoreTests : IDisposable
         Assert.Equal(0, actual.SkipAfterSeconds);
         Assert.Equal(10, actual.MicroBreakIntervalMinutes);
         Assert.Equal(60, actual.MicroBreakDurationSeconds);
+        Assert.True(actual.AutoCheckUpdates);
     }
 
     [Fact]
@@ -101,5 +104,6 @@ public class ConfigStoreTests : IDisposable
         Assert.Equal(45, actual.SitReminderMinutes);
         Assert.Equal(30, actual.WaterReminderMinutes);
         Assert.True(actual.ForceBreakEnabled);
+        Assert.True(actual.AutoCheckUpdates);
     }
 }

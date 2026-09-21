@@ -13,10 +13,11 @@ Most reminder tools lose the moment the notification becomes easy to dismiss. Mo
 - **Track active work instead of blindly counting wall-clock time.** Session-wide idle detection is available on Windows, macOS, and Linux/X11. Linux/Wayland currently falls back to elapsed time because there is no compositor-neutral global-idle API available to this app yet.
 - **Make long breaks intentional.** Sit reminders can cover every connected display with a topmost countdown. The skip button appears only after a configurable delay (20 seconds by default).
 - **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return. Completing a forced break does the same, and the break itself is never counted as active work.
+- **Keep installed copies current.** MoveBit can check GitHub Releases in the background, tell you when an update exists, then download, verify, replace, and restart only after you explicitly choose **Update & Restart**.
 
-## v1.0 guarantees
+## v1 product guarantees
 
-MoveBit v1.0 treats the following as product contracts rather than best-effort behavior:
+MoveBit v1 treats the following as product contracts rather than best-effort behavior:
 
 - a second launch activates the running instance instead of starting duplicate schedulers;
 - forced-break time never inflates active-work statistics;
@@ -25,7 +26,9 @@ MoveBit v1.0 treats the following as product contracts rather than best-effort b
 - settings and history are persisted with write-then-replace semantics;
 - history is bounded to 370 days;
 - release dependencies are pinned and release tags must match the project version;
-- release archives ship with SHA-256 checksum files.
+- release archives ship with SHA-256 checksum files;
+- online updates verify the downloaded archive against the published SHA-256 sidecar before replacing files;
+- update installation is staged and applied by a helper process after MoveBit exits, with rollback of overwritten files if replacement fails.
 
 ## Features
 
@@ -40,6 +43,7 @@ MoveBit v1.0 treats the following as product contracts rather than best-effort b
 - ⏸️ **Pause for one hour** from the tray, with exact pause-expiry accounting
 - 🧙 **First-run onboarding** — choose gentle / standard / strict behavior before forced breaks are enabled
 - 🔒 **Single-instance activation** — relaunching surfaces the existing instance instead of duplicating it
+- ⬆️ **Online updates** — automatic checks plus explicit check/update controls in Settings and the tray; Windows x64, macOS arm64, and Linux x64 use the same verified GitHub Release assets
 
 ## Install
 
@@ -52,6 +56,23 @@ Download the archive for your platform from [Releases](https://github.com/turing
 | Linux x64 | `MoveBit-linux-x64.zip` |
 
 > GitHub release binaries are currently unsigned. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Code signing/notarization is a distribution improvement, not a runtime requirement.
+
+## Online updates
+
+MoveBit 1.0.1+ checks the latest GitHub Release shortly after startup and then roughly every six hours when **Automatically check for updates** is enabled. It never silently installs a release.
+
+When a newer version is available:
+
+1. Settings and the tray change to show **Update & Restart**.
+2. MoveBit downloads the matching platform ZIP and its `.sha256` sidecar.
+3. The archive is SHA-256 verified before extraction.
+4. Files are extracted into a temporary staging directory.
+5. MoveBit saves configuration/history and exits.
+6. A small platform helper replaces the application files, restores overwritten files if replacement fails, and starts MoveBit again.
+
+Configuration and history live in the user application-data directory, outside the application folder, so an application update does not replace user data.
+
+Automatic apply currently supports the same architectures shipped by the release workflow: **Windows x64, macOS arm64, and Linux x64**. If the application folder is not writable, MoveBit leaves the current version untouched and reports that the directory must be moved to a writable location.
 
 ## How it works
 
@@ -83,12 +104,13 @@ Settings live in `%APPDATA%\movebit\config.json` on Windows or the platform appl
 | `MicroBreakIntervalMinutes` | 30 | 10–60 |
 | `MicroBreakDurationSeconds` | 20 | 10–60 |
 | `SoundEnabled` | true | — |
+| `AutoCheckUpdates` | true | — |
 
 ## Platform notes
 
-- **Windows**: session-wide idle detection via `GetLastInputInfo`; reminder sound via `MessageBeep`.
-- **macOS**: session-wide idle detection via CoreGraphics (`CGEventSourceSecondsSinceLastEventType`).
-- **Linux/X11**: idle detection via the XScreenSaver extension (`XScreenSaverQueryInfo`).
+- **Windows**: session-wide idle detection via `GetLastInputInfo`; reminder sound via `MessageBeep`; online update uses `MoveBit-windows-x64.zip`.
+- **macOS**: session-wide idle detection via CoreGraphics (`CGEventSourceSecondsSinceLastEventType`); online update uses the arm64 release archive.
+- **Linux/X11**: idle detection via the XScreenSaver extension (`XScreenSaverQueryInfo`); online update supports Linux x64.
 - **Linux/Wayland**: MoveBit remains usable, but idle detection currently degrades to elapsed-time reminders. Native Wayland idle support remains on the roadmap.
 
 The forced-break screen is an always-on-top window, not a global keyboard/mouse hook. That is deliberate: globally locking input can leave a machine unusable if the process crashes. MoveBit makes dismissal deliberate without taking control of input devices.
@@ -114,10 +136,11 @@ dotnet publish MoveBit.csproj -c Release -r win-x64 --self-contained true \
 
 ## Release process
 
-1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.0.0` ↔ `v1.0.0`).
+1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.0.1` ↔ `v1.0.1`).
 2. Merge only with the three-platform CI matrix green.
 3. Push the version tag.
 4. The release workflow runs tests, builds all supported archives, generates SHA-256 files, then creates a single GitHub Release after every package succeeds.
+5. Existing MoveBit 1.0.1+ installs discover the new release through GitHub's latest-release API and can apply the matching verified archive in-app.
 
 ## Roadmap
 

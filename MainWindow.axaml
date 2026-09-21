@@ -4,7 +4,7 @@
         x:Class="MoveBit.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="MoveBit"
-        Width="480" Height="780"
+        Width="480" Height="820"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBg}"
@@ -160,6 +160,31 @@
                     <Grid ColumnDefinitions="Auto, *">
                         <TextBlock Grid.Column="0" Text="开机自启" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoStartEnabled}" HorizontalAlignment="Right" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- About / online update -->
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="14">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{Binding VersionText}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="{Binding UpdateStatusText}" FontSize="12" Foreground="{DynamicResource InkSecondary}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="{Binding UpdateActionText}"
+                                IsEnabled="{Binding CanUpdateAction}"
+                                Click="OnUpdateClicked"
+                                VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto, *">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="自动检查更新" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="启动后检查，此后约每 6 小时检查一次；不会静默安装。"
+                                       FontSize="11" Foreground="{DynamicResource InkMuted}" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCheckUpdates}" HorizontalAlignment="Right" VerticalAlignment="Center" />
                     </Grid>
                 </StackPanel>
             </Border>

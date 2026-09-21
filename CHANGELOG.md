@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-09-21
+
+### Added
+
+- Cross-platform in-app online update checks for Windows x64, macOS arm64, and Linux x64
+- Settings/About update panel with current version, update status, manual check, and explicit **Update & Restart** action
+- Tray-menu update entry that changes into an install action when a newer release is available
+- Automatic update checks after startup and roughly every six hours, enabled by default and configurable by the user
+- SHA-256 verification of downloaded release archives before any files are replaced
+- Staging + helper-process update application so the running executable never overwrites itself directly
+- Backup/rollback of replaced application files if the update apply step fails
+- Unit tests for release-version comparison and checksum tamper detection
+
+### Changed
+
+- Bumped MoveBit to 1.0.1
+- Online updates reuse the same GitHub Release ZIP and `.sha256` artifacts already produced by the release pipeline, avoiding a second distribution channel
+- Updates are intentionally user-approved: MoveBit may discover a release automatically, but it never silently installs one in the background
+
+[1.0.1]: https://github.com/turinglambdaai/movebit/releases/tag/v1.0.1
+
 ## [1.0.0] - 2026-09-21
 
 ### Added

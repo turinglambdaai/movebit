@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -26,6 +28,7 @@ public class App : Application
     private NotificationWindow? _notification;
     private MainViewModel _viewModel = null!;
     private NativeMenuItem _pauseItem = null!;
+    private NativeMenuItem _updateItem = null!;
     private HistoryStore _history = null!;
     private MicroBreakWindow? _microWindow;
     private int _flushCounter;
@@ -35,6 +38,10 @@ public class App : Application
     private TimeSpan _breakRemaining;
     private bool _breakActive;
     private ReminderEvent? _breakEvent;
+
+    private readonly CancellationTokenSource _updateCancellation = new();
+    private readonly SemaphoreSlim _updateGate = new(1, 1);
+    private UpdateInfo? _availableUpdate;
 
     public MainViewModel ViewModel => _viewModel;
 
@@ -80,7 +87,210 @@ public class App : Application
             ShowOnboarding();
         }
 
+        _ = RunAutomaticUpdateLoopAsync(_updateCancellation.Token);
+
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // --- Online update -----------------------------------------------------
+
+    private async Task RunAutomaticUpdateLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            if (_config.AutoCheckUpdates)
+            {
+                try
+                {
+                    await CheckForUpdatesAsync(userInitiated: false, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromHours(6), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    public async Task CheckOrInstallUpdateFromUiAsync()
+    {
+        if (_availableUpdate is { } update)
+        {
+            await InstallUpdateAsync(update);
+            return;
+        }
+
+        await CheckForUpdatesAsync(userInitiated: true, CancellationToken.None);
+    }
+
+    private async Task CheckForUpdatesAsync(bool userInitiated, CancellationToken cancellationToken)
+    {
+        var entered = false;
+        try
+        {
+            if (userInitiated)
+            {
+                await _updateGate.WaitAsync(cancellationToken);
+                entered = true;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    _viewModel.SetUpdateState("正在检查 GitHub Releases…", "检查中…", busy: true));
+            }
+            else
+            {
+                entered = await _updateGate.WaitAsync(0, cancellationToken);
+                if (!entered)
+                {
+                    return;
+                }
+            }
+
+            var result = await UpdateService.CheckForUpdateAsync(cancellationToken);
+            await Dispatcher.UIThread.InvokeAsync(() => ApplyUpdateCheckResult(result, userInitiated));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (userInitiated)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                    _viewModel.SetUpdateState("检查更新已取消。", "检查更新"));
+            }
+        }
+        finally
+        {
+            if (entered)
+            {
+                _updateGate.Release();
+            }
+        }
+    }
+
+    private void ApplyUpdateCheckResult(UpdateCheckResult result, bool userInitiated)
+    {
+        switch (result.Status)
+        {
+            case UpdateCheckStatus.UpdateAvailable when result.Update is { } update:
+                _availableUpdate = update;
+                _updateItem.Header = $"更新并重启 {update.TagName}";
+                _viewModel.SetUpdateState(
+                    $"发现新版本 {update.TagName}。已验证发布资产存在，点击后下载、校验并重启。",
+                    "更新并重启");
+                break;
+
+            case UpdateCheckStatus.UpToDate:
+                _availableUpdate = null;
+                _updateItem.Header = "检查更新";
+                _viewModel.SetUpdateState(
+                    userInitiated
+                        ? $"已是最新版本 · v{UpdateService.CurrentVersionText}"
+                        : $"当前版本 v{UpdateService.CurrentVersionText} · 已是最新",
+                    "检查更新");
+                break;
+
+            case UpdateCheckStatus.UnsupportedPlatform:
+                _availableUpdate = null;
+                _updateItem.Header = "检查更新";
+                _viewModel.SetUpdateState("当前 CPU / 系统组合暂无官方在线更新包。", "检查更新");
+                break;
+
+            default:
+                _availableUpdate = null;
+                _updateItem.Header = "检查更新";
+                _viewModel.SetUpdateState(
+                    result.ErrorMessage ?? "检查更新失败，请稍后重试。",
+                    "重试");
+                break;
+        }
+
+        UpdateTrayState();
+    }
+
+    private async Task InstallUpdateAsync(UpdateInfo update)
+    {
+        if (!await _updateGate.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _viewModel.SetUpdateState($"准备更新到 {update.TagName}…", "更新中…", busy: true));
+
+            var progress = new Progress<UpdateProgress>(p =>
+                Dispatcher.UIThread.Post(() =>
+                {
+                    var text = p.Stage switch
+                    {
+                        UpdateStage.Downloading when p.Percentage is { } percent => $"正在下载 {update.TagName}… {percent}%",
+                        UpdateStage.Downloading => $"正在下载 {update.TagName}…",
+                        UpdateStage.Verifying => "正在校验 SHA-256…",
+                        UpdateStage.Preparing => "校验通过，正在准备替换文件…",
+                        UpdateStage.Restarting => "准备重启到新版本…",
+                        _ => "正在更新…",
+                    };
+                    _viewModel.SetUpdateState(text, "更新中…", busy: true);
+                }));
+
+            var result = await UpdateService.DownloadAndApplyAsync(update, progress, CancellationToken.None);
+            switch (result.Status)
+            {
+                case UpdateInstallStatus.Restarting:
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                        _viewModel.SetUpdateState("更新已校验并准备完成，MoveBit 正在重启…", "正在重启…", busy: true));
+                    _updateCancellation.Cancel();
+                    FlushToday();
+                    _configStore.Save(_config);
+                    await Task.Delay(100);
+                    await Dispatcher.UIThread.InvokeAsync(Shutdown);
+                    break;
+
+                case UpdateInstallStatus.PermissionDenied:
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                        _viewModel.SetUpdateState(result.ErrorMessage ?? "应用目录不可写，无法自动更新。", "重试"));
+                    break;
+
+                case UpdateInstallStatus.NoUpdate:
+                    _availableUpdate = null;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        _updateItem.Header = "检查更新";
+                        _viewModel.SetUpdateState($"已是最新版本 · v{UpdateService.CurrentVersionText}", "检查更新");
+                    });
+                    break;
+
+                default:
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                        _viewModel.SetUpdateState(result.ErrorMessage ?? "更新失败，当前版本未被替换。", "重试"));
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+                _viewModel.SetUpdateState("更新已取消，当前版本保持不变。", "重试"));
+        }
+        finally
+        {
+            _updateGate.Release();
+        }
     }
 
     // --- Second-instance activation ----------------------------------------
@@ -107,7 +317,7 @@ public class App : Application
         }
     }
 
-    private async System.Threading.Tasks.Task AcceptActivationsAsync()
+    private async Task AcceptActivationsAsync()
     {
         while (_activationListener is { } listener)
         {
@@ -125,7 +335,7 @@ public class App : Application
         }
     }
 
-    private async System.Threading.Tasks.Task HandleActivationAsync(System.Net.Sockets.TcpClient client)
+    private async Task HandleActivationAsync(System.Net.Sockets.TcpClient client)
     {
         try
         {
@@ -435,12 +645,17 @@ public class App : Application
         _pauseItem = new NativeMenuItem { Header = "暂停提醒 1 小时" };
         _pauseItem.Click += (_, _) => TogglePause();
 
+        _updateItem = new NativeMenuItem { Header = "检查更新" };
+        _updateItem.Click += async (_, _) => await CheckOrInstallUpdateFromUiAsync();
+
         var exitItem = new NativeMenuItem { Header = "退出 MoveBit" };
         exitItem.Click += (_, _) => Shutdown();
 
         var menu = new NativeMenu();
         menu.Add(openItem);
         menu.Add(_pauseItem);
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(_updateItem);
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(exitItem);
 
@@ -475,15 +690,16 @@ public class App : Application
             return;
         }
 
+        var updatePrefix = _availableUpdate is { } update ? $"有更新 {update.TagName} · " : string.Empty;
         if (_scheduler.IsPaused)
         {
             var until = _scheduler.PausedUntil!.Value.LocalDateTime;
-            _trayIcon.ToolTipText = $"MoveBit · 已暂停至 {until:HH:mm}";
+            _trayIcon.ToolTipText = $"MoveBit · {updatePrefix}已暂停至 {until:HH:mm}";
             _pauseItem.Header = "恢复提醒";
         }
         else
         {
-            _trayIcon.ToolTipText = $"MoveBit · 今日活跃 {FormatDuration(_scheduler.Stats.ActiveTime)} · 久坐 {FormatDuration(_scheduler.SitCycleElapsed)}/{_config.SitReminderMinutes} 分钟";
+            _trayIcon.ToolTipText = $"MoveBit · {updatePrefix}今日活跃 {FormatDuration(_scheduler.Stats.ActiveTime)} · 久坐 {FormatDuration(_scheduler.SitCycleElapsed)}/{_config.SitReminderMinutes} 分钟";
             _pauseItem.Header = "暂停提醒 1 小时";
         }
     }
@@ -559,6 +775,7 @@ public class App : Application
 
     private void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
+        _updateCancellation.Cancel();
         FlushToday();
         _configStore.Save(_config);
         _timer.Stop();
