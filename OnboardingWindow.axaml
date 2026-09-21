@@ -146,9 +146,14 @@
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Border.choice:selected">
+        <!-- Plain classes need dot syntax; ':selected' parses as a pseudo-class and
+             never matches — that exact bug shipped as "user can't select anything". -->
+        <Style Selector="Border.choice.selected">
             <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+        </Style>
+        <Style Selector="Border.choice:pointerover:not(.selected)">
+            <Setter Property="Background" Value="{DynamicResource GhostHover}" />
         </Style>
         <Style Selector="Border.badge">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
