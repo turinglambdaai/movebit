@@ -66,3 +66,20 @@ jobs:
           if (-not (Test-Path "dist\installer\MoveBit-Setup-windows-x64.exe")) {
             throw "Installer output was not created."
           }
+
+      - name: Smoke-test Windows install and uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path "dist\installer\MoveBit-Setup-windows-x64.exe").Path
+          $installDir = Join-Path $env:RUNNER_TEMP "MoveBitInstallerSmoke"
+          & $setup /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$installDir" /TASKS=""
+          if ($LASTEXITCODE -ne 0) { throw "Installer exited with code $LASTEXITCODE" }
+          if (-not (Test-Path (Join-Path $installDir "MoveBit.exe"))) { throw "Installed MoveBit.exe is missing." }
+
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller is missing." }
+          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          if ($LASTEXITCODE -ne 0) { throw "Uninstaller exited with code $LASTEXITCODE" }
+          Start-Sleep -Milliseconds 500
+          if (Test-Path (Join-Path $installDir "MoveBit.exe")) { throw "MoveBit.exe remained after uninstall." }
