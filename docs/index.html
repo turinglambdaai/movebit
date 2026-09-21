@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoveBit — Get up. Actually.</title>
+    <meta name="description" content="MoveBit measures how long you actually work and forces you out of the chair: sit reminders lock every monitor with a countdown break screen, water reminders stay as toasts. Cross-platform, open source.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,500&display=swap" rel="stylesheet">
+    <script>document.documentElement.classList.add('js-anim')</script>
+    <style>
+        :root {
+            --accent: #34A853;
+            --accent-hover: #248A3D;
+            --accent-soft: rgba(52, 168, 83, 0.15);
+            --accent-tint: rgba(52, 168, 83, 0.08);
+        }
+
+        /* Hero mockup: dual-monitor break lock + water toast */
+       .desk-scene {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 14px;
+            position: relative;
+        }
+        .monitor {
+            background: #101014;
+            border-radius: 12px;
+            border: 6px solid #2A2A2E;
+            border-bottom-width: 14px;
+            box-shadow: var(--shadow-window);
+            overflow: hidden;
+            position: relative;
+        }
+        .monitor.main { width: 62%; aspect-ratio: 16 / 10; z-index: 2; }
+        .monitor.side { width: 34%; aspect-ratio: 4 / 3; z-index: 1; opacity: 0.97; }
+
+        .break-lock {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: linear-gradient(160deg, #16351F 0%, #0D2415 100%);
+            color: #fff;
+        }
+        .lock-countdown {
+            font-family: var(--font-mono);
+            font-size: clamp(34px, 5vw, 58px);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            line-height: 1;
+        }
+        .lock-message { font-size: clamp(12px, 1.4vw, 16px); color: rgba(255, 255, 255, 0.75); }
+        .lock-progress {
+            width: 46%;
+            height: 5px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .lock-progress-fill {
+            width: 68%;
+            height: 100%;
+            border-radius: 99px;
+            background: #34C759;
+        }
+        .skip-btn {
+            position: absolute;
+            bottom: 14px;
+            padding: 6px 18px;
+            font-size: 11.5px;
+            color: rgba(255, 255, 255, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 99px;
+            cursor: default;
+        }
+        .monitor.side .break-lock { background: linear-gradient(160deg, #142B1A 0%, #0B1D11 100%); }
+        .monitor.side .lock-countdown { font-size: clamp(20px, 2.6vw, 30px); }
+        .monitor.side .lock-message { font-size: clamp(9px, 1vw, 11px); }
+        .monitor.side .lock-progress, .monitor.side .skip-btn { display: none; }
+
+        .water-toast {
+            position: absolute;
+            right: 4%;
+            bottom: -26px;
+            z-index: 3;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow-hover);
+            padding: 11px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text);
+        }
+        .water-toast .dot {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--accent-soft);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .water-toast .sub { display: block; font-size: 11px; color: var(--text-3); }
+
+        /* Cycle cards */
+       .cycle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 44px;
+        }
+        .cycle-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-l);
+            padding: 28px;
+            box-shadow: var(--shadow-card);
+        }
+        .cycle-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 9px; }
+        .cycle-card p { font-size: 14.5px; color: var(--text-2); }
+        .cycle-card .num { color: var(--accent); font-family: var(--font-mono); font-size: 13px; background: var(--accent-tint); padding: 2px 9px; border-radius: 6px; }
+
+        @media (max-width: 700px) {
+            .cycle-grid { grid-template-columns: 1fr; }
+            .monitor.side { display: none; }
+            .water-toast { bottom: -20px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <nav class="nav-container">
+        <div class="nav-wrapper">
+            <div class="nav-brand">
+                <svg class="nav-logo" width="28" height="28" viewBox="0 0 512 512" fill="none">
+                    <rect width="512" height="512" rx="115" fill="#34A853"/>
+                    <circle cx="256" cy="200" r="52" fill="#FFFFFF"/>
+                    <path d="M256 272 L256 400" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round"/>
+                    <path d="M256 320 L172 372 M256 320 L340 372" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round"/>
+                </svg>
+                MoveBit
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#features" class="optional" data-en="Features" data-zh="功能">Features</a></li>
+                <li><a href="#how" class="optional" data-en="How it works" data-zh="工作原理">How it works</a></li>
+                <li><a href="#download" data-en="Download" data-zh="下载">Download</a></li>
+                <li class="lang-dropdown-wrapper">
+                    <button class="lang-btn" onclick="void 0">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        <span id="current-lang-label" data-en="English" data-zh="简体中文">English</span>
+                    </button>
+                    <ul class="lang-menu">
+                        <li onclick="setLanguage('en')">English</li>
+                        <li onclick="setLanguage('zh')">简体中文</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="overview">
+        <div class="container">
+            <span class="eyebrow animate-on-scroll" data-en="Open source · Windows / macOS / Linux" data-zh="开源 · Windows / macOS / Linux">Open source · Windows / macOS / Linux</span>
+            <h1 class="animate-on-scroll">
+                <span data-en="Your chair is not" data-zh="椅子不算数，">Your chair is not</span>
+                <span class="accent" data-en="a workout plan." data-zh="健身计划。">a workout plan.</span>
+            </h1>
+            <p class="lead animate-on-scroll"
+                data-en="MoveBit measures how long you actually work — not how long you sit — and when the interval is up, it locks every monitor with a full-screen break countdown. You already stepped away? It doesn't nag."
+                data-zh="MoveBit 统计的是你实际工作的时长，而不是坐着的时长——到点后，它会用全屏倒计时锁定每一台显示器，请你起身活动。如果你本来就走开了，它不会再来烦你。">
+                MoveBit measures how long you actually work — not how long you sit — and when the interval is up, it locks every monitor with a full-screen break countdown. You already stepped away? It doesn't nag.
+            </p>
+
+            <div class="hero-buttons animate-on-scroll">
+                <a href="#download" class="btn btn-primary" data-en="Download MoveBit" data-zh="下载 MoveBit">Download MoveBit</a>
+                <a href="https://github.com/turinglambdaai/movebit" class="btn btn-secondary" data-en="View on GitHub" data-zh="在 GitHub 查看">View on GitHub</a>
+            </div>
+
+            <div class="hero-visual animate-on-scroll">
+                <div class="desk-scene">
+                    <div class="monitor main">
+                        <div class="break-lock">
+                            <div class="lock-countdown">04:12</div>
+                            <div class="lock-message" data-en="Stand up. Walk around. Look far away." data-zh="站起来，走一走，看看远处。">Stand up. Walk around. Look far away.</div>
+                            <div class="lock-progress"><div class="lock-progress-fill"></div></div>
+                            <div class="skip-btn" data-en="Skip available in 18 s" data-zh="18 秒后可跳过">Skip available in 18 s</div>
+                        </div>
+                    </div>
+                    <div class="monitor side">
+                        <div class="break-lock">
+                            <div class="lock-countdown">04:12</div>
+                            <div class="lock-message" data-en="Break in progress" data-zh="休息进行中">Break in progress</div>
+                        </div>
+                    </div>
+                    <div class="water-toast">
+                        <div class="dot">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2s6 6.9 6 11a6 6 0 0 1-12 0c0-4.1 6-11 6-11z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span data-en="Time for water" data-zh="该喝水了">Time for water</span>
+                            <span class="sub" data-en="Toast only — no screen lock" data-zh="仅提示，不锁屏">Toast only — no screen lock</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features">
+        <div class="container">
+            <span class="eyebrow animate-on-scroll" data-en="Features" data-zh="功能">Features</span>
+            <h2 class="section-title animate-on-scroll">
+                <span data-en="Reminders you can't" data-zh="无法顺手关掉的">Reminders you can't</span>
+                <span class="accent" data-en="click away." data-zh="提醒。">click away.</span>
+            </h2>
+            <p class="section-lead animate-on-scroll"
+                data-en="The usual tools pop a little bubble and you dismiss it without standing up. MoveBit takes the commit-out-of-it approach seriously."
+                data-zh="常见的提醒工具弹一个小气泡，你顺手关掉，人还坐着。MoveBit 认真对待「让自己无路可退」这件事。">
+                The usual tools pop a little bubble and you dismiss it without standing up. MoveBit takes the commit-out-of-it approach seriously.
+            </p>
+
+            <div class="bento-grid">
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    </div>
+                    <h3 data-en="Forced break, every monitor" data-zh="强制休息，覆盖每块屏">Forced break, every monitor</h3>
+                    <p data-en="A topmost, full-screen break lock with countdown appears on every connected display. Alt+F4-proof; the skip button only shows after a delay, so skipping is deliberate, not a reflex."
+                       data-zh="置顶的全屏休息锁定与倒计时会出现在每一台显示器上，Alt+F4 无效；跳过按钮延迟出现，让「跳过」成为一个主动决定，而不是条件反射。">A topmost, full-screen break lock with countdown appears on every connected display. Alt+F4-proof; the skip button only shows after a delay, so skipping is deliberate, not a reflex.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <h3 data-en="Measures active work time" data-zh="统计真实工作时长">Measures active work time</h3>
+                    <p data-en="Session-wide idle detection watches keyboard and mouse across all apps. Leave your desk and the clock stops — sitting in a meeting doesn't count as sitting at the desk."
+                       data-zh="会话级空闲检测覆盖所有应用的键鼠活动。离开工位，计时即停——开会去了不算「坐着没动」。">Session-wide idle detection watches keyboard and mouse across all apps. Leave your desk and the clock stops.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s6 6.9 6 11a6 6 0 0 1-12 0c0-4.1 6-11 6-11z"/></svg>
+                    </div>
+                    <h3 data-en="Water reminders stay toasts" data-zh="喝水提醒只是提示">Water reminders stay toasts</h3>
+                    <p data-en="Hydration runs on its own cycle as a lightweight bottom-right toast — no need to lock the screen just to take a sip."
+                       data-zh="喝水提醒走独立周期，以右下角轻量 toast 出现——喝口水而已，不必锁屏。">Hydration runs on its own cycle as a lightweight bottom-right toast — no need to lock the screen just to take a sip.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    </div>
+                    <h3 data-en="Today stats in the tray" data-zh="托盘里看今日统计">Today stats in the tray</h3>
+                    <p data-en="Active time, sit/water reminder counts, and current cycle progress live in the tray tooltip — left-click for the full panel."
+                       data-zh="活跃时长、久坐/喝水提醒次数、当前周期进度都在托盘提示里——左键打开完整面板。">Active time, sit/water reminder counts, and current cycle progress live in the tray tooltip.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    </div>
+                    <h3 data-en="Pause for an hour" data-zh="暂停一小时">Pause for an hour</h3>
+                    <p data-en="Meetings and screen sharing get a one-hour pause from the tray menu. No dialogs, no fiddling."
+                       data-zh="开会、共享屏幕时，从托盘菜单一键暂停一小时。没有对话框，不用折腾。">Meetings and screen sharing get a one-hour pause from the tray menu.</p>
+                </div>
+                <div class="bento-card animate-on-scroll">
+                    <div class="card-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </div>
+                    <h3 data-en="Everything configurable" data-zh="一切皆可配置">Everything configurable</h3>
+                    <p data-en="Intervals, break duration, away threshold, skip delay, sound — all editable in the settings window, persisted to config.json."
+                       data-zh="提醒间隔、休息时长、离席阈值、跳过延迟、提示音——都在设置窗口里改，保存到 config.json。">Intervals, break duration, away threshold, skip delay, sound — all editable in the settings window.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how">
+        <div class="container">
+            <span class="eyebrow animate-on-scroll" data-en="How it works" data-zh="工作原理">How it works</span>
+            <h2 class="section-title animate-on-scroll">
+                <span data-en="Two cycles, one" data-zh="两个周期，">Two cycles, one</span>
+                <span class="accent" data-en="honest clock." data-zh="一座诚实的钟。">honest clock.</span>
+            </h2>
+
+            <div class="cycle-grid">
+                <div class="cycle-card animate-on-scroll">
+                    <h3><span data-en="Sit cycle" data-zh="久坐周期">Sit cycle</span> <span class="num">45 min</span></h3>
+                    <p data-en="Accumulates only while you're active. At the interval it fires: a full-screen break lock (default 5 min) on every monitor when forced breaks are on, otherwise a toast."
+                       data-zh="只在你活跃时累计。到点触发：开启强制休息时，在每台显示器上弹出全屏休息锁（默认 5 分钟）；未开启则弹 toast。">Accumulates only while you're active. At the interval it fires a full-screen break lock (default 5 min) when forced breaks are on, otherwise a toast.</p>
+                </div>
+                <div class="cycle-card animate-on-scroll">
+                    <h3><span data-en="Water cycle" data-zh="喝水周期">Water cycle</span> <span class="num">30 min</span></h3>
+                    <p data-en="Runs on its own interval as a lightweight bottom-right toast. A sip shouldn't cost you the screen."
+                       data-zh="按自己的周期运行，右下角轻量 toast。喝一口水不该以锁屏为代价。">Runs on its own interval as a lightweight bottom-right toast.</p>
+                </div>
+            </div>
+
+            <div class="callout animate-on-scroll">
+                <strong data-en="Stepped away? Both cycles reset." data-zh="走开了？两个周期都归零。">Stepped away? Both cycles reset.</strong>
+                <span data-en=" Idle beyond the away threshold (default 5 min) means you already took the break — when you return, both cycles restart from zero. Oversized clock jumps after system sleep are clamped, so you never get dogpiled by stale reminders."
+                      data-zh=" 空闲超过离席阈值（默认 5 分钟）说明休息已经发生——回来时两个周期都从零开始。系统休眠造成的时钟跳变会被截断，唤醒后不会被积压的提醒轰炸。"> Idle beyond the away threshold (default 5 min) means you already took the break — both cycles restart from zero when you return.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download -->
+    <section id="download">
+        <div class="container text-center">
+            <span class="eyebrow animate-on-scroll" data-en="Download" data-zh="下载">Download</span>
+            <h2 class="section-title animate-on-scroll" data-en="One file. No runtime." data-zh="单文件，免运行时。">One file. No runtime.</h2>
+            <p class="section-lead animate-on-scroll"
+                data-en="Self-contained single-file builds from GitHub Releases — download, unpack, run. No .NET runtime required."
+                data-zh="GitHub Releases 提供自包含单文件构建——下载、解压、运行，无需安装 .NET 运行时。">
+                Self-contained single-file builds from GitHub Releases — download, unpack, run. No .NET runtime required.
+            </p>
+
+            <div class="platforms-grid">
+                <a class="platform-card animate-on-scroll" href="https://github.com/turinglambdaai/movebit/releases">
+                    <div class="platform-icon">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.55 10.3 4.5v7H3v-5.95zM11.65 4.32 21 3v8.5h-9.35v-7.18zM3 12.5h7.3v7l-7.3-1.05v-5.95zM11.65 12.5H21V21l-9.35-1.32v-7.18z"/></svg>
+                    </div>
+                    <div class="platform-name">Windows x64</div>
+                    <div class="platform-format">MoveBit-windows-x64.zip</div>
+                </a>
+                <a class="platform-card animate-on-scroll" href="https://github.com/turinglambdaai/movebit/releases">
+                    <div class="platform-icon">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M16.36 12.75c.02 2.6 2.28 3.46 2.31 3.47-.02.06-.36 1.24-1.2 2.45-.72 1.05-1.47 2.09-2.66 2.11-1.16.02-1.54-.69-2.87-.69-1.33 0-1.74.67-2.85.71-1.14.04-2-1.08-2.73-2.12-1.57-2.28-2.78-6.45-1.16-9.27.8-1.4 2.24-2.29 3.8-2.31 1.12-.02 2.18.75 2.87.75.68 0 1.98-.93 3.33-.79.57.02 2.17.2 3.2 1.58-.08.05-1.91 1.12-1.89 3.33M14.3 4.66c.61-.74 1.02-1.77.91-2.79-.88.04-1.95.59-2.58 1.33-.57.65-1.05 1.7-.92 2.7.98.08 1.98-.5 2.59-1.24"/></svg>
+                    </div>
+                    <div class="platform-name">macOS arm64</div>
+                    <div class="platform-format">MoveBit-macos-arm64.zip</div>
+                </a>
+                <a class="platform-card animate-on-scroll" href="https://github.com/turinglambdaai/movebit/releases">
+                    <div class="platform-icon">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.35 3.34 3.28 6.66 3.28 10 0 3.34-.93 6.66-3.28 10-2.35-3.34-3.28-6.66-3.28-10 0-3.34.93-6.66 3.28-10m-8.4 6c.95 1.67 2.22 3.3 4.1 5.14-.24-1.6-.16-3.22 0-4.84C6.5 7.53 5.24 6.86 3.6 8m16.8 0c-1.64.86-2.9 1.53-4.1.3.16 1.62.24 3.24 0 4.84 1.88-1.84 3.15-3.47 4.1-5.14"/></svg>
+                    </div>
+                    <div class="platform-name">Linux x64</div>
+                    <div class="platform-format">MoveBit-linux-x64.zip</div>
+                </a>
+            </div>
+
+            <div class="download-cta animate-on-scroll">
+                <span class="version-badge"><span data-en="Latest" data-zh="最新版本">Latest</span>: <span class="ver">v0.1.1</span></span>
+            </div>
+
+            <div class="callout animate-on-scroll" style="text-align: left;">
+                <strong data-en="Platform notes." data-zh="平台说明。">Platform notes.</strong>
+                <span data-en=" Windows: full functionality — idle detection via GetLastInputInfo, reminder sound via MessageBeep. macOS/Linux: fully usable; idle detection is not yet implemented, so reminders run on natural time. The break lock is an always-on-top window by design — not a global keyboard/mouse hook — so a crash can never leave your machine unusable."
+                      data-zh=" Windows：功能完整——空闲检测走 GetLastInputInfo，提示音走 MessageBeep。macOS/Linux：完全可用；空闲检测尚未实现，提醒按自然时间运行。休息锁设计为置顶窗口而非全局键鼠钩子——即使程序崩溃，也不会把机器留在不可操作的状态。"> Windows: full functionality. macOS/Linux: fully usable; idle detection is not yet implemented, so reminders run on natural time.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-brand">
+                <svg width="22" height="22" viewBox="0 0 512 512" fill="none">
+                    <rect width="512" height="512" rx="115" fill="#34A853"/>
+                    <circle cx="256" cy="200" r="52" fill="#FFFFFF"/>
+                    <path d="M256 272 L256 400" stroke="#FFFFFF" stroke-width="44" stroke-linecap="round"/>
+                    <path d="M256 320 L172 372 M256 320 L340 372" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round"/>
+                </svg>
+                MoveBit
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/turinglambdaai/movebit">GitHub</a>
+                <a href="https://github.com/turinglambdaai/movebit/releases">Releases</a>
+                <a href="https://github.com/turinglambdaai/movebit/blob/main/LICENSE">MIT License</a>
+            </div>
+            <div class="footer-note">© 2026 turinglambdaai</div>
+        </div>
+    </footer>
+
+    <script>
+        // Bilingual content: data-en / data-zh attributes, English default.
+        function setLanguage(lang) {
+            document.querySelectorAll('[data-en]').forEach(function (el) {
+                el.textContent = el.getAttribute('data-' + lang);
+            });
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            try { localStorage.setItem('site-lang', lang); } catch (e) { /* private mode */ }
+        }
+        try {
+            var saved = localStorage.getItem('site-lang');
+            if (saved && saved !== 'en') setLanguage(saved);
+        } catch (e) { /* private mode */ }
+
+        // Scroll-in animation.
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12 });
+        document.querySelectorAll('.animate-on-scroll').forEach(function (el) { observer.observe(el); });
+    </script>
+</body>
+
+</html>
