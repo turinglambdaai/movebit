@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-09-21
+
+### Fixed
+
+- Single instance enforcement: launching a second copy now exits immediately
+  instead of stacking a second tray icon, a second scheduler (double reminders,
+  double break overlays) and a second history writer that clobbers the first
+  one's data. The second launch pokes the running instance over a loopback
+  channel to surface its window — re-launching feels like "bring it up", not
+  nothing. The break lock suppresses the poke: no window fights the overlay.
+
+[0.2.3]: https://github.com/turinglambdaai/movebit/releases/tag/v0.2.3
+
 ## [0.2.2] - 2026-09-21
 
 ### Fixed

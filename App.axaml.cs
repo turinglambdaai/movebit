@@ -63,6 +63,8 @@ public class App : Application
         _timer.Tick += (_, _) => OnTimerTick();
         _timer.Start();
 
+        StartActivationServer();
+
         CreateTrayIcon();
         UpdateTrayState();
 
@@ -81,6 +83,75 @@ public class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // --- Second-instance activation ----------------------------------------
+
+    private System.Net.Sockets.TcpListener? _activationListener;
+
+    /// <summary>
+    /// Listens on the loopback activation port so a second launch (blocked by the
+    /// mutex) can ask this instance to surface its window. Best-effort: if the port
+    /// is taken, single-instancing still holds via the mutex.
+    /// </summary>
+    private void StartActivationServer()
+    {
+        try
+        {
+            _activationListener = new System.Net.Sockets.TcpListener(
+                System.Net.IPAddress.Loopback, Services.SingleInstanceGuard.ActivationPort);
+            _activationListener.Start();
+            _ = AcceptActivationsAsync();
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or System.IO.IOException)
+        {
+            _activationListener = null;
+        }
+    }
+
+    private async System.Threading.Tasks.Task AcceptActivationsAsync()
+    {
+        while (_activationListener is { } listener)
+        {
+            System.Net.Sockets.TcpClient client;
+            try
+            {
+                client = await listener.AcceptTcpClientAsync();
+            }
+            catch (System.Net.Sockets.SocketException)
+            {
+                break; // listener stopped on shutdown
+            }
+
+            _ = HandleActivationAsync(client);
+        }
+    }
+
+    private async System.Threading.Tasks.Task HandleActivationAsync(System.Net.Sockets.TcpClient client)
+    {
+        try
+        {
+            using var _ = client;
+            using var reader = new System.IO.StreamReader(client.GetStream());
+            var line = await reader.ReadLineAsync();
+
+            if (line == "activate")
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    // Don't fight the break lock: a window popping over the overlay
+                    // would undercut the whole point of the break.
+                    if (!_breakActive)
+                    {
+                        ShowMainWindow();
+                    }
+                });
+            }
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.Net.Sockets.SocketException)
+        {
+            // A poke that never finishes is fine; the sender already gave up fast.
+        }
     }
 
     private void OnTimerTick()
@@ -449,6 +520,7 @@ public class App : Application
         FlushToday();
         _configStore.Save(_config);
         _timer.Stop();
+        _activationListener?.Stop();
         _trayIcon?.Dispose();
     }
 
