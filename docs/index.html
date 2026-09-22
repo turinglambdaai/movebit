@@ -309,31 +309,69 @@
       var switcher = document.getElementById('lang-switch');
       var title = document.querySelector('title');
       var description = document.querySelector('meta[name="description"]');
+      var ogTitle = document.querySelector('meta[property="og:title"]');
+      var ogDescription = document.querySelector('meta[property="og:description"]');
+      var twitterTitle = document.querySelector('meta[name="twitter:title"]');
+      var twitterDescription = document.querySelector('meta[name="twitter:description"]');
+      var LANGUAGE_OVERRIDE_KEY = 'movebit-lang-override-v2';
+      var LEGACY_LANGUAGE_KEY = 'movebit-lang';
       var current = 'en';
 
-      function applyLanguage(lang) {
+      function readLanguageOverride() {
+        try {
+          var saved = localStorage.getItem(LANGUAGE_OVERRIDE_KEY);
+          return saved === 'zh' || saved === 'en' ? saved : null;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      function detectBrowserLanguage() {
+        var locale = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+        if (!locale) return 'zh';
+        return String(locale).toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+      }
+
+      function applyLanguage(lang, persist) {
         current = lang === 'zh' ? 'zh' : 'en';
+        if (persist) {
+          try { localStorage.setItem(LANGUAGE_OVERRIDE_KEY, current); } catch (_) {}
+        }
+
         document.documentElement.lang = current === 'zh' ? 'zh-CN' : 'en';
+        document.documentElement.setAttribute('data-language', current);
         document.querySelectorAll('[data-en][data-zh]').forEach(function (node) {
           node.textContent = node.getAttribute('data-' + current);
         });
         if (current === 'zh') {
-          title.textContent = 'MoveBit — 一个真正能让你离开椅子的休息提醒';
-          description.setAttribute('content', 'MoveBit 是本地优先的跨平台桌面休息工具：统计真实电脑活跃时长、识别离席、在工作过久时让每块显示器进入定时休息界面；Windows 提供安装版，并支持校验后的应用内在线更新。');
+          var zhTitle = 'MoveBit — 一个真正能让你离开椅子的休息提醒';
+          var zhDescription = 'MoveBit 是本地优先的跨平台桌面休息工具：统计真实电脑活跃时长、识别离席、在工作过久时让每块显示器进入定时休息界面；Windows 提供安装版，并支持校验后的应用内在线更新。';
+          title.textContent = zhTitle;
+          description.setAttribute('content', zhDescription);
+          if (ogTitle) ogTitle.setAttribute('content', zhTitle);
+          if (ogDescription) ogDescription.setAttribute('content', zhDescription);
+          if (twitterTitle) twitterTitle.setAttribute('content', zhTitle);
+          if (twitterDescription) twitterDescription.setAttribute('content', zhDescription);
           switcher.textContent = 'EN';
         } else {
-          title.textContent = "MoveBit — Break reminders you can't ignore";
-          description.setAttribute('content', "MoveBit is a local-first desktop break companion that tracks active computer time, recognizes when you step away, puts a timed break screen on every monitor, offers a Windows installer, and supports verified in-app updates.");
+          var enTitle = "MoveBit — Break reminders you can't ignore";
+          var enDescription = "MoveBit is a local-first desktop break companion that tracks active computer time, recognizes when you step away, puts a timed break screen on every monitor, offers a Windows installer, and supports verified in-app updates.";
+          title.textContent = enTitle;
+          description.setAttribute('content', enDescription);
+          if (ogTitle) ogTitle.setAttribute('content', enTitle);
+          if (ogDescription) ogDescription.setAttribute('content', enDescription);
+          if (twitterTitle) twitterTitle.setAttribute('content', enTitle);
+          if (twitterDescription) twitterDescription.setAttribute('content', enDescription);
           switcher.textContent = '中文';
         }
-        try { localStorage.setItem('movebit-lang', current); } catch (_) {}
       }
 
-      var saved = null;
-      try { saved = localStorage.getItem('movebit-lang'); } catch (_) {}
-      var initial = saved || ((navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
-      applyLanguage(initial);
-      switcher.addEventListener('click', function () { applyLanguage(current === 'en' ? 'zh' : 'en'); });
+      try { localStorage.removeItem(LEGACY_LANGUAGE_KEY); } catch (_) {}
+      applyLanguage(readLanguageOverride() || detectBrowserLanguage(), false);
+      switcher.addEventListener('click', function () { applyLanguage(current === 'en' ? 'zh' : 'en', true); });
+      window.addEventListener('languagechange', function () {
+        if (!readLanguageOverride()) applyLanguage(detectBrowserLanguage(), false);
+      });
 
       var observer = 'IntersectionObserver' in window ? new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
