@@ -1,0 +1,61 @@
+name: release-v1.1.0-bootstrap
+
+# One-time bridge: create the v1.1.0 tag at the already validated product commit,
+# then explicitly dispatch the normal release workflow at that tag. The bootstrap
+# commit itself is never part of the release source tree.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release-v1.1.0-bootstrap.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  PRODUCT_SHA: 856584f240206fd2f685b35ee75a845de1044f2d
+  RELEASE_VERSION: 1.1.0
+  RELEASE_TAG: v1.1.0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_SHA }}
+          fetch-depth: 0
+
+      - name: Verify pinned product source
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$PRODUCT_SHA"
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
+          test "$version" = "$RELEASE_VERSION"
+
+      - name: Create pinned release tag
+        shell: bash
+        run: |
+          git fetch --tags --force
+          existing="$(git rev-list -n 1 "$RELEASE_TAG" 2>/dev/null || true)"
+          if [ -n "$existing" ]; then
+            if [ "$existing" != "$PRODUCT_SHA" ]; then
+              echo "$RELEASE_TAG already points to $existing, expected $PRODUCT_SHA" >&2
+              exit 1
+            fi
+            echo "$RELEASE_TAG already exists at the expected product commit."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$RELEASE_TAG" "$PRODUCT_SHA" -m "MoveBit $RELEASE_TAG"
+          git push origin "refs/tags/$RELEASE_TAG"
+
+      - name: Dispatch normal release workflow at pinned tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh workflow run release.yml --ref "$RELEASE_TAG"
