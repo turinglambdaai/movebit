@@ -1,8 +1,9 @@
 name: release
 
 # Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
-# one GitHub Release after every package has built and every Windows executable has
-# passed Authenticode verification.
+# one GitHub Release after every package has built. Windows binaries are signed when
+# the complete Azure Artifact Signing configuration is present; otherwise the release
+# remains unsigned and still publishes SHA-256 sidecars.
 on:
   workflow_dispatch:
   push:
@@ -84,12 +85,14 @@ jobs:
             MoveBit-${{ matrix.platform }}.zip
             MoveBit-${{ matrix.platform }}.zip.sha256
 
-  windows-signed:
+  windows:
     needs: verify
     runs-on: windows-latest
     permissions:
       contents: read
       id-token: write
+    outputs:
+      signed: ${{ steps.signing-mode.outputs.enabled }}
     env:
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
@@ -100,21 +103,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Require production signing configuration
+      - name: Resolve Windows signing mode
+        id: signing-mode
         shell: pwsh
         run: |
-          $required = @{
-            AZURE_CLIENT_ID = $env:AZURE_CLIENT_ID
-            AZURE_TENANT_ID = $env:AZURE_TENANT_ID
-            AZURE_SUBSCRIPTION_ID = $env:AZURE_SUBSCRIPTION_ID
-            AZURE_ARTIFACT_SIGNING_ENDPOINT = $env:ARTIFACT_SIGNING_ENDPOINT
-            AZURE_ARTIFACT_SIGNING_ACCOUNT = $env:ARTIFACT_SIGNING_ACCOUNT
-            AZURE_ARTIFACT_SIGNING_PROFILE = $env:ARTIFACT_SIGNING_PROFILE
-          }
-
-          $missing = @($required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace($_.Value) } | ForEach-Object Key)
-          if ($missing.Count -gt 0) {
-            throw "Windows release signing is mandatory. Missing repository variables: $($missing -join ', '). See docs/WINDOWS_SIGNING.md."
+          $required = @(
+            $env:AZURE_CLIENT_ID,
+            $env:AZURE_TENANT_ID,
+            $env:AZURE_SUBSCRIPTION_ID,
+            $env:ARTIFACT_SIGNING_ENDPOINT,
+            $env:ARTIFACT_SIGNING_ACCOUNT,
+            $env:ARTIFACT_SIGNING_PROFILE
+          )
+          $present = @($required | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+          if ($present -eq 0) {
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Warning 'Azure Artifact Signing is not configured. Publishing unsigned Windows binaries with SHA-256 checksums.'
+          } elseif ($present -ne $required.Count) {
+            throw 'Azure Artifact Signing is only partially configured. Configure all six repository variables or remove them all.'
+          } else {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host 'Azure Artifact Signing configuration detected; Windows binaries will be signed.'
           }
 
       - name: Setup .NET
@@ -141,6 +150,7 @@ jobs:
           -o publish
 
       - name: Azure login with GitHub OIDC
+        if: steps.signing-mode.outputs.enabled == 'true'
         uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -148,6 +158,7 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign MoveBit.exe with Azure Artifact Signing
+        if: steps.signing-mode.outputs.enabled == 'true'
         uses: azure/artifact-signing-action@v2
         with:
           endpoint: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
@@ -161,6 +172,7 @@ jobs:
           description-url: https://movebit.jrtx.site/
 
       - name: Verify application Authenticode signature
+        if: steps.signing-mode.outputs.enabled == 'true'
         shell: pwsh
         run: |
           $path = Join-Path $pwd 'publish\MoveBit.exe'
@@ -174,7 +186,7 @@ jobs:
           Write-Host "MoveBit.exe signer: $($signature.SignerCertificate.Subject)"
           Write-Host "MoveBit.exe thumbprint: $($signature.SignerCertificate.Thumbprint)"
 
-      - name: Package signed Windows portable build
+      - name: Package Windows portable build
         shell: pwsh
         run: |
           Get-ChildItem publish -Filter *.pdb -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
@@ -186,7 +198,7 @@ jobs:
         shell: pwsh
         run: choco install innosetup -y --no-progress
 
-      - name: Build Windows installer from signed payload
+      - name: Build Windows installer
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -198,6 +210,7 @@ jobs:
           if (-not (Test-Path $setup)) { throw 'Installer output was not created.' }
 
       - name: Sign Windows installer with Azure Artifact Signing
+        if: steps.signing-mode.outputs.enabled == 'true'
         uses: azure/artifact-signing-action@v2
         with:
           endpoint: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
@@ -210,7 +223,8 @@ jobs:
           description: MoveBit Setup
           description-url: https://movebit.jrtx.site/
 
-      - name: Verify installer Authenticode signature and checksum
+      - name: Verify installer Authenticode signature
+        if: steps.signing-mode.outputs.enabled == 'true'
         shell: pwsh
         run: |
           $setup = 'dist\installer\MoveBit-Setup-windows-x64.exe'
@@ -224,10 +238,14 @@ jobs:
           Write-Host "Installer signer: $($signature.SignerCertificate.Subject)"
           Write-Host "Installer thumbprint: $($signature.SignerCertificate.Thumbprint)"
 
+      - name: Checksum Windows installer
+        shell: pwsh
+        run: |
+          $setup = 'dist\installer\MoveBit-Setup-windows-x64.exe'
           $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  MoveBit-Setup-windows-x64.exe" | Set-Content "$setup.sha256" -NoNewline
 
-      - name: Upload signed Windows portable artifact
+      - name: Upload Windows portable artifact
         uses: actions/upload-artifact@v4
         with:
           name: MoveBit-windows-x64
@@ -236,7 +254,7 @@ jobs:
             MoveBit-windows-x64.zip
             MoveBit-windows-x64.zip.sha256
 
-      - name: Upload signed Windows installer artifact
+      - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: MoveBit-windows-installer
@@ -247,7 +265,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [portable-unix, windows-signed]
+    needs: [portable-unix, windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write

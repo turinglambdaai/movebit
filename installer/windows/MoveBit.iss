@@ -15,13 +15,16 @@
 AppId={{E4B9E01D-65D0-4C25-BCF1-3CC22B8C9E02}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL=https://github.com/turinglambdaai/movebit/issues
 AppUpdatesURL=https://github.com/turinglambdaai/movebit/releases/latest
+AppComments=Healthy work rhythm companion
 DefaultDirName={localappdata}\Programs\MoveBit
 DefaultGroupName=MoveBit
 DisableProgramGroupPage=yes
+DisableWelcomePage=no
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -29,19 +32,41 @@ OutputDir=..\..\dist\installer
 OutputBaseFilename=MoveBit-Setup-windows-x64
 SetupIconFile=..\..\Assets\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName=MoveBit
 Compression=lzma2/max
 SolidCompression=yes
-WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
+SetupLogging=yes
+UsePreviousAppDir=yes
+UsePreviousTasks=yes
+
+; Modern Windows-native presentation. Inno Setup 6.6+ follows the system's
+; light/dark mode; 6.7+ supports the warm MoveBit background colors below.
+WizardStyle=modern dynamic windows11 hidebevels
+WizardSizePercent=115
+WizardResizable=no
+WizardBackColor=#FFF8F0
+WizardBackColorDynamicDark=#17130F
+WizardSmallImageFile=..\..\Assets\icon.png
+WizardSmallImageBackColor=#FFF8F0
+WizardSmallImageBackColorDynamicDark=#17130F
+
 VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=MoveBit Setup
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
+[Messages]
+WelcomeLabel1=Welcome to MoveBit
+WelcomeLabel2=MoveBit helps you build healthier work rhythms without getting in your way.%n%nSetup installs MoveBit only for your Windows account. No administrator permission is required.
+FinishedHeadingLabel=MoveBit is ready
+FinishedLabel=MoveBit has been installed successfully.%n%nLaunch it now; closing the main window keeps MoveBit running quietly in the system tray.
+BeveledLabel=MoveBit · healthier work rhythms
+
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "desktopicon"; Description: "Add a shortcut to the desktop"; GroupDescription: "Shortcuts"; Flags: unchecked
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Production Windows code-signing release gate using Azure Artifact Signing and GitHub OIDC; no private signing key or client secret is stored in the repository
-- Authenticode verification for both the published `MoveBit.exe` payload and the final Windows Setup executable before checksums or release publication
+- Optional production Windows code signing with Azure Artifact Signing and GitHub OIDC; no private signing key or client secret is stored in the repository
+- Authenticode verification for both `MoveBit.exe` and the final Windows Setup executable whenever production signing is enabled
 - Unit coverage for forced-break countdown display rounding, progress clamping, and shared ring/countdown calculations
+- The running MoveBit version is now visible directly in the main-window header
 
 ### Changed
 
@@ -20,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The break progress indicator now uses Avalonia's native `Arc.SweepAngle` driven by the exact same remaining-time value as the numeric countdown
 - Break completion and skip availability are presented consistently on every display
 - Displayed countdown seconds round up until the break actually reaches zero, preventing a premature `0:00`
-- Windows public releases now fail closed when production signing configuration is missing or any Authenticode signature is invalid
+- The main window is now resizable and screen-aware: it opens at a more comfortable size, keeps sensible minimum/maximum bounds, and adapts its maximum size to the active display's working area and DPI while preserving scrolling on smaller screens
+- The Windows installer now uses Inno Setup's modern Windows 11-style presentation, follows the system light/dark setting, uses MoveBit's warm surface colors and icon, and has clearer welcome/finish copy
+- Windows signing is now opt-in: no Azure variables publishes unsigned binaries with SHA-256 sidecars, all six variables enables signed releases, and partial signing configuration fails closed
 
 ### Fixed
 
