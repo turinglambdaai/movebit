@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-09-22
+
+### Added
+
+- Final Windows release packages are now smoke-tested by the release workflow itself: the generated Setup is silently installed into a custom directory, uninstall registration and autostart migration are verified, then the package is silently uninstalled before publication
+
+### Changed
+
+- Bumped MoveBit to 1.0.4
+- Streamlined the Windows installer into a shorter product flow while keeping MoveBit's modern Windows 11-style presentation, system light/dark following, warm branded surfaces, and clearer welcome/finish copy
+- Removed the redundant Ready-to-Install summary page and makes the final choice-page action explicit as **Install**
+- Restored the destination-folder page so users can choose where MoveBit is installed; `%LOCALAPPDATA%\Programs\MoveBit` remains the recommended no-admin default
+- Custom Windows installation paths are treated as fully supported: shortcuts, uninstall metadata, in-app updates, and autostart migration continue to resolve the actual `{app}` directory
+- The optional desktop shortcut remains an explicit, unchecked user choice
+
+[1.0.4]: https://github.com/turinglambdaai/movebit/releases/tag/v1.0.4
+
 ## [1.0.3] - 2026-09-22
 
 ### Added
@@ -178,6 +195,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   summary of the pact with live values
 - Choices write through to the config immediately; skipping applies clean defaults;
   closing the window counts as seen so onboarding never nags on every launch
+
+### Changed
+
+- Welcome is seen-once: dismissing the card or closing the window marks it read;
+  it never reappears on later launches
 
 [0.1.4]: https://github.com/turinglambdaai/movebit/releases/tag/v0.1.4
 
