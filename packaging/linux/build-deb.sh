@@ -48,7 +48,7 @@ Comment=Healthy work rhythm companion
 Exec=/opt/movebit/MoveBit
 Icon=movebit
 Terminal=false
-Categories=Utility;Health;
+Categories=Utility;
 StartupNotify=false
 EOF
 
@@ -58,8 +58,10 @@ ln -s /opt/movebit/MoveBit "$pkg/usr/bin/movebit"
 artifact="$root/$out_dir/MoveBit-linux-x64.deb"
 dpkg-deb --build --root-owner-group "$pkg" "$artifact"
 dpkg-deb --info "$artifact" >/dev/null
-dpkg-deb --contents "$artifact" | grep -q './opt/movebit/MoveBit'
-dpkg-deb --contents "$artifact" | grep -q './usr/share/applications/movebit.desktop'
+contents="$work/deb-contents.txt"
+dpkg-deb --contents "$artifact" > "$contents"
+grep -q './opt/movebit/MoveBit' "$contents"
+grep -q './usr/share/applications/movebit.desktop' "$contents"
 
 hash="$(sha256sum "$artifact" | awk '{print $1}')"
 printf '%s  %s' "$hash" "$(basename "$artifact")" > "$artifact.sha256"
