@@ -8,6 +8,9 @@ public sealed class DayStats
     /// Total active (non-idle) computer time today.
     public TimeSpan ActiveTime { get; set; }
 
+    /// Longest continuous active-work session completed or still in progress today.
+    public TimeSpan LongestSession { get; set; }
+
     public int SitReminders { get; set; }
 
     public int WaterReminders { get; set; }
