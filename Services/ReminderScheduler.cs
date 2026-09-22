@@ -19,6 +19,8 @@ public sealed record ReminderEvent(ReminderKind Kind, int CountToday, TimeSpan A
 ///   - Micro cycle: lightweight short-break nudges when enabled.
 /// When the user goes idle beyond the away threshold, all cycles freeze; when they
 /// come back the cycles reset — the break already happened, no nagging after it.
+/// Continuous-session time is tracked separately for work-pattern insights and resets
+/// after a real away break, completed forced break, pause, or day rollover.
 /// </summary>
 public sealed class ReminderScheduler
 {
@@ -32,6 +34,7 @@ public sealed class ReminderScheduler
     private TimeSpan _sitAccum;
     private TimeSpan _waterAccum;
     private TimeSpan _microAccum;
+    private TimeSpan _sessionAccum;
     private DateTimeOffset? _pausedUntil;
 
     public event EventHandler<ReminderEvent>? ReminderFired;
@@ -52,6 +55,9 @@ public sealed class ReminderScheduler
 
     /// Active time accumulated in the current sit cycle (for UI progress display).
     public TimeSpan SitCycleElapsed => MaxOfZero(_sitAccum);
+
+    /// Continuous active work since the last real break/pause/day boundary.
+    public TimeSpan CurrentSessionActiveTime => MaxOfZero(_sessionAccum);
 
     public bool IsPaused => _pausedUntil is { } until && _time.GetLocalNow() < until;
 
@@ -115,6 +121,13 @@ public sealed class ReminderScheduler
         var away = idle is { } t && t >= AwayThreshold;
         if (away)
         {
+            if (!_wasAway)
+            {
+                // The current continuous-work session ends as soon as a real away
+                // interval is detected. Reminder cycles are reset when the user returns.
+                _sessionAccum = TimeSpan.Zero;
+            }
+
             _wasAway = true;
             return; // user already stepped away — nothing accumulates, nothing fires
         }
@@ -130,7 +143,12 @@ public sealed class ReminderScheduler
         _sitAccum += delta;
         _waterAccum += delta;
         _microAccum += delta;
+        _sessionAccum += delta;
         _stats.ActiveTime += delta;
+        if (_sessionAccum > _stats.LongestSession)
+        {
+            _stats.LongestSession = _sessionAccum;
+        }
 
         if (_sitAccum >= SitInterval)
         {
@@ -160,12 +178,14 @@ public sealed class ReminderScheduler
         var now = _time.GetLocalNow();
         _pausedUntil = now + duration;
         _lastTick = now;
+        _sessionAccum = TimeSpan.Zero;
     }
 
     public void Resume()
     {
         _pausedUntil = null;
         _lastTick = _time.GetLocalNow();
+        _sessionAccum = TimeSpan.Zero;
     }
 
     /// <summary>
@@ -178,12 +198,13 @@ public sealed class ReminderScheduler
     }
 
     /// <summary>
-    /// Record a completed real break. All reminder cycles restart and time spent on the
-    /// break is discarded, matching the same semantics as returning from an away period.
+    /// Record a completed real break. All reminder cycles and the current continuous
+    /// session restart; time spent on the break is discarded.
     /// </summary>
     public void CompleteBreak()
     {
         ResetCycles();
+        _sessionAccum = TimeSpan.Zero;
         _lastTick = _time.GetLocalNow();
     }
 
@@ -222,6 +243,7 @@ public sealed class ReminderScheduler
         {
             DayCompleted?.Invoke(this, _stats); // let the app archive the closing day first
             _stats = new DayStats { Date = today };
+            _sessionAccum = TimeSpan.Zero;
         }
     }
 }
