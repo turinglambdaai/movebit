@@ -73,10 +73,34 @@ public sealed class HistoryStore
         }
     }
 
+    /// Keep the live session peak in memory. The app's existing periodic SaveDay call
+    /// persists it, so adding insights does not introduce a second write timer.
+    public void ObserveLongestSession(DateOnly date, int minutes)
+    {
+        if (minutes <= 0)
+        {
+            return;
+        }
+
+        var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        _days.TryGetValue(key, out var existing);
+        existing ??= new DayRecord();
+        if (minutes > existing.LongestSessionMinutes)
+        {
+            _days[key] = existing with { LongestSessionMinutes = minutes };
+        }
+    }
+
     /// Upsert one day, prune expired entries, and persist atomically (write-then-swap).
     public void SaveDay(DateOnly date, DayRecord record)
     {
-        _days[date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)] = record;
+        var key = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (_days.TryGetValue(key, out var existing) && existing.LongestSessionMinutes > record.LongestSessionMinutes)
+        {
+            record = record with { LongestSessionMinutes = existing.LongestSessionMinutes };
+        }
+
+        _days[key] = record;
         PruneExpired(date);
 
         try
