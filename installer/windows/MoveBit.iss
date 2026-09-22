@@ -24,12 +24,10 @@ AppComments=Healthy work rhythm companion
 DefaultDirName={localappdata}\Programs\MoveBit
 DefaultGroupName=MoveBit
 DisableProgramGroupPage=yes
-; MoveBit deliberately uses one stable per-user location so its in-app updater,
-; Start-menu shortcut, uninstall metadata and autostart migration all agree.
-; Hiding the destination page removes a technical choice normal users do not need.
-DisableDirPage=yes
-; The optional desktop-shortcut page already provides the only meaningful choice.
-; Going straight from that page to installation keeps setup short and consumer-like.
+; Keep the destination page visible: the per-user location is the recommended
+; default, but Windows users may choose another writable installation directory.
+; The updater, shortcuts, uninstall metadata and autostart migration all resolve
+; the actual {app} path, so a custom destination remains fully supported.
 DisableReadyPage=yes
 DisableWelcomePage=no
 PrivilegesRequired=lowest
@@ -67,7 +65,7 @@ VersionInfoProductVersion={#MyAppVersion}
 
 [Messages]
 WelcomeLabel1=Welcome to MoveBit
-WelcomeLabel2=MoveBit helps you build healthier work rhythms without getting in your way.%n%nSetup is quick and installs MoveBit only for your Windows account — no administrator permission is required.
+WelcomeLabel2=MoveBit helps you build healthier work rhythms without getting in your way.%n%nSetup installs MoveBit only for your Windows account — no administrator permission is required. You can keep the recommended location or choose another folder.
 FinishedHeadingLabel=MoveBit is ready
 FinishedLabel=MoveBit has been installed successfully.%n%nLaunch it now; closing the main window keeps MoveBit running quietly in the system tray.
 BeveledLabel=MoveBit · healthier work rhythms
