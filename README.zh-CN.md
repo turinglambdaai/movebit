@@ -51,11 +51,11 @@ MoveBit v1 把这些行为固定下来：
 
 ### Windows x64 —— 推荐安装版
 
-从 [Releases](https://github.com/turinglambdaai/movebit/releases) 下载 **`MoveBit-Setup-windows-x64.exe`**。它默认安装到当前用户目录：
+从 [Releases](https://github.com/turinglambdaai/movebit/releases) 下载 **`MoveBit-Setup-windows-x64.exe`**。安装器默认推荐：
 
 `%LOCALAPPDATA%\Programs\MoveBit`
 
-因此**不需要管理员权限**。安装器会创建开始菜单快捷方式、标准卸载入口，并提供可选桌面快捷方式。以后直接在开始菜单搜索 `MoveBit` 即可启动，不需要再记住 ZIP 解压到了哪里。
+这个位置**不需要管理员权限**，也最适合 MoveBit 的应用内更新；但安装时仍会显示安装目录页面，用户可以自由改到其他当前用户有写权限的位置。安装器会创建开始菜单快捷方式、标准卸载入口，并提供可选桌面快捷方式。以后直接在开始菜单搜索 `MoveBit` 即可启动，不需要再记住 ZIP 解压到了哪里。
 
 安装完成后，后续版本继续使用 MoveBit 自己的应用内更新器，不需要每次重新下载安装包。
 
@@ -87,11 +87,11 @@ MoveBit 1.0.1 起默认会在启动后稍作延迟检查一次最新 GitHub Rele
 6. 独立更新 helper 等待主进程完全退出，再替换应用文件并重新启动 MoveBit。
 7. 如果替换阶段失败，helper 会把已经覆盖的旧文件恢复回来。
 
-Windows 安装版和 Windows 便携版在首次启动之后**共用同一套 MoveBit 在线更新器**。安装器只负责建立稳定安装位置、开始菜单快捷方式和卸载入口，不再引入第二套更新框架。安装版通过应用内升级后，下次启动还会同步 Windows“已安装的应用”中的显示版本号。
+Windows 安装版和 Windows 便携版在首次启动之后**共用同一套 MoveBit 在线更新器**。安装器负责建立用户选择的安装位置、开始菜单快捷方式和卸载入口，不再引入第二套更新框架。安装版通过应用内升级后，下次启动还会同步 Windows“已安装的应用”中的显示版本号。
 
 MoveBit 的配置与历史数据放在系统用户应用数据目录，而不是应用程序目录，因此程序更新不会覆盖用户数据。
 
-当前自动应用更新与正式 Release 的架构保持一致：**Windows x64、macOS arm64、Linux x64**。如果便携版位于无写权限目录中，MoveBit 会拒绝替换并保留当前版本；推荐的 Windows 安装版默认位于当前用户可写目录，不会遇到这个问题。
+当前自动应用更新与正式 Release 的架构保持一致：**Windows x64、macOS arm64、Linux x64**。如果便携版位于无写权限目录中，MoveBit 会拒绝替换并保留当前版本；Windows 安装器默认推荐当前用户可写目录；如果自定义安装位置，也应选择当前用户有写权限的目录，以保证应用内更新可以正常替换程序文件。
 
 ## 工作原理
 
@@ -159,10 +159,10 @@ Windows 安装器定义在 `installer/windows/MoveBit.iss`，由 CI / Release wo
 
 ## 发布流程
 
-1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.0.2` ↔ `v1.0.2`。
+1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.0.4` ↔ `v1.0.4`。
 2. 只有 Windows / macOS / Linux 三平台 CI 全绿后再合并；Windows CI 还会额外编译安装器，并做一次静默安装 + 静默卸载 Smoke Test。
 3. 推送版本 tag。
-4. Release workflow 会先跑测试，再生成三个支持平台的便携压缩包和 SHA-256 文件，同时生成 Windows 当前用户安装器及校验文件；全部成功后只创建一次 GitHub Release。
+4. Release workflow 会先跑测试，再生成三个支持平台的便携压缩包和 SHA-256 文件，同时生成 Windows 当前用户安装器；最终 Setup 还会再次执行自定义目录安装/卸载 Smoke Test，通过后才生成校验文件并发布 GitHub Release。
 5. MoveBit 1.0.1+ 会通过 GitHub latest-release API 发现这个新版本，并在应用内使用对应平台的已校验 Release 包完成更新。
 
 ## Roadmap
