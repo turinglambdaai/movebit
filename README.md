@@ -51,7 +51,7 @@ MoveBit v1 treats the following as product contracts rather than best-effort beh
 
 ### Windows x64 — installer recommended
 
-Download **`MoveBit-Setup-windows-x64.exe`** from [Releases](https://github.com/turinglambdaai/movebit/releases). It installs for the current user under `%LOCALAPPDATA%\Programs\MoveBit`, so no administrator permission is required. The installer creates a Start-menu shortcut, registers a standard uninstall entry, and offers an optional desktop shortcut.
+Download **`MoveBit-Setup-windows-x64.exe`** from [Releases](https://github.com/turinglambdaai/movebit/releases). The installer recommends `%LOCALAPPDATA%\Programs\MoveBit`, which requires no administrator permission, but the destination page remains available so you can choose another writable folder. Setup creates a Start-menu shortcut, registers a standard uninstall entry, and offers an optional desktop shortcut.
 
 Once installed, launch MoveBit from the Start menu like a normal desktop app. Future versions continue to use MoveBit's own verified in-app updater; you do not need to download a new installer for each release.
 
@@ -82,11 +82,11 @@ When a newer version is available:
 5. MoveBit saves configuration/history and exits.
 6. A small platform helper replaces the application files, restores overwritten files if replacement fails, and starts MoveBit again.
 
-The Windows installer and Windows portable build deliberately use the same updater after first launch. The installer only establishes a stable user-writable location, Start-menu shortcut and uninstall registration; it does not introduce a second update framework. After an in-app update, installed Windows copies also refresh their Apps & Features display version on the next start.
+The Windows installer and Windows portable build deliberately use the same updater after first launch. The installer establishes the selected user-writable location, Start-menu shortcut and uninstall registration; it does not introduce a second update framework. After an in-app update, installed Windows copies also refresh their Apps & Features display version on the next start.
 
 Configuration and history live in the user application-data directory, outside the application folder, so an application update does not replace user data.
 
-Automatic apply currently supports the same architectures shipped by the release workflow: **Windows x64, macOS arm64, and Linux x64**. If a portable application folder is not writable, MoveBit leaves the current version untouched and reports that the directory must be moved to a writable location. The recommended Windows installer uses a per-user writable install directory by design.
+Automatic apply currently supports the same architectures shipped by the release workflow: **Windows x64, macOS arm64, and Linux x64**. If a portable application folder is not writable, MoveBit leaves the current version untouched and reports that the directory must be moved to a writable location. The recommended Windows installer location is per-user and writable by design; custom installer locations should likewise be writable by the current user so in-app updates can replace application files.
 
 ## How it works
 
@@ -154,10 +154,10 @@ The Windows setup is defined in `installer/windows/MoveBit.iss` and is compiled 
 
 ## Release process
 
-1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.0.2` ↔ `v1.0.2`).
+1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.0.4` ↔ `v1.0.4`).
 2. Merge only with the three-platform CI matrix green; Windows CI additionally compiles, silently installs, and silently uninstalls the setup package.
 3. Push the version tag.
-4. The release workflow runs tests, builds all supported portable archives and their SHA-256 files, builds the Windows per-user installer and checksum, then creates one GitHub Release after every package succeeds.
+4. The release workflow runs tests, builds all supported portable archives and their SHA-256 files, builds the Windows per-user installer, smoke-tests the final installer, creates its checksum, then creates one GitHub Release after every package succeeds.
 5. Existing MoveBit 1.0.1+ copies discover the new release through GitHub's latest-release API and can apply the matching verified archive in-app.
 
 ## Roadmap
