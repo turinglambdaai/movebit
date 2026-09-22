@@ -154,6 +154,13 @@
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
+                        <TextBlock Grid.Column="0" Text="稍后再次提醒（分钟）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                        <NumericUpDown Grid.Column="1" Value="{Binding SnoozeMinutes}"
+                                      Minimum="5" Maximum="60" Increment="5"
+                                      HorizontalAlignment="Right" Width="132" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto, *">
                         <TextBlock Grid.Column="0" Text="微休息：每 X 分钟站 Y 秒" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <ToggleSwitch Grid.Column="1" IsChecked="{Binding MicroBreakEnabled}" HorizontalAlignment="Right" />
                     </Grid>

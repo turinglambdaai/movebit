@@ -22,6 +22,9 @@ public sealed class ReminderConfig
     /// Seconds after the break starts before the "skip" button appears (0 = immediately).
     public int SkipAfterSeconds { get; set; } = 20;
 
+    /// Active minutes to wait after the user chooses "remind me later" or skips a forced break.
+    public int SnoozeMinutes { get; set; } = 10;
+
     /// Micro breaks: a light "stand up, look far away" nudge on its own faster cycle.
     /// Screen-center card, no lock, no sound — the evidence-friendly layer between long breaks.
     public bool MicroBreakEnabled { get; set; } = true;
@@ -48,6 +51,7 @@ public sealed class ReminderConfig
         ForceBreakEnabled = ForceBreakEnabled,
         BreakDurationMinutes = BreakDurationMinutes,
         SkipAfterSeconds = SkipAfterSeconds,
+        SnoozeMinutes = SnoozeMinutes,
         MicroBreakEnabled = MicroBreakEnabled,
         MicroBreakIntervalMinutes = MicroBreakIntervalMinutes,
         MicroBreakDurationSeconds = MicroBreakDurationSeconds,

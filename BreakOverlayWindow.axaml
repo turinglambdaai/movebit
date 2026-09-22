@@ -53,7 +53,7 @@
                        Foreground="#6E6884" HorizontalAlignment="Center" Margin="0,2,0,0" />
         </StackPanel>
 
-        <Button x:Name="SkipButton" Content="跳过本次休息" Click="OnSkip"
+        <Button x:Name="SkipButton" Content="跳过，10 分钟后再提醒" Click="OnSkip"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48"
                 IsVisible="False" FontSize="13.5"
                 Foreground="#8A849E" Background="Transparent" BorderBrush="#3A3550"

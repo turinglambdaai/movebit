@@ -26,6 +26,8 @@ public partial class BreakOverlayWindow : Window
     /// Retained for screen ownership/diagnostics. All screens now render the full break UI.
     public bool IsPrimary { get; init; }
 
+    public int SnoozeMinutes { get; init; } = 10;
+
     public event EventHandler? SkipRequested;
 
     public BreakOverlayWindow()
@@ -89,6 +91,8 @@ public partial class BreakOverlayWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+
+        SkipButton.Content = $"跳过，{SnoozeMinutes} 分钟后再提醒";
 
         // Cover the full screen bounds, taskbar included.
         Position = TargetBounds.Position;

@@ -90,6 +90,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetSetting(value, v => _config.SkipAfterSeconds = Clamp(v, 0, 120));
     }
 
+    public decimal? SnoozeMinutes
+    {
+        get => _config.SnoozeMinutes;
+        set => SetSetting(value, v => _config.SnoozeMinutes = Clamp(v, 5, 60));
+    }
+
     public bool SoundEnabled
     {
         get => _config.SoundEnabled;

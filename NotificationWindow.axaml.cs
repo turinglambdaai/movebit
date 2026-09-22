@@ -21,6 +21,8 @@ public partial class NotificationWindow : Window
 
     public ReminderKind ReminderKind { get; init; }
 
+    public int SnoozeMinutes { get; init; } = 10;
+
     public string NotificationTitle { get; init; } = "";
 
     public string NotificationBody { get; init; } = "";
@@ -36,6 +38,7 @@ public partial class NotificationWindow : Window
 
         TitleText.Text = NotificationTitle;
         BodyText.Text = NotificationBody;
+        SnoozeButton.Content = $"稍后 {SnoozeMinutes} 分钟";
 
         // Color-code by kind: orange = move, blue = water.
         AccentBar.Background = ReminderKind == ReminderKind.Water
