@@ -8,7 +8,38 @@ using System.Text.Json;
 namespace MoveBit.Services;
 
 /// One persisted day of activity: the answer to "how long did I actually work".
-public sealed record DayRecord(int ActiveMinutes, int SitBreaks, int WaterReminders, int MicroBreaks);
+/// The parameterless constructor keeps older history.json files forward-compatible
+/// when new insight fields are added.
+public sealed record DayRecord
+{
+    public int ActiveMinutes { get; init; }
+
+    public int SitBreaks { get; init; }
+
+    public int WaterReminders { get; init; }
+
+    public int MicroBreaks { get; init; }
+
+    public int LongestSessionMinutes { get; init; }
+
+    public DayRecord()
+    {
+    }
+
+    public DayRecord(
+        int activeMinutes,
+        int sitBreaks,
+        int waterReminders,
+        int microBreaks,
+        int longestSessionMinutes = 0)
+    {
+        ActiveMinutes = activeMinutes;
+        SitBreaks = sitBreaks;
+        WaterReminders = waterReminders;
+        MicroBreaks = microBreaks;
+        LongestSessionMinutes = longestSessionMinutes;
+    }
+}
 
 /// <summary>
 /// Persists daily stats to history.json under the config directory. The data set is
@@ -65,13 +96,18 @@ public sealed class HistoryStore
     /// The most recent <paramref name="count"/> days, oldest first, holes included as zero days.
     public List<(DateOnly Date, DayRecord Record)> GetRecent(int count)
     {
+        if (count <= 0)
+        {
+            return [];
+        }
+
         var today = DateOnly.FromDateTime(DateTime.Now);
         var result = new List<(DateOnly, DayRecord)>(count);
         for (var i = count - 1; i >= 0; i--)
         {
             var date = today.AddDays(-i);
             _days.TryGetValue(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), out var record);
-            result.Add((date, record ?? new DayRecord(0, 0, 0, 0)));
+            result.Add((date, record ?? new DayRecord()));
         }
 
         return result;
