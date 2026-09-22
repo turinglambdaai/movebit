@@ -28,7 +28,7 @@ public sealed class LinuxWaylandIdleProvider : IIdleProvider
         Unsupported,
     }
 
-    private static readonly Regex NumberPattern = new(@"(?<![A-Za-z])\d+", RegexOptions.Compiled);
+    private static readonly Regex NumberPattern = new(@"(?<![A-Za-z0-9])\d+(?![A-Za-z0-9])", RegexOptions.Compiled);
     private Backend _backend;
 
     public TimeSpan? GetIdleTime()
