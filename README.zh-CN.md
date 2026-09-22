@@ -107,6 +107,8 @@ MoveBit 的配置与历史数据放在系统用户应用数据目录，而不是
 
 每日统计每隔几分钟写入 `history.json`，跨天自动归档，并裁剪为最近 370 天。
 
+在普通提醒中选择“稍后”，或跳过强制休息后，同类提醒会按照可配置的延后时间再次出现（默认累计 10 分钟活跃时间）。
+
 ## 配置
 
 Windows 默认使用 `%APPDATA%\movebit\config.json`；macOS/Linux 使用对应的平台应用数据目录。所有面向用户的配置都可以在设置窗口修改：
@@ -119,6 +121,7 @@ Windows 默认使用 `%APPDATA%\movebit\config.json`；macOS/Linux 使用对应�
 | `ForceBreakEnabled` | true | — |
 | `BreakDurationMinutes` | 5 | 1–30 |
 | `SkipAfterSeconds` | 20 | 0–120 |
+| `SnoozeMinutes` | 10 | 5–60 |
 | `MicroBreakEnabled` | true | — |
 | `MicroBreakIntervalMinutes` | 30 | 10–60 |
 | `MicroBreakDurationSeconds` | 20 | 10–60 |

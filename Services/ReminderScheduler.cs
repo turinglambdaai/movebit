@@ -51,7 +51,7 @@ public sealed class ReminderScheduler
     public DayStats Stats => _stats;
 
     /// Active time accumulated in the current sit cycle (for UI progress display).
-    public TimeSpan SitCycleElapsed => _sitAccum;
+    public TimeSpan SitCycleElapsed => MaxOfZero(_sitAccum);
 
     public bool IsPaused => _pausedUntil is { } until && _time.GetLocalNow() < until;
 
@@ -187,22 +187,22 @@ public sealed class ReminderScheduler
         _lastTick = _time.GetLocalNow();
     }
 
-    /// <summary>"Remind me later": push the cycle so it fires again in <paramref name="minutes"/>.</summary>
-    public void Snooze(ReminderKind kind, int minutes)
+    /// <summary>"Remind me later": push the cycle so it fires again after the configured delay.</summary>
+    public void Snooze(ReminderKind kind)
     {
-        var target = TimeSpan.FromMinutes(minutes);
+        var target = TimeSpan.FromMinutes(Config.SnoozeMinutes);
 
         if (kind == ReminderKind.Sit)
         {
-            _sitAccum = MaxOfZero(SitInterval - target);
+            _sitAccum = SitInterval - target;
         }
         else if (kind == ReminderKind.Micro)
         {
-            _microAccum = MaxOfZero(MicroInterval - target);
+            _microAccum = MicroInterval - target;
         }
         else
         {
-            _waterAccum = MaxOfZero(WaterInterval - target);
+            _waterAccum = WaterInterval - target;
         }
     }
 

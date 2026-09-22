@@ -488,6 +488,7 @@ public class App : Application
                 TargetBounds = screen.Bounds,
                 TargetScaling = screen.Scaling,
                 IsPrimary = ReferenceEquals(screen, primary),
+                SnoozeMinutes = _config.SnoozeMinutes,
             };
             overlay.SkipRequested += OnBreakSkipped;
             _overlays.Add(overlay);
@@ -539,7 +540,7 @@ public class App : Application
     private void OnBreakSkipped(object? sender, EventArgs e)
     {
         FinishBreakInternal();
-        _scheduler.Snooze(ReminderKind.Sit, minutes: 10);
+        _scheduler.Snooze(ReminderKind.Sit);
     }
 
     private void FinishBreakInternal(bool completed = false)
@@ -627,8 +628,9 @@ public class App : Application
             NotificationTitle = title,
             NotificationBody = body,
             ReminderKind = kind,
+            SnoozeMinutes = _config.SnoozeMinutes,
         };
-        _notification.Snoozed += (_, k) => _scheduler.Snooze(k, minutes: 10);
+        _notification.Snoozed += (_, k) => _scheduler.Snooze(k);
         _notification.Show();
     }
 

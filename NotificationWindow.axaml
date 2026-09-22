@@ -28,7 +28,7 @@
                            TextWrapping="Wrap" Foreground="{DynamicResource InkSecondary}" />
 
                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
-                    <Button Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
+                    <Button x:Name="SnoozeButton" Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
                     <Button Content="知道了" Click="OnAcknowledge" FontSize="12.5" />
                 </StackPanel>
             </StackPanel>

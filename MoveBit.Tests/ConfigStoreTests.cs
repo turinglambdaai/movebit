@@ -40,6 +40,7 @@ public class ConfigStoreTests : IDisposable
             ForceBreakEnabled = false,
             BreakDurationMinutes = 4,
             SkipAfterSeconds = 35,
+            SnoozeMinutes = 25,
             MicroBreakEnabled = false,
             MicroBreakIntervalMinutes = 25,
             MicroBreakDurationSeconds = 30,
@@ -58,6 +59,7 @@ public class ConfigStoreTests : IDisposable
         Assert.Equal(expected.ForceBreakEnabled, actual.ForceBreakEnabled);
         Assert.Equal(expected.BreakDurationMinutes, actual.BreakDurationMinutes);
         Assert.Equal(expected.SkipAfterSeconds, actual.SkipAfterSeconds);
+        Assert.Equal(expected.SnoozeMinutes, actual.SnoozeMinutes);
         Assert.Equal(expected.MicroBreakEnabled, actual.MicroBreakEnabled);
         Assert.Equal(expected.MicroBreakIntervalMinutes, actual.MicroBreakIntervalMinutes);
         Assert.Equal(expected.MicroBreakDurationSeconds, actual.MicroBreakDurationSeconds);
@@ -88,6 +90,7 @@ public class ConfigStoreTests : IDisposable
             AwayResetMinutes = 0,
             BreakDurationMinutes = 100,
             SkipAfterSeconds = -10,
+            SnoozeMinutes = 999,
             MicroBreakIntervalMinutes = 1,
             MicroBreakDurationSeconds = 999,
         };
@@ -100,6 +103,7 @@ public class ConfigStoreTests : IDisposable
         Assert.Equal(1, actual.AwayResetMinutes);
         Assert.Equal(30, actual.BreakDurationMinutes);
         Assert.Equal(0, actual.SkipAfterSeconds);
+        Assert.Equal(60, actual.SnoozeMinutes);
         Assert.Equal(10, actual.MicroBreakIntervalMinutes);
         Assert.Equal(60, actual.MicroBreakDurationSeconds);
         Assert.True(actual.AutoCheckUpdates);
@@ -114,7 +118,25 @@ public class ConfigStoreTests : IDisposable
 
         Assert.Equal(45, actual.SitReminderMinutes);
         Assert.Equal(30, actual.WaterReminderMinutes);
+        Assert.Equal(10, actual.SnoozeMinutes);
         Assert.True(actual.ForceBreakEnabled);
         Assert.True(actual.AutoCheckUpdates);
+    }
+
+    [Fact]
+    public void Config_from_before_snooze_setting_uses_default_delay()
+    {
+        File.WriteAllText(Path.Combine(_dir, "config.json"), """
+            {
+              "SitReminderMinutes": 60,
+              "WelcomeShown": true
+            }
+            """);
+
+        var actual = new ConfigStore(_dir).Load();
+
+        Assert.Equal(60, actual.SitReminderMinutes);
+        Assert.Equal(10, actual.SnoozeMinutes);
+        Assert.True(actual.WelcomeShown);
     }
 }

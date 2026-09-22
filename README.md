@@ -100,6 +100,8 @@ Idle time at or above the away threshold (5 minutes by default) freezes accumula
 
 A forced break is explicitly excluded from active-work time. When the countdown completes, all three cycles restart. If several reminders become due on the same scheduler tick, the forced sit break takes priority so water and micro UI cannot appear over it.
 
+Choosing “remind me later” on a toast or skipping a forced break schedules the same reminder after the configurable snooze delay (10 active minutes by default).
+
 Daily stats are flushed to `history.json` every few minutes, archived across day boundaries, and pruned to the most recent 370 days.
 
 ## Configuration
@@ -114,6 +116,7 @@ Settings live in `%APPDATA%\movebit\config.json` on Windows or the platform appl
 | `ForceBreakEnabled` | true | — |
 | `BreakDurationMinutes` | 5 | 1–30 |
 | `SkipAfterSeconds` | 20 | 0–120 |
+| `SnoozeMinutes` | 10 | 5–60 |
 | `MicroBreakEnabled` | true | — |
 | `MicroBreakIntervalMinutes` | 30 | 10–60 |
 | `MicroBreakDurationSeconds` | 20 | 10–60 |

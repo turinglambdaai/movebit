@@ -37,13 +37,14 @@ internal sealed class Harness
 
     public List<ReminderEvent> Fired { get; } = [];
 
-    public Harness(int sitMinutes = 45, int waterMinutes = 30, int awayMinutes = 5)
+    public Harness(int sitMinutes = 45, int waterMinutes = 30, int awayMinutes = 5, int snoozeMinutes = 10)
     {
         var config = new ReminderConfig
         {
             SitReminderMinutes = sitMinutes,
             WaterReminderMinutes = waterMinutes,
             AwayResetMinutes = awayMinutes,
+            SnoozeMinutes = snoozeMinutes,
             MicroBreakEnabled = false, // tests opt in explicitly; keeps legacy cases clean
         };
         Scheduler = new ReminderScheduler(config, Time, Idle);
@@ -146,13 +147,15 @@ public class SchedulerTests
     [Fact]
     public void Snooze_re_fires_after_the_delay()
     {
-        var h = new Harness(sitMinutes: 45, waterMinutes: 300);
+        var h = new Harness(sitMinutes: 45, waterMinutes: 300, snoozeMinutes: 60);
 
         h.StepMinutes(50);
         Assert.Single(h.Fired);
 
-        h.Scheduler.Snooze(ReminderKind.Sit, minutes: 10);
-        h.StepMinutes(9, stepMinutes: 3);
+        h.Scheduler.Snooze(ReminderKind.Sit);
+        Assert.Equal(TimeSpan.Zero, h.Scheduler.SitCycleElapsed);
+
+        h.StepMinutes(59, stepMinutes: 1);
         Assert.Single(h.Fired);
 
         h.StepMinutes(2, stepMinutes: 1);
