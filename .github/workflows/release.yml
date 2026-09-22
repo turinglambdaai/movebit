@@ -238,6 +238,54 @@ jobs:
           Write-Host "Installer signer: $($signature.SignerCertificate.Subject)"
           Write-Host "Installer thumbprint: $($signature.SignerCertificate.Thumbprint)"
 
+      - name: Smoke-test final Windows installer
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path 'dist\installer\MoveBit-Setup-windows-x64.exe').Path
+          $installDir = Join-Path $env:RUNNER_TEMP 'MoveBitReleaseInstallerSmoke'
+          $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{E4B9E01D-65D0-4C25-BCF1-3CC22B8C9E02}_is1'
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+
+          if (Test-Path $installDir) {
+            Remove-Item $installDir -Recurse -Force
+          }
+
+          # Exercise the real custom-directory path and portable-autostart migration.
+          New-Item -Path $runKey -Force | Out-Null
+          Set-ItemProperty -Path $runKey -Name 'MoveBit' -Value '"C:\old-portable\MoveBit.exe"'
+
+          $install = Start-Process -FilePath $setup -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            "/DIR=$installDir"
+          ) -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer exited with code $($install.ExitCode)" }
+
+          $installedExe = Join-Path $installDir 'MoveBit.exe'
+          if (-not (Test-Path $installedExe)) { throw 'Installed MoveBit.exe is missing.' }
+          if (-not (Test-Path $uninstallKey)) { throw 'Windows uninstall registration is missing.' }
+
+          $expectedRunCommand = '"' + $installedExe + '"'
+          $actualRunCommand = (Get-ItemProperty -Path $runKey -Name 'MoveBit').MoveBit
+          if ($actualRunCommand -ne $expectedRunCommand) {
+            throw "Autostart migration mismatch. Expected '$expectedRunCommand', got '$actualRunCommand'."
+          }
+
+          $uninstaller = Join-Path $installDir 'unins000.exe'
+          if (-not (Test-Path $uninstaller)) { throw 'Uninstaller is missing.' }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART'
+          ) -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with code $($uninstall.ExitCode)" }
+          if (Test-Path $installedExe) { throw 'MoveBit.exe remained after uninstall.' }
+          if (Test-Path $uninstallKey) { throw 'Windows uninstall registration remained after uninstall.' }
+          if ((Get-ItemProperty -Path $runKey -Name 'MoveBit' -ErrorAction SilentlyContinue).MoveBit) {
+            throw 'MoveBit autostart registration remained after uninstall.'
+          }
+
       - name: Checksum Windows installer
         shell: pwsh
         run: |
