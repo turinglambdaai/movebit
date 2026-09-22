@@ -24,6 +24,13 @@ AppComments=Healthy work rhythm companion
 DefaultDirName={localappdata}\Programs\MoveBit
 DefaultGroupName=MoveBit
 DisableProgramGroupPage=yes
+; MoveBit deliberately uses one stable per-user location so its in-app updater,
+; Start-menu shortcut, uninstall metadata and autostart migration all agree.
+; Hiding the destination page removes a technical choice normal users do not need.
+DisableDirPage=yes
+; The optional desktop-shortcut page already provides the only meaningful choice.
+; Going straight from that page to installation keeps setup short and consumer-like.
+DisableReadyPage=yes
 DisableWelcomePage=no
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
@@ -60,7 +67,7 @@ VersionInfoProductVersion={#MyAppVersion}
 
 [Messages]
 WelcomeLabel1=Welcome to MoveBit
-WelcomeLabel2=MoveBit helps you build healthier work rhythms without getting in your way.%n%nSetup installs MoveBit only for your Windows account. No administrator permission is required.
+WelcomeLabel2=MoveBit helps you build healthier work rhythms without getting in your way.%n%nSetup is quick and installs MoveBit only for your Windows account — no administrator permission is required.
 FinishedHeadingLabel=MoveBit is ready
 FinishedLabel=MoveBit has been installed successfully.%n%nLaunch it now; closing the main window keeps MoveBit running quietly in the system tray.
 BeveledLabel=MoveBit · healthier work rhythms
@@ -86,6 +93,17 @@ const
 function InstalledRunCommand(): String;
 begin
   Result := '"' + ExpandConstant('{app}\{#MyAppExeName}') + '"';
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  { With the Ready page removed, make the action on the final choice page explicit. }
+  if CurPageID = wpSelectTasks then
+    WizardForm.NextButton.Caption := SetupMessage(msgButtonInstall)
+  else if CurPageID = wpFinished then
+    WizardForm.NextButton.Caption := SetupMessage(msgButtonFinish)
+  else
+    WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
