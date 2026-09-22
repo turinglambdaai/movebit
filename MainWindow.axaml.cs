@@ -20,16 +20,26 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         // Keep MoveBit compact by default, but let users make better use of larger displays.
-        // The XAML values remain a safe design-time fallback; runtime sizing is authoritative.
+        // Never cap the native window itself: Windows can otherwise maximize the title bar
+        // while Avalonia's client area remains at a smaller MaxWidth/MaxHeight.
         CanResize = true;
         Width = DefaultWidth;
         Height = DefaultHeight;
         MinWidth = MinimumWidth;
         MinHeight = AbsoluteMinimumHeight;
+        MaxWidth = double.PositiveInfinity;
+        MaxHeight = double.PositiveInfinity;
 
-        // Re-evaluate constraints when the window moves between displays or DPI changes.
+        // Re-evaluate normal-window sizing when the window moves between displays or DPI changes.
         PositionChanged += (_, _) => FitToCurrentScreen();
         ScalingChanged += (_, _) => FitToCurrentScreen();
+        PropertyChanged += (_, change) =>
+        {
+            if (change.Property == WindowStateProperty && WindowState == WindowState.Normal)
+            {
+                FitToCurrentScreen();
+            }
+        };
     }
 
     /// True while the app is running: closing hides to tray. Set false only on real shutdown.
@@ -43,9 +53,8 @@ public partial class MainWindow : Window
 
     private void FitToCurrentScreen()
     {
-        // Window-level MaxWidth/MaxHeight constraints conflict with native maximization on
-        // Windows: the title bar expands to the work area while the Avalonia client area
-        // can remain capped. A maximized window must be left entirely to the window manager.
+        // A maximized/full-screen window belongs to the window manager. Only normal windows
+        // get our compact-product sizing so chrome and client area always share the same bounds.
         if (WindowState != WindowState.Normal)
         {
             return;
@@ -78,6 +87,22 @@ public partial class MainWindow : Window
         if (Height > availableHeight)
         {
             Height = availableHeight;
+        }
+    }
+
+    private void OnHistoryWeekClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ViewModels.MainViewModel viewModel)
+        {
+            viewModel.ShowHistoryRange(7);
+        }
+    }
+
+    private void OnHistoryMonthClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ViewModels.MainViewModel viewModel)
+        {
+            viewModel.ShowHistoryRange(30);
         }
     }
 
