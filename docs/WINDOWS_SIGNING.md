@@ -1,29 +1,33 @@
 # Windows production code signing
 
-MoveBit's release workflow treats Windows code signing as a **release requirement**, not an optional decoration.
+MoveBit supports production Windows code signing with Azure Artifact Signing, but signing is currently **optional** so public releases do not require a paid signing service during the project's early stage.
 
-The Windows release job signs both:
+When the complete Azure signing configuration is present, the Windows release job signs both:
 
 - `MoveBit.exe` inside the Windows portable ZIP; and
 - `MoveBit-Setup-windows-x64.exe` after the Inno Setup package is built.
 
-The workflow then runs `Get-AuthenticodeSignature` on both files and refuses to publish if either signature is missing or invalid. SHA-256 sidecars are generated **after** signing so the published checksums always describe the exact signed files users download.
+The workflow then runs `Get-AuthenticodeSignature` on both files. SHA-256 sidecars are always generated **after** the optional signing step so the published checksums describe the exact files users download.
+
+When none of the Azure signing variables are configured, the same workflow publishes unsigned Windows binaries with SHA-256 sidecars. A partially configured signing setup is treated as an error: configure all six variables or none of them.
 
 ## Why Azure Artifact Signing
 
-MoveBit uses [Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/overview) (formerly Trusted Signing) with a **Public Trust** certificate profile.
+MoveBit is prepared to use [Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/overview) (formerly Trusted Signing) with a **Public Trust** certificate profile.
 
-This avoids checking a long-lived private signing key into GitHub. The GitHub Actions workflow authenticates to Azure with OpenID Connect (OIDC), and the signing key remains in Microsoft's managed HSM-backed service.
+This avoids checking a long-lived private signing key into GitHub. GitHub Actions authenticates to Azure with OpenID Connect (OIDC), and the signing key remains in Microsoft's managed HSM-backed service.
 
-A self-signed certificate is deliberately not supported for public releases because Windows does not trust it by default and it does not solve the SmartScreen problem.
+A self-signed certificate is deliberately not used for public releases because Windows does not trust it by default and it does not solve the SmartScreen publisher-trust problem.
 
 ## SmartScreen expectation
 
-Authenticode signing materially improves the Windows trust experience, but a brand-new publisher identity can still receive an "unrecognized app" SmartScreen warning while reputation is being established. Keep signing every public release with the same publisher identity so reputation can accumulate across versions.
+Authenticode signing materially improves the Windows trust experience, but a brand-new publisher identity can still receive an "unrecognized app" SmartScreen warning while reputation is being established. Keep signing every public release with the same publisher identity once production signing is enabled so reputation can accumulate across versions.
 
-The only distribution path Microsoft documents as avoiding SmartScreen download warnings from the first install is Microsoft Store distribution. Direct-download EXE releases should still be signed consistently.
+Until signing is enabled, Windows may identify the direct-download installer as coming from an unknown publisher. The release SHA-256 sidecar still provides an integrity check, but it is not a substitute for publisher authentication.
 
 ## One-time Azure setup
+
+When production signing becomes worthwhile:
 
 1. In Azure, register/use the **Microsoft.CodeSigning / Artifact Signing** resource provider.
 2. Create an Artifact Signing account.
@@ -40,9 +44,9 @@ Microsoft's setup references:
 - https://learn.microsoft.com/azure/artifact-signing/how-to-signing-integrations
 - https://github.com/Azure/artifact-signing-action
 
-## Required GitHub repository variables
+## Optional GitHub repository variables
 
-Configure these under **Settings → Secrets and variables → Actions → Variables**:
+Configure these together under **Settings → Secrets and variables → Actions → Variables** when signing is enabled:
 
 | Variable | Meaning |
 | --- | --- |
@@ -57,22 +61,20 @@ These identifiers are not private signing keys. The workflow intentionally uses 
 
 ## Release behavior
 
-The `windows-signed` release job performs this sequence:
+The Windows release job performs this sequence:
 
-1. Validate that every required signing variable exists.
-2. Publish the Windows x64 self-contained single-file payload.
-3. Authenticate to Azure through GitHub OIDC.
-4. Sign `publish/MoveBit.exe` with SHA-256 + RFC 3161 timestamping.
-5. Verify the application's Authenticode signature is `Valid`.
-6. Package the signed executable into `MoveBit-windows-x64.zip` and generate its SHA-256 sidecar.
-7. Build `MoveBit-Setup-windows-x64.exe` from the already-signed payload.
-8. Sign the final installer.
-9. Verify the installer's Authenticode signature is `Valid`.
-10. Generate the installer's SHA-256 sidecar.
-11. Upload the signed Windows portable and installer artifacts.
-12. Allow the GitHub Release job to run only after signed Windows artifacts and the macOS/Linux builds all succeed.
+1. Inspect the six signing variables.
+2. If all are absent, select unsigned mode. If some but not all are present, fail the job. If all are present, select signed mode.
+3. Publish the Windows x64 self-contained single-file payload.
+4. In signed mode, authenticate to Azure, sign `MoveBit.exe`, and require its Authenticode status to be `Valid`.
+5. Package the Windows payload into `MoveBit-windows-x64.zip` and generate its SHA-256 sidecar.
+6. Build `MoveBit-Setup-windows-x64.exe` from that same payload.
+7. In signed mode, sign the final installer and require its Authenticode status to be `Valid`.
+8. Generate the installer's SHA-256 sidecar.
+9. Upload the Windows portable and installer artifacts.
+10. Allow the GitHub Release job to run after Windows, macOS, and Linux artifacts all succeed.
 
-If the Azure signing configuration is missing, expired, unauthorized, or produces an invalid signature, the Windows job fails and **no GitHub Release is created**.
+This keeps signing ready to turn on later without maintaining a separate release pipeline.
 
 ## Verifying a downloaded build locally
 
@@ -83,10 +85,12 @@ Get-AuthenticodeSignature .\MoveBit-Setup-windows-x64.exe |
   Format-List Status, StatusMessage, SignerCertificate, TimeStamperCertificate
 ```
 
-For a correctly signed production build, `Status` should be `Valid` and `SignerCertificate` should identify the verified MoveBit publisher identity from the Artifact Signing profile.
+For an unsigned release, `Status` will indicate that no valid Authenticode signature is present. Verify the corresponding `.sha256` sidecar against the downloaded file instead.
 
-You can also inspect the file through **Properties → Digital Signatures**.
+For a signed production build, `Status` should be `Valid` and `SignerCertificate` should identify the verified MoveBit publisher identity from the Artifact Signing profile.
+
+You can also inspect signed files through **Properties → Digital Signatures**.
 
 ## Existing releases
 
-`v1.0.2` and earlier were published before mandatory production signing was introduced, so those historical assets remain unsigned. Do not replace old release assets in place: preserving immutable historical artifacts is preferable. Publish the next version through the signed pipeline once the Azure Artifact Signing identity/profile and GitHub repository variables are configured.
+`v1.0.2` and earlier are unsigned. Starting with the optional-signing pipeline, future releases remain publishable without Azure while retaining the ability to switch to trusted signing simply by configuring all six repository variables.
