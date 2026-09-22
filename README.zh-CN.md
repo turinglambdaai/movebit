@@ -10,11 +10,12 @@
 
 很多提醒工具的问题不是“不会提醒”，而是提醒太容易被随手关掉。MoveBit 把下面几件事当成产品契约：
 
-- **尽量统计活跃工作时长，而不是盲目累计墙上时间。** Windows、macOS 和 Linux/X11 都有会话级空闲检测；Linux/Wayland 目前因为缺少适合本应用的统一全局空闲接口，会退化为自然时间提醒。
+- **尽量统计活跃工作时长，而不是盲目累计墙上时间。** Windows、macOS、Linux/X11 都有会话级空闲检测；Wayland 会优先使用 GNOME/Mutter IdleMonitor 或 freedesktop ScreenSaver 会话总线接口。桌面环境没有提供可靠接口时，MoveBit 会明确退化为自然时间，而不是猜一个假的空闲时间。
 - **让长休息变成一个明确动作。** 久坐提醒可以覆盖所有已连接显示器，显示倒计时；“跳过”按钮默认延迟 20 秒出现。
 - **真的休息过，就不要马上再催。** 离开电脑达到阈值后回来，三个提醒周期都会从零开始；完整完成一次强制休息也一样，而且休息本身不会被算进工作时长。
-- **已经安装的版本应该能自己跟上新版本。** MoveBit 会后台检查 GitHub Releases；发现新版本后明确提示，只有用户主动点击“更新并重启”才会下载、校验、替换并重新启动。
-- **需要安装版时，就应该像正常桌面软件一样好找。** Windows 提供当前用户安装版，开始菜单即可启动，同时保留便携 ZIP。
+- **不只看今天，还要看到工作模式。** 主界面支持最近 7 天 / 30 天切换，并统计当前连续工作、今日/近 30 天最长连续工作、活跃日平均时长、最活跃的一天等指标。
+- **用户可写目录里的版本应该能自己更新。** MoveBit 会后台检查 GitHub Releases；只有用户主动点击“更新并重启”才会下载 ZIP、校验 SHA-256、替换并重新启动。
+- **需要原生安装体验时，也应该像正常桌面软件。** Windows 有 Setup，macOS 有 `.app` / DMG，Debian/Ubuntu 有 `.deb`，同时三个平台继续保留 Portable ZIP。
 
 ## v1 产品保证
 
@@ -23,29 +24,30 @@ MoveBit v1 把这些行为固定下来：
 - 第二次启动不会再创建第二套调度器，而是唤起已经运行的实例；
 - 强制休息时间不会污染“今日活跃时间”；
 - 同一个 Tick 同时到期的喝水/微休息，不会盖到强制休息界面上；
-- 完成长休息后，久坐、喝水、微休息三个周期一起重新开始；
+- 完成长休息后，久坐、喝水、微休息周期和连续工作会话一起重新开始；
 - 配置与历史数据采用“临时文件写入 + 替换”的持久化方式；
-- 历史数据最多保留 370 天；
-- 发布依赖固定版本，Git tag 必须和项目版本一致；
-- 每个发布压缩包和 Windows 安装器都会生成 SHA-256 校验文件；
-- 在线更新必须先用 Release 同名 `.sha256` 校验下载包，通过后才允许进入替换阶段；
-- 更新先解压到 staging，程序退出后由独立 helper 替换应用文件；替换失败时会恢复已经覆盖的旧文件。
+- 历史数据最多保留 370 天，新增洞察字段后仍兼容旧版 `history.json`；
+- Git tag 必须和项目版本一致；
+- 发布压缩包、安装器和原生包都生成 SHA-256 校验文件；
+- 在线更新必须先校验下载包的 SHA-256；
+- 更新先解压到 staging，程序退出后由独立 helper 替换应用文件；替换失败时恢复已覆盖的旧文件。
 
 ## 功能
 
 - 🪟 **托盘常驻**：启动后不会强行弹设置窗口
-- ⏱️ **活跃工作监测**：Windows `GetLastInputInfo`、macOS CoreGraphics、Linux/X11 XScreenSaver
+- ⏱️ **活跃工作监测**：Windows `GetLastInputInfo`、macOS CoreGraphics、Linux/X11 XScreenSaver，以及可用时的 Wayland 会话总线后端
 - 🚨 **强制休息**：多显示器全屏遮罩 + 倒计时；Alt+F4 无法直接退出；跳过按钮延迟出现
 - 👀 **微休息**：短时屏幕中央提示，不锁屏、不出声
 - 💧 **喝水提醒**：独立周期的轻量弹窗
-- 📊 **今日 + 历史统计**：实时活跃时长与提醒次数、最近 7 天图表，后台最多保存 370 天
+- 📊 **7 天 / 30 天历史**：可以切换最近一周和最近一个月，后台保留最多 370 天数据
+- 🧠 **工作模式洞察**：当前连续工作、今日最长连续、近 30 天最长连续、活跃日平均时长、最活跃日和久坐提示
 - 🌗 **深浅色主题**跟随系统
 - 🔁 **登录自启**：Windows 注册表 / macOS LaunchAgent / Linux XDG autostart
 - ⏸️ 托盘菜单**暂停 1 小时**，暂停结束时间按真实到期点恢复计算
 - 🧙 **首次运行引导**：先选择温和 / 标准 / 严格，再开始使用强制休息
 - 🔒 **单实例激活**：重复启动只会唤起已有实例
-- ⬆️ **在线更新**：设置页和托盘都能检查/安装新版本；Windows x64、macOS arm64、Linux x64 共用现有 GitHub Release ZIP + SHA-256 发布链路
-- 📦 **安装版 + 便携版双轨**：Windows 默认推荐安装版，所有支持平台继续提供 Portable ZIP
+- ⬆️ **校验后的在线更新**：用户可写安装目录支持后台检查 + 手动“更新并重启”
+- 📦 **原生包 + 便携版**：Windows Setup、macOS `.app`/DMG、Debian `.deb`，三个平台继续提供 Portable ZIP
 
 ## 安装
 
@@ -55,13 +57,29 @@ MoveBit v1 把这些行为固定下来：
 
 `%LOCALAPPDATA%\Programs\MoveBit`
 
-这个位置**不需要管理员权限**，也最适合 MoveBit 的应用内更新；但安装时仍会显示安装目录页面，用户可以自由改到其他当前用户有写权限的位置。安装器会创建开始菜单快捷方式、标准卸载入口，并提供可选桌面快捷方式。以后直接在开始菜单搜索 `MoveBit` 即可启动，不需要再记住 ZIP 解压到了哪里。
+这个位置**不需要管理员权限**，也最适合应用内更新；安装时仍然可以自由选择其他当前用户有写权限的位置。安装器会创建开始菜单快捷方式、标准卸载入口，并提供可选桌面快捷方式。
 
-安装完成后，后续版本继续使用 MoveBit 自己的应用内更新器，不需要每次重新下载安装包。
+### macOS arm64 —— `.app` / DMG
+
+下载 **`MoveBit-macos-arm64.dmg`**，打开后把 **MoveBit.app** 拖入 Applications（或者你自己的目录）。如果不想用 DMG，也提供 `MoveBit-macos-arm64.app.zip`。
+
+目前 macOS 原生包**没有签名和公证**，所以 Gatekeeper 首次运行时可能需要用户明确允许。这一项需要 Apple 付费开发者身份，因此按当前策略暂不做。
+
+如果把 MoveBit.app 放在 `/Applications` 这类应用自身不可写的位置，后续请用新版 DMG 替换应用；如果特别希望使用 MoveBit 的应用内替换更新，可以继续使用放在用户可写目录中的 Portable ZIP。
+
+### Debian / Ubuntu x64 —— `.deb`
+
+下载 **`MoveBit-linux-x64.deb`**，可以直接用系统包管理器安装，例如：
+
+```bash
+sudo apt install ./MoveBit-linux-x64.deb
+```
+
+`.deb` 会把程序安装到 `/opt/movebit`，同时创建 `/usr/bin/movebit`、桌面菜单入口和应用图标。因为 `/opt` 由包管理器管理，升级 `.deb` 安装版时应直接安装新版 `.deb`，MoveBit 不会尝试以普通用户权限覆盖系统包管理目录。
 
 ### 便携版
 
-不想安装的用户仍然可以使用 Portable ZIP：
+三个平台仍然提供 Portable ZIP：
 
 | 平台 | 便携压缩包 |
 | --- | --- |
@@ -69,29 +87,25 @@ MoveBit v1 把这些行为固定下来：
 | macOS arm64 | `MoveBit-macos-arm64.zip` |
 | Linux x64 | `MoveBit-linux-x64.zip` |
 
-发布构建已经包含所需 .NET 运行时，不需要另外安装。安装器与压缩包均提供同名 `.sha256` 文件用于完整性校验。
+发布构建已经包含所需 .NET 运行时，不需要另外安装。每个正式发布包都有对应的 `.sha256` 文件。
 
-> 当前 GitHub Release 二进制尚未做代码签名/公证，因此 Windows SmartScreen 或 macOS Gatekeeper 首次启动时可能给出提示。代码签名和公证仍然是下一项重要分发工作。
+> 当前 Release 二进制还没有做代码签名 / macOS 公证，因此 Windows SmartScreen 或 macOS Gatekeeper 首次启动时可能给出提示。付费签名/公证是目前唯一保留的分发 Roadmap 项。
 
 ## 在线更新
 
-MoveBit 1.0.1 起默认会在启动后稍作延迟检查一次最新 GitHub Release，之后大约每 6 小时检查一次。这个行为可以在设置页关闭。**自动检查不等于静默安装**：任何版本替换都需要用户明确点击“更新并重启”。
+MoveBit 1.0.1 起默认会在启动后稍作延迟检查一次最新 GitHub Release，之后大约每 6 小时检查一次。**自动检查不等于静默安装**：任何版本替换都需要用户明确点击“更新并重启”。
 
-发现新版本后的流程：
+对于程序目录可写的安装版 / 便携版：
 
 1. 设置页与托盘菜单显示“更新并重启”。
-2. 下载当前平台对应的 Release ZIP 和 `.sha256` 文件。
-3. 本地重新计算 SHA-256；不一致立即停止，旧版本保持不变。
-4. 校验通过后解压到临时 staging 目录。
-5. MoveBit 先保存配置和当天统计，然后退出。
-6. 独立更新 helper 等待主进程完全退出，再替换应用文件并重新启动 MoveBit。
-7. 如果替换阶段失败，helper 会把已经覆盖的旧文件恢复回来。
+2. 下载当前平台对应的 Portable ZIP 和 `.sha256` 文件。
+3. 本地重新计算 SHA-256；不一致立即停止。
+4. 校验通过后解压到 staging。
+5. MoveBit 保存配置和当天统计，然后退出。
+6. 独立更新 helper 替换应用文件并重新启动。
+7. 替换阶段失败时恢复已经覆盖的旧文件。
 
-Windows 安装版和 Windows 便携版在首次启动之后**共用同一套 MoveBit 在线更新器**。安装器负责建立用户选择的安装位置、开始菜单快捷方式和卸载入口，不再引入第二套更新框架。安装版通过应用内升级后，下次启动还会同步 Windows“已安装的应用”中的显示版本号。
-
-MoveBit 的配置与历史数据放在系统用户应用数据目录，而不是应用程序目录，因此程序更新不会覆盖用户数据。
-
-当前自动应用更新与正式 Release 的架构保持一致：**Windows x64、macOS arm64、Linux x64**。如果便携版位于无写权限目录中，MoveBit 会拒绝替换并保留当前版本；Windows 安装器默认推荐当前用户可写目录；如果自定义安装位置，也应选择当前用户有写权限的目录，以保证应用内更新可以正常替换程序文件。
+MoveBit 的配置与历史数据放在用户应用数据目录，不会因为替换应用文件而丢失。DMG 拖进 `/Applications` 或 `.deb` 装进 `/opt` 后，应用目录通常由系统 / 包管理器管理，这类安装方式请通过新版 DMG / `.deb` 升级。
 
 ## 工作原理
 
@@ -103,11 +117,11 @@ MoveBit 的配置与历史数据放在系统用户应用数据目录，而不是
 
 空闲时间达到离开阈值（默认 5 分钟）后，所有周期停止累计；回来时三个周期从零重新开始。系统休眠等超大时间跳变会被钳制，不会在唤醒后一次性倾倒积压提醒。
 
-强制休息被明确视为“休息时间”：期间不会累计活跃时长，也不会推进其他提醒周期。倒计时完整结束后三个周期重新计时。如果同一个 Tick 恰好同时触发多个提醒，强制久坐休息优先，喝水和微休息 UI 不会叠在它上面。
+强制休息被明确视为“休息时间”：期间不会累计活跃时长，也不会推进其他提醒周期。完整完成强制休息、真实离开、暂停或者跨天时，“当前连续工作”会重新开始，但当天最长连续工作峰值会保留下来。
 
-每日统计每隔几分钟写入 `history.json`，跨天自动归档，并裁剪为最近 370 天。
+普通提醒中选择“稍后”，或者跳过强制休息后，同类提醒会按照可配置的延后时间再次出现（默认累计 10 分钟活跃时间）。
 
-在普通提醒中选择“稍后”，或跳过强制休息后，同类提醒会按照可配置的延后时间再次出现（默认累计 10 分钟活跃时间）。
+每日统计每隔几分钟写入 `history.json`，跨天自动归档，最多保留最近 370 天。v1.1.0 开始还会保存每日最长连续工作时长，并兼容旧版没有该字段的历史文件。
 
 ## 配置
 
@@ -128,16 +142,16 @@ Windows 默认使用 `%APPDATA%\movebit\config.json`；macOS/Linux 使用对应�
 | `SoundEnabled` | true | — |
 | `AutoCheckUpdates` | true | — |
 
-所有数字时间项都支持直接键盘输入并立即保存。较长的提醒间隔使用 5 分钟 / 5 秒的实用步进，短时长仍保留 1 分钟精细调整；每次修改后设置卡片都会明确显示保存成功或写入失败状态。
+数字时间项都支持直接键盘输入并立即保存。较长间隔使用实用步进，短时长保留更细粒度调整。
 
 ## 平台说明
 
-- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；提示音使用 `MessageBeep`；默认推荐当前用户安装版，同时保留便携 ZIP；两种形态的在线更新都使用 `MoveBit-windows-x64.zip`。
-- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间；在线更新使用 arm64 Release 包。
-- **Linux/X11**：通过 XScreenSaver 扩展的 `XScreenSaverQueryInfo` 获取空闲时间；Linux x64 支持在线更新。
-- **Linux/Wayland**：程序可正常使用，但空闲检测目前会退化为自然时间提醒；原生 Wayland 空闲支持仍在 Roadmap 中。
+- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；推荐当前用户安装版，同时保留 Portable ZIP。
+- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间；提供原生 `.app` / DMG 与 arm64 Portable ZIP。
+- **Linux/X11**：通过 XScreenSaver 扩展的 `XScreenSaverQueryInfo` 获取空闲时间。
+- **Linux/Wayland**：优先查询 GNOME/Mutter `org.gnome.Mutter.IdleMonitor`，再尝试 freedesktop ScreenSaver 会话总线 idle API；如果桌面环境两者都不提供，则返回“未知空闲时间”，MoveBit 安全退化为自然时间提醒，不伪造输入状态。
 
-强制休息使用的是置顶遮罩窗口，而不是全局键鼠钩子。这是有意为之：全局锁输入一旦程序异常，可能导致机器难以操作；MoveBit 的目标是让“跳过”变得有意识，而不是接管输入设备。
+强制休息使用的是置顶遮罩窗口，而不是全局键鼠钩子。这是有意为之：全局锁输入一旦程序异常，可能导致机器难以操作。
 
 ## 从源码构建
 
@@ -149,32 +163,36 @@ dotnet build MoveBit.slnx -c Release --no-restore
 dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
 ```
 
-需要 .NET 10 SDK。
-
-本地发布 Windows x64：
+需要 .NET 10 SDK。原生打包脚本放在 `packaging/`：
 
 ```bash
-dotnet publish MoveBit.csproj -c Release -r win-x64 --self-contained true \
-  -p:PublishSingleFile=true -p:PublishTrimmed=false -o publish
-```
+# 在 macOS runner 上
+bash packaging/macos/build-native.sh 1.1.0
 
-Windows 安装器定义在 `installer/windows/MoveBit.iss`，由 CI / Release workflow 使用 Inno Setup 编译。
+# 在 Debian/Ubuntu runner 上
+bash packaging/linux/build-deb.sh 1.1.0
+```
 
 ## 发布流程
 
-1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.0.4` ↔ `v1.0.4`。
-2. 只有 Windows / macOS / Linux 三平台 CI 全绿后再合并；Windows CI 还会额外编译安装器，并做一次静默安装 + 静默卸载 Smoke Test。
+1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.1.0` ↔ `v1.1.0`。
+2. 只有 Windows / macOS / Linux 构建和测试全绿后再合并；CI 还会额外验证 Windows Setup、挂载并检查 DMG、真实安装并卸载 `.deb`。
 3. 推送版本 tag。
-4. Release workflow 会先跑测试，再生成三个支持平台的便携压缩包和 SHA-256 文件，同时生成 Windows 当前用户安装器；最终 Setup 还会再次执行自定义目录安装/卸载 Smoke Test，通过后才生成校验文件并发布 GitHub Release。
-5. MoveBit 1.0.1+ 会通过 GitHub latest-release API 发现这个新版本，并在应用内使用对应平台的已校验 Release 包完成更新。
+4. Release workflow 生成三个 Portable ZIP、Windows Setup、macOS `.app.zip` + DMG、Linux `.deb` 和所有 SHA-256 sidecar；所有必要包都成功后才创建一次 GitHub Release。
+5. 用户可写目录中的 MoveBit 1.0.1+ 可以继续通过 latest-release API 使用对应 Portable ZIP 完成应用内更新。
 
 ## Roadmap
 
-- [ ] Linux/Wayland 原生空闲检测
+不需要付费凭据的项目已经完成：
+
+- [x] Linux/Wayland 主流原生空闲检测，并在桌面不提供可靠 API 时安全回退
+- [x] macOS 原生 `.app` / DMG 分发，以及 Debian/Ubuntu `.deb` 分发
+- [x] 最近 7 天 / 30 天历史视图
+- [x] 工作模式洞察（连续工作、最长会话、近期平均、最活跃日等）
+
+暂缓的付费分发项：
+
 - [ ] Windows 代码签名，以及 macOS 签名 / 公证
-- [ ] macOS 原生 `.app` / DMG 分发，以及可选 Linux 安装包格式
-- [ ] 最近 7 天之外的周/月历史视图
-- [ ] 工作模式洞察（最长连续久坐、最长单次会话等）
 
 ## 许可
 

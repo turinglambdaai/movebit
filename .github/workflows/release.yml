@@ -3,7 +3,8 @@ name: release
 # Manual runs produce downloadable workflow artifacts. A v* tag additionally creates
 # one GitHub Release after every package has built. Windows binaries are signed when
 # the complete Azure Artifact Signing configuration is present; otherwise the release
-# remains unsigned and still publishes SHA-256 sidecars.
+# remains unsigned and still publishes SHA-256 sidecars. macOS signing/notarization is
+# intentionally not required: the .app/DMG are currently unsigned native distributions.
 on:
   workflow_dispatch:
   push:
@@ -84,6 +85,92 @@ jobs:
           path: |
             MoveBit-${{ matrix.platform }}.zip
             MoveBit-${{ matrix.platform }}.zip.sha256
+
+  macos-native:
+    needs: verify
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build native app and DMG
+        shell: bash
+        run: bash packaging/macos/build-native.sh "${{ steps.version.outputs.value }}"
+
+      - name: Mount DMG and verify app bundle
+        shell: bash
+        run: |
+          mount_dir="$(mktemp -d)"
+          hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" dist/native-macos/MoveBit-macos-arm64.dmg
+          test -f "$mount_dir/MoveBit.app/Contents/Info.plist"
+          test -x "$mount_dir/MoveBit.app/Contents/MacOS/MoveBit"
+          plutil -lint "$mount_dir/MoveBit.app/Contents/Info.plist"
+          hdiutil detach -quiet "$mount_dir"
+
+      - name: Upload native macOS packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoveBit-macos-native
+          if-no-files-found: error
+          path: |
+            dist/native-macos/MoveBit-macos-arm64.app.zip
+            dist/native-macos/MoveBit-macos-arm64.app.zip.sha256
+            dist/native-macos/MoveBit-macos-arm64.dmg
+            dist/native-macos/MoveBit-macos-arm64.dmg.sha256
+
+  linux-deb:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build Debian package
+        shell: bash
+        run: bash packaging/linux/build-deb.sh "${{ steps.version.outputs.value }}"
+
+      - name: Install and remove Debian package
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ./dist/native-linux/MoveBit-linux-x64.deb
+          test -x /opt/movebit/MoveBit
+          test -L /usr/bin/movebit
+          test -f /usr/share/applications/movebit.desktop
+          sudo apt-get remove -y movebit
+          test ! -e /opt/movebit/MoveBit
+          test ! -e /usr/bin/movebit
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoveBit-linux-deb
+          if-no-files-found: error
+          path: |
+            dist/native-linux/MoveBit-linux-x64.deb
+            dist/native-linux/MoveBit-linux-x64.deb.sha256
 
   windows:
     needs: verify
@@ -183,8 +270,6 @@ jobs:
           if ($null -eq $signature.SignerCertificate) {
             throw 'MoveBit.exe has no signer certificate after signing.'
           }
-          Write-Host "MoveBit.exe signer: $($signature.SignerCertificate.Subject)"
-          Write-Host "MoveBit.exe thumbprint: $($signature.SignerCertificate.Thumbprint)"
 
       - name: Package Windows portable build
         shell: pwsh
@@ -235,8 +320,6 @@ jobs:
           if ($null -eq $signature.SignerCertificate) {
             throw 'Windows installer has no signer certificate after signing.'
           }
-          Write-Host "Installer signer: $($signature.SignerCertificate.Subject)"
-          Write-Host "Installer thumbprint: $($signature.SignerCertificate.Thumbprint)"
 
       - name: Smoke-test final Windows installer
         shell: pwsh
@@ -250,7 +333,6 @@ jobs:
             Remove-Item $installDir -Recurse -Force
           }
 
-          # Exercise the real custom-directory path and portable-autostart migration.
           New-Item -Path $runKey -Force | Out-Null
           Set-ItemProperty -Path $runKey -Name 'MoveBit' -Value '"C:\old-portable\MoveBit.exe"'
 
@@ -313,7 +395,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [portable-unix, windows]
+    needs: [portable-unix, macos-native, linux-deb, windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -331,6 +413,8 @@ jobs:
         with:
           files: |
             dist/*.zip
+            dist/*.dmg
+            dist/*.deb
             dist/*.exe
             dist/*.sha256
           fail_on_unmatched_files: true

@@ -76,7 +76,6 @@ jobs:
           $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{E4B9E01D-65D0-4C25-BCF1-3CC22B8C9E02}_is1'
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 
-          # Simulate a v1.0.1 portable user who already opted into autostart.
           New-Item -Path $runKey -Force | Out-Null
           Set-ItemProperty -Path $runKey -Name 'MoveBit' -Value '"C:\old-portable\MoveBit.exe"'
 
@@ -111,3 +110,67 @@ jobs:
           if ((Get-ItemProperty -Path $runKey -Name 'MoveBit' -ErrorAction SilentlyContinue).MoveBit) {
             throw "MoveBit autostart registration remained after uninstall."
           }
+
+  native-macos-package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build native app and DMG
+        shell: bash
+        run: bash packaging/macos/build-native.sh "${{ steps.version.outputs.value }}"
+
+      - name: Mount DMG and verify app bundle
+        shell: bash
+        run: |
+          mount_dir="$(mktemp -d)"
+          hdiutil attach -quiet -nobrowse -readonly -mountpoint "$mount_dir" dist/native-macos/MoveBit-macos-arm64.dmg
+          test -f "$mount_dir/MoveBit.app/Contents/Info.plist"
+          test -x "$mount_dir/MoveBit.app/Contents/MacOS/MoveBit"
+          plutil -lint "$mount_dir/MoveBit.app/Contents/Info.plist"
+          hdiutil detach -quiet "$mount_dir"
+
+  native-linux-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' MoveBit.csproj)"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build Debian package
+        shell: bash
+        run: bash packaging/linux/build-deb.sh "${{ steps.version.outputs.value }}"
+
+      - name: Install and remove Debian package
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ./dist/native-linux/MoveBit-linux-x64.deb
+          test -x /opt/movebit/MoveBit
+          test -L /usr/bin/movebit
+          test -f /usr/share/applications/movebit.desktop
+          sudo apt-get remove -y movebit
+          test ! -e /opt/movebit/MoveBit
+          test ! -e /usr/bin/movebit
