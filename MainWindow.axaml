@@ -4,14 +4,17 @@
         x:Class="MoveBit.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="MoveBit"
-        Width="480" Height="820"
-        CanResize="False"
+        Width="520" Height="900"
+        MinWidth="460" MinHeight="320"
+        CanResize="True"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBg}"
         FontFamily="Segoe UI, Microsoft YaHei UI">
 
-    <ScrollViewer>
-        <StackPanel Margin="28,24" Spacing="18">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalContentAlignment="Stretch">
+        <StackPanel Margin="28,24" Spacing="18" HorizontalAlignment="Stretch">
 
             <!-- Header -->
             <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,0,0,4">
