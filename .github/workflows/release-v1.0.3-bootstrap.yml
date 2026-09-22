@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 env:
-  PRODUCT_SHA: 504c43f7b874c23c4dae950f1482d7b062e3c5d2
+  PRODUCT_SHA: babd29e4aace64ab4ca9a1a08a12a280f97a1cef
   RELEASE_VERSION: 1.0.3
   RELEASE_TAG: v1.0.3
 
