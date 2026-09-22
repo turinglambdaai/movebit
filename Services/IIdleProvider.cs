@@ -33,7 +33,12 @@ public static class IdleProviderFactory
 
         if (OperatingSystem.IsLinux())
         {
-            return new LinuxX11IdleProvider();
+            return string.Equals(
+                Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"),
+                "wayland",
+                StringComparison.OrdinalIgnoreCase)
+                ? new LinuxWaylandIdleProvider()
+                : new LinuxX11IdleProvider();
         }
 
         return new NullIdleProvider();
