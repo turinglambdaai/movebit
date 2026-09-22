@@ -17,7 +17,7 @@
             <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,0,0,4">
                 <Image Source="avares://MoveBit/Assets/icon.png" Width="48" Height="48" VerticalAlignment="Center" />
                 <StackPanel VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="MoveBit" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
+                    <TextBlock Text="{Binding VersionText}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
                     <TextBlock Text="起来动一动 · 保护你的腰和眼睛" FontSize="12.5" Foreground="{DynamicResource InkSecondary}" />
                 </StackPanel>
             </StackPanel>
