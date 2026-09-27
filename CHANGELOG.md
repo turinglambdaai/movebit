@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-27
+
+### Changed
+
+- Redesigned the activity-history chart: bars now tile the full card width (7-day and 30-day alike, no horizontal scrolling), sit on a shared baseline with top-rounded caps, and carry their value labels on the bar tops; the 30-day view labels every 5th day plus today
+- The chart is now theme-aware: bar colors, baseline, and the average line follow the light/dark dictionaries instead of hardcoded brushes, fixing glaring pastel bars in dark mode
+- Added a dashed daily-average reference line with an inline label over the bar plot
+- History-range toggle buttons now use the accent palette instead of the Fluent default blue in their checked state
+
+### Fixed
+
+- Today's history bar no longer drops the day's earlier activity after an app restart mid-day; the scheduler now seeds today's stats from the persisted record at startup
+
 ## [1.1.0] - 2026-09-22
 
 ### Added
