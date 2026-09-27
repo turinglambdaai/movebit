@@ -296,4 +296,32 @@ public class SchedulerTests
         Assert.Equal(ReminderKind.Micro, Assert.Single(h.Fired).Kind);
         Assert.Equal(TimeSpan.FromMinutes(56), h.Scheduler.Stats.ActiveTime); // 25 + 29 + 2; break excluded
     }
+
+    [Fact]
+    public void RestoreToday_seeds_persisted_morning_activity_into_a_fresh_session()
+    {
+        var h = new Harness();
+        h.Scheduler.RestoreToday(new DayRecord(120, 2, 3, 4, 55));
+
+        Assert.Equal(TimeSpan.FromMinutes(120), h.Scheduler.Stats.ActiveTime);
+        Assert.Equal(TimeSpan.FromMinutes(55), h.Scheduler.Stats.LongestSession);
+        Assert.Equal(2, h.Scheduler.Stats.SitReminders);
+        Assert.Equal(3, h.Scheduler.Stats.WaterReminders);
+        Assert.Equal(4, h.Scheduler.Stats.MicroBreaks);
+
+        // The new session accumulates on top of the restored morning.
+        h.StepMinutes(10);
+        Assert.Equal(TimeSpan.FromMinutes(130), h.Scheduler.Stats.ActiveTime);
+    }
+
+    [Fact]
+    public void RestoreToday_is_idempotent_per_day()
+    {
+        var h = new Harness();
+        h.Scheduler.RestoreToday(new DayRecord(120, 2, 3, 4, 55));
+        h.Scheduler.RestoreToday(new DayRecord(120, 2, 3, 4, 55));
+
+        Assert.Equal(TimeSpan.FromMinutes(120), h.Scheduler.Stats.ActiveTime);
+        Assert.Equal(2, h.Scheduler.Stats.SitReminders);
+    }
 }

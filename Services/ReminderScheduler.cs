@@ -72,6 +72,30 @@ public sealed class ReminderScheduler
         _lastTick = _time.GetLocalNow();
     }
 
+    private DateOnly? _restoredFor;
+
+    /// <summary>
+    /// Carries a persisted same-day record into a fresh session so a mid-day restart
+    /// keeps the morning's activity (chart, insights, and the 5-minute flush would
+    /// otherwise overwrite it with session-only numbers). Idempotent per day and a
+    /// no-op once the day has rolled over.
+    /// </summary>
+    public void RestoreToday(DayRecord record)
+    {
+        var today = DateOnly.FromDateTime(_time.GetLocalNow().LocalDateTime);
+        if (record is null || _stats.Date != today || _restoredFor == today)
+        {
+            return;
+        }
+
+        _restoredFor = today;
+        _stats.ActiveTime += TimeSpan.FromMinutes(Math.Max(0, record.ActiveMinutes));
+        _stats.LongestSession = TimeSpan.FromMinutes(Math.Max(0, record.LongestSessionMinutes));
+        _stats.SitReminders += Math.Max(0, record.SitBreaks);
+        _stats.WaterReminders += Math.Max(0, record.WaterReminders);
+        _stats.MicroBreaks += Math.Max(0, record.MicroBreaks);
+    }
+
     private TimeSpan SitInterval => TimeSpan.FromMinutes(Config.SitReminderMinutes);
 
     private TimeSpan WaterInterval => TimeSpan.FromMinutes(Config.WaterReminderMinutes);

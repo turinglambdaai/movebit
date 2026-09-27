@@ -62,6 +62,14 @@ public class App : Application
         _scheduler.ReminderFired += OnReminderFired;
         _scheduler.DayCompleted += OnDayCompleted;
 
+        // A mid-day restart must keep the morning's activity: the fresh session would
+        // otherwise flush session-only numbers over the persisted record.
+        var persistedToday = _history.GetRecent(1);
+        if (persistedToday is [.., { Date: var date, Record: var record }] && date == _scheduler.Stats.Date)
+        {
+            _scheduler.RestoreToday(record);
+        }
+
         _viewModel = new MainViewModel(_config, _scheduler, _configStore, _history);
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };

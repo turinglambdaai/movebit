@@ -15,15 +15,14 @@ public sealed record HistoryBar(
     string MinutesText,
     string Tooltip,
     double BarHeight,
-    IBrush BarBrush,
+    double BarWidth,
+    double ColumnWidth,
+    bool ShowValue,
     bool IsToday);
 
 /// Bindable wrapper around the config + scheduler stats for the main window.
 public sealed class MainViewModel : INotifyPropertyChanged
 {
-    private static readonly IBrush TodayBrush = new SolidColorBrush(Color.FromRgb(0xC2, 0x5E, 0x3E));
-    private static readonly IBrush PastBrush = new SolidColorBrush(Color.FromRgb(0xD8, 0xD2, 0xC4));
-
     private readonly ReminderConfig _config;
     private readonly ReminderScheduler _scheduler;
     private readonly ConfigStore _store;
@@ -228,6 +227,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public IReadOnlyList<HistoryBar> HistoryBars => _historyBars;
 
+    /// Dashed daily-average reference line over the bar plot (rendered overlay).
+    public bool ShowAvgLine { get; private set; }
+
+    /// Vertical translate for the average line, measured up from the plot baseline.
+    public double AvgLineTranslate { get; private set; }
+
+    public string AvgLineText { get; private set; } = "日均";
+
     public string HistoryRangeTitle => _historyDays == 30 ? "最近 30 天" : "最近 7 天";
 
     public string HistoryTotalText { get; private set; } = "暂无记录";
@@ -235,6 +242,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsWeekSelected => _historyDays == 7;
 
     public bool IsMonthSelected => _historyDays == 30;
+
+    /// UniformGrid column count for the chart, so bars tile the full card width.
+    public int HistoryColumns => _historyDays;
 
     public void ShowHistoryRange(int days)
     {
@@ -251,6 +261,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(HistoryTotalText));
         OnPropertyChanged(nameof(IsWeekSelected));
         OnPropertyChanged(nameof(IsMonthSelected));
+        OnPropertyChanged(nameof(HistoryColumns));
+        OnPropertyChanged(nameof(ShowAvgLine));
+        OnPropertyChanged(nameof(AvgLineTranslate));
+        OnPropertyChanged(nameof(AvgLineText));
     }
 
     private void ObserveLiveInsights()
@@ -282,19 +296,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         var totalMinutes = byDate.Values.Sum(record => record.ActiveMinutes);
         var maxMinutes = Math.Max(60.0, byDate.Values.Select(record => (double)record.ActiveMinutes).DefaultIfEmpty().Max());
+        var isMonth = _historyDays == 30;
+        // Plot area is 110 DIP tall; bars grow from 5 to 86 DIP so a per-bar
+        // value label (17 DIP) still fits above the tallest bar.
+        const double barMin = 5.0, barMax = 86.0;
+        var barWidth = isMonth ? 8.0 : 36.0;
+        var columnWidth = isMonth ? 13.0 : 46.0;
         var bars = new List<HistoryBar>(days.Count);
 
         foreach (var (date, _) in days)
         {
             var record = byDate[date];
             var isToday = date == live.Date;
-            var dayLabel = _historyDays == 30 ? date.Day.ToString() : date.ToString("ddd");
+            var dayLabel = isToday
+                ? (isMonth ? date.Day.ToString() : "今天")
+                : isMonth ? (date.Day % 5 == 0 ? date.Day.ToString() : "") : date.ToString("ddd");
             bars.Add(new HistoryBar(
                 dayLabel,
                 FormatMinutesCompact(record.ActiveMinutes),
                 $"{date:yyyy-MM-dd} · 活跃 {record.ActiveMinutes} 分钟 · 久坐提醒 {record.SitBreaks} 次 · 最长连续 {record.LongestSessionMinutes} 分钟",
-                8 + 72.0 * record.ActiveMinutes / maxMinutes,
-                isToday ? TodayBrush : PastBrush,
+                barMin + (barMax - barMin) * record.ActiveMinutes / maxMinutes,
+                barWidth,
+                columnWidth,
+                !isMonth,
                 isToday));
         }
 
@@ -302,6 +326,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         HistoryTotalText = totalMinutes >= 60
             ? $"合计 {totalMinutes / 60} 小时 {totalMinutes % 60} 分钟"
             : $"合计 {totalMinutes} 分钟";
+
+        var activeDays = byDate.Values.Where(record => record.ActiveMinutes > 0).ToList();
+        ShowAvgLine = activeDays.Count > 0;
+        if (ShowAvgLine)
+        {
+            var average = activeDays.Average(record => (double)record.ActiveMinutes);
+            AvgLineTranslate = -(barMin + (barMax - barMin) * average / maxMinutes);
+            AvgLineText = $"日均 {FormatMinutesCompact((int)Math.Round(average))}";
+        }
     }
 
     // --- Work-pattern insights --------------------------------------------
@@ -364,6 +397,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(HistoryBars));
         OnPropertyChanged(nameof(HistoryRangeTitle));
         OnPropertyChanged(nameof(HistoryTotalText));
+        OnPropertyChanged(nameof(ShowAvgLine));
+        OnPropertyChanged(nameof(AvgLineTranslate));
+        OnPropertyChanged(nameof(AvgLineText));
         OnPropertyChanged(nameof(CurrentSessionText));
         OnPropertyChanged(nameof(TodayLongestSessionText));
         OnPropertyChanged(nameof(RecentLongestSessionText));

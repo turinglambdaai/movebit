@@ -78,6 +78,26 @@
             <Border Classes="card">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="8">
+                        <Grid.Resources>
+                            <!-- Fluent toggle checked state reads these theme keys directly, so a
+                                 Background style setter never wins; alias them to the warm accent. -->
+                            <ResourceDictionary>
+                                <ResourceDictionary.ThemeDictionaries>
+                                    <ResourceDictionary x:Key="Light">
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#C25E3E"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#B25134"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#A3492D"/>
+                                        <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#FFF8F3"/>
+                                    </ResourceDictionary>
+                                    <ResourceDictionary x:Key="Dark">
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#D97B54"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#E28B66"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#C96E4B"/>
+                                        <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#FFF1E8"/>
+                                    </ResourceDictionary>
+                                </ResourceDictionary.ThemeDictionaries>
+                            </ResourceDictionary>
+                        </Grid.Resources>
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="{Binding HistoryRangeTitle}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                             <TextBlock Text="{Binding HistoryTotalText}" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
@@ -90,30 +110,56 @@
                                       Click="OnHistoryMonthClicked" MinWidth="58" />
                     </Grid>
 
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding HistoryBars}">
+                    <Grid x:Name="HistoryChart" RowDefinitions="110,Auto,Auto" Margin="0,2,0,0">
+                        <ItemsControl Grid.Row="0" ItemsSource="{Binding HistoryBars}" VerticalAlignment="Bottom">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                    <UniformGrid Columns="{Binding HistoryColumns}" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Width="42" Spacing="4" HorizontalAlignment="Center" ToolTip.Tip="{Binding Tooltip}">
-                                        <TextBlock Text="{Binding MinutesText}" FontSize="10"
-                                                   Foreground="{DynamicResource InkMuted}" HorizontalAlignment="Center" />
-                                        <Grid Height="82" VerticalAlignment="Bottom">
-                                            <Rectangle Width="22" Height="{Binding BarHeight}" RadiusX="6" RadiusY="6"
-                                                       Fill="{Binding BarBrush}" HorizontalAlignment="Center"
-                                                       VerticalAlignment="Bottom" />
-                                        </Grid>
-                                        <TextBlock Text="{Binding DayLabel}" FontSize="10.5"
-                                                   Foreground="{DynamicResource InkSecondary}" HorizontalAlignment="Center" />
+                                    <StackPanel Classes="daycol" Classes.today="{Binding IsToday}"
+                                                VerticalAlignment="Bottom"
+                                                Spacing="3" ToolTip.Tip="{Binding Tooltip}">
+                                        <TextBlock Classes="barvalue" Text="{Binding MinutesText}"
+                                                   IsVisible="{Binding ShowValue}" HorizontalAlignment="Center" />
+                                        <Border Classes="bar" Width="{Binding BarWidth}" Height="{Binding BarHeight}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
+
+                        <!-- Daily-average reference line, translated up from the baseline -->
+                        <Panel Grid.Row="0" VerticalAlignment="Bottom" IsVisible="{Binding ShowAvgLine}">
+                            <Panel.RenderTransform>
+                                <TranslateTransform Y="{Binding AvgLineTranslate}" />
+                            </Panel.RenderTransform>
+                            <StackPanel>
+                                <TextBlock Classes="avglabel" Text="{Binding AvgLineText}"
+                                           HorizontalAlignment="Right" Margin="0,0,2,3" />
+                                <!-- Avalonia 11.3 Line.X1/X2 are not settable in XAML; a hairline Border reads fine at 1px -->
+                                <Border Height="1" Background="{DynamicResource InkMuted}" Opacity="0.55" />
+                            </StackPanel>
+                        </Panel>
+
+                        <Border Grid.Row="1" Height="1" Background="{DynamicResource CardBorder}" Margin="0,0,0,5" />
+
+                        <ItemsControl Grid.Row="2" ItemsSource="{Binding HistoryBars}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding HistoryColumns}" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Classes="daylabel" Classes.today="{Binding IsToday}"
+                                               Text="{Binding DayLabel}"
+                                               HorizontalAlignment="Center" ToolTip.Tip="{Binding Tooltip}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
                 </StackPanel>
             </Border>
 
@@ -285,6 +331,35 @@
         </Style>
         <Style Selector="NumericUpDown">
             <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="Border.bar">
+            <Setter Property="Background" Value="{DynamicResource ChartBar}" />
+            <Setter Property="CornerRadius" Value="4,4,1,1" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <!-- Custom-class selectors must be dot-connected; ":today" parses as a pseudo-class and never matches. -->
+        <Style Selector="Border.bar.today">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+        </Style>
+        <Style Selector="TextBlock.barvalue">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        </Style>
+        <Style Selector="StackPanel.daycol.today TextBlock.barvalue">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.daylabel">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
+        </Style>
+        <Style Selector="TextBlock.daylabel.today">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.avglabel">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
         </Style>
     </Window.Styles>
 </Window>
