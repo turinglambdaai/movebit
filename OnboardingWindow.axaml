@@ -90,7 +90,7 @@
                     <Grid ColumnDefinitions="*, Auto" Margin="4,2">
                         <StackPanel Spacing="3">
                             <TextBlock Text="提醒提示音" FontSize="14.5" Foreground="{DynamicResource InkPrimary}" />
-                            <TextBlock Text="全屏休息永远静默；仅弹窗提示音，办公室可关" FontSize="11.5" Foreground="{DynamicResource InkMuted}" />
+                            <TextBlock Text="强制休息永远静默；仅弹窗提示音" FontSize="11.5" Foreground="{DynamicResource InkMuted}" />
                         </StackPanel>
                         <ToggleSwitch x:Name="SoundToggle" Grid.Column="1" IsChecked="True" VerticalAlignment="Center" />
                     </Grid>

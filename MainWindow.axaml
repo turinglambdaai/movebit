@@ -26,6 +26,11 @@
                 </StackPanel>
             </StackPanel>
 
+            <!-- Two-column card layout: short enough to fit a laptop screen without
+                 scrolling, and the ScrollViewer below stays as the small-screen fallback. -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+                <StackPanel Grid.Column="0" Spacing="16">
+
             <!-- Today card -->
             <Border Classes="card">
                 <StackPanel Spacing="14">
@@ -202,6 +207,9 @@
                 </StackPanel>
             </Border>
 
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="16">
+
             <!-- Settings card -->
             <Border Classes="card">
                 <StackPanel Spacing="16">
@@ -237,6 +245,11 @@
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
+                        <TextBlock Grid.Column="0" Text="强制休息" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceBreakEnabled}" HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto, *">
                         <TextBlock Grid.Column="0" Text="强制休息时长（分钟）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding BreakDurationMinutes}"
                                       Minimum="1" Maximum="30" Increment="1"
@@ -244,7 +257,7 @@
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
-                        <TextBlock Grid.Column="0" Text="「跳过」按钮出现延迟（秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                        <TextBlock Grid.Column="0" Text="「跳过」按钮出现延迟（秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" TextWrapping="Wrap" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SkipAfterSeconds}"
                                       Minimum="0" Maximum="120" Increment="5"
                                       HorizontalAlignment="Right" Width="132" />
@@ -263,18 +276,16 @@
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="10">
-                        <TextBlock Grid.Column="0" Text="微休息间隔（分）/ 时长（秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkSecondary}" FontSize="12.5" />
+                        <TextBlock Grid.Column="0" Text="微休息间隔 / 时长（分·秒）" VerticalAlignment="Center" Foreground="{DynamicResource InkSecondary}" FontSize="12.5" TextWrapping="Wrap" />
                         <NumericUpDown Grid.Column="1" Value="{Binding MicroBreakIntervalMinutes}"
                                       Minimum="10" Maximum="60" Increment="5" Width="112" />
                         <NumericUpDown Grid.Column="2" Value="{Binding MicroBreakDurationSeconds}"
                                       Minimum="10" Maximum="60" Increment="5" Width="112" />
                     </Grid>
 
-                    <Grid ColumnDefinitions="Auto, *, Auto, *" ColumnSpacing="12">
-                        <TextBlock Grid.Column="0" Text="接管全屏" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceBreakEnabled}" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="2" Text="提示音（办公室可关）" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
-                        <ToggleSwitch Grid.Column="3" IsChecked="{Binding SoundEnabled}" HorizontalAlignment="Right" />
+                    <Grid ColumnDefinitions="Auto, *">
+                        <TextBlock Grid.Column="0" Text="提示音" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding SoundEnabled}" HorizontalAlignment="Right" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto, *">
@@ -284,30 +295,33 @@
                 </StackPanel>
             </Border>
 
-            <!-- About / online update -->
-            <Border Classes="card">
-                <StackPanel Spacing="12">
-                    <Grid ColumnDefinitions="*, Auto" ColumnSpacing="14">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="{Binding VersionText}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
-                            <TextBlock Text="{Binding UpdateStatusText}" FontSize="12" Foreground="{DynamicResource InkSecondary}" TextWrapping="Wrap" />
-                        </StackPanel>
-                        <Button Grid.Column="1"
-                                Content="{Binding UpdateActionText}"
-                                IsEnabled="{Binding CanUpdateAction}"
-                                Click="OnUpdateClicked"
-                                VerticalAlignment="Center" />
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto, *">
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="自动检查更新" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
-                            <TextBlock Text="启动后检查，此后约每 6 小时检查一次；不会静默安装。"
-                                       FontSize="11" Foreground="{DynamicResource InkMuted}" />
-                        </StackPanel>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCheckUpdates}" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                    </Grid>
+                <!-- About / online update -->
+                <Border Classes="card">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*, Auto" ColumnSpacing="14">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding VersionText}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                                <TextBlock Text="{Binding UpdateStatusText}" FontSize="12" Foreground="{DynamicResource InkSecondary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="{Binding UpdateActionText}"
+                                    IsEnabled="{Binding CanUpdateAction}"
+                                    Click="OnUpdateClicked"
+                                    VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto, *">
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="自动检查更新" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" />
+                                <TextBlock Text="启动后检查，此后约每 6 小时检查一次；不会静默安装。"
+                                           FontSize="11" Foreground="{DynamicResource InkMuted}" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCheckUpdates}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 </StackPanel>
-            </Border>
+            </Grid>
 
             <TextBlock Text="{Binding ConfigPathText, StringFormat='配置文件：{0}'}"
                        FontSize="11" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" />

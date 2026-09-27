@@ -143,7 +143,7 @@ public partial class OnboardingWindow : Window
 
         return $"{sit}\n每 {_config.WaterReminderMinutes} 分钟提醒喝水"
             + $"\n离开电脑超过 {_config.AwayResetMinutes} 分钟，计时自动重置"
-            + $"\n提示音：{(_config.SoundEnabled ? "开" : "关")}（全屏休息永远静默）";
+            + $"\n提示音：{(_config.SoundEnabled ? "开" : "关")}（强制休息永远静默）";
     }
 
     private void OnNext(object? sender, RoutedEventArgs e)

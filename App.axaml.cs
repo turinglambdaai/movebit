@@ -34,6 +34,7 @@ public class App : Application
     private int _flushCounter;
 
     private readonly List<BreakOverlayWindow> _overlays = [];
+    private readonly List<ReminderEvent> _tickReminders = [];
     private DispatcherTimer? _breakTimer;
     private TimeSpan _breakRemaining;
     private bool _breakActive;
@@ -383,6 +384,7 @@ public class App : Application
             _scheduler.Tick();
         }
 
+        FlushTickReminders();
         _viewModel.RefreshStats();
         UpdateTrayState();
 
@@ -413,37 +415,89 @@ public class App : Application
 
     private void OnReminderFired(object? sender, ReminderEvent e)
     {
-        Dispatcher.UIThread.Post(() => ShowReminder(e));
+        // Raised synchronously on the UI thread inside scheduler.Tick(); the batch is
+        // dispatched once per tick in FlushTickReminders so overlapping timers merge
+        // into a single interruption instead of one window per timer.
+        _tickReminders.Add(e);
     }
 
-    private void ShowReminder(ReminderEvent e)
+    /// <summary>
+    /// One interruption per tick, ever: a sit event that starts a forced break swallows
+    /// the rest, and otherwise every kind due in this tick merges into one toast —
+    /// water and micro-break due together become one card, never two.
+    /// </summary>
+    private void FlushTickReminders()
     {
-        // A scheduler tick can make sit/water/micro become due together. The sit event
-        // is emitted first; once it starts a forced break, suppress queued lower-priority
-        // reminders so nothing pops over the screen-covering break UI.
-        if (_breakActive)
+        if (_tickReminders.Count == 0)
         {
             return;
         }
 
-        // Micro breaks: screen-center nudge, silent by design (they fire often).
-        if (e.Kind == ReminderKind.Micro)
+        var events = _tickReminders.ToArray();
+        _tickReminders.Clear();
+
+        ReminderEvent? sit = null, water = null, micro = null;
+        foreach (var e in events)
         {
-            _microWindow?.Close();
-            _microWindow = new MicroBreakWindow(
-                BreakCopy.Pick(BreakCopy.MicroLines),
-                TimeSpan.FromSeconds(_config.MicroBreakDurationSeconds));
-            _microWindow.Show();
-            return;
+            switch (e.Kind)
+            {
+                case ReminderKind.Sit when sit is null:
+                    sit = e;
+                    break;
+                case ReminderKind.Water when water is null:
+                    water = e;
+                    break;
+                case ReminderKind.Micro when micro is null:
+                    micro = e;
+                    break;
+            }
         }
 
-        if (e.Kind == ReminderKind.Sit && _config.ForceBreakEnabled)
+        if (sit is { } && _config.ForceBreakEnabled)
         {
             // The full-screen takeover is its own notification — silent on purpose,
             // a loud beep plus a screen lock is exactly the office embarrassment
             // that gets health tools uninstalled.
-            StartForcedBreak(e);
+            StartForcedBreak(sit);
             return;
+        }
+
+        var lines = new List<string>();
+        var kinds = new List<ReminderKind>();
+        string title = "喝口水吧 💧";
+        var kind = ReminderKind.Water;
+
+        if (sit is { } s)
+        {
+            kind = ReminderKind.Sit;
+            title = "该起身动一动了 🚶";
+            lines.Add($"已连续工作 {FormatDuration(s.ActiveTimeToday)}，今天第 {s.CountToday} 次提醒。");
+            lines.Add(BreakCopy.PickSit());
+            kinds.Add(ReminderKind.Sit);
+        }
+
+        if (water is { } w)
+        {
+            if (sit is null)
+            {
+                title = "喝口水吧 💧";
+                lines.Add($"今天第 {w.CountToday} 次提醒。");
+            }
+
+            lines.Add(BreakCopy.PickWater());
+            kinds.Add(ReminderKind.Water);
+        }
+
+        if (sit is null && water is null)
+        {
+            ShowMicroBreak();
+            return;
+        }
+
+        if (micro is { })
+        {
+            lines.Add(BreakCopy.PickMicro());
+            kinds.Add(ReminderKind.Micro);
         }
 
         if (_config.SoundEnabled)
@@ -451,17 +505,17 @@ public class App : Application
             ReminderSound.Play();
         }
 
-        var (title, body) = e.Kind switch
-        {
-            ReminderKind.Sit => (
-                "该起身动一动了 🚶",
-                $"已连续工作 {FormatDuration(e.ActiveTimeToday)}，今天第 {e.CountToday} 次提醒。\n{BreakCopy.Pick(BreakCopy.SitLines)}"),
-            _ => (
-                "喝口水吧 💧",
-                $"今天第 {e.CountToday} 次提醒。\n{BreakCopy.Pick(BreakCopy.WaterLines)}"),
-        };
+        ShowNotification(title, string.Join("\n", lines), kind, kinds);
+    }
 
-        ShowNotification(title, body, e.Kind);
+    private void ShowMicroBreak()
+    {
+        // Micro breaks: screen-center nudge, silent by design (they fire often).
+        _microWindow?.Close();
+        _microWindow = new MicroBreakWindow(
+            BreakCopy.PickMicro(),
+            TimeSpan.FromSeconds(_config.MicroBreakDurationSeconds));
+        _microWindow.Show();
     }
 
     // --- Forced break ------------------------------------------------------
@@ -506,7 +560,7 @@ public class App : Application
         _breakActive = true;
         _breakEvent = e;
         _breakRemaining = TimeSpan.FromMinutes(_config.BreakDurationMinutes);
-        var hint = BreakCopy.Pick(BreakCopy.BreakHints);
+        var hint = BreakCopy.PickHint();
         foreach (var overlay in _overlays)
         {
             overlay.UpdateCountdown(_breakRemaining, _breakRemaining, skipAvailable: false);
@@ -535,7 +589,7 @@ public class App : Application
             overlay.UpdateCountdown(_breakRemaining, total, skipAvailable);
             if (rotateHint && overlay.IsPrimary)
             {
-                overlay.SetHint(BreakCopy.Pick(BreakCopy.BreakHints));
+                overlay.SetHint(BreakCopy.PickHint());
             }
         }
 
@@ -589,9 +643,10 @@ public class App : Application
 
         if (completed && BreakCopy.ShouldCelebrate(completedCount))
         {
+            var active = FormatDuration(_scheduler.Stats.ActiveTime);
             Dispatcher.UIThread.Post(() => ShowNotification(
                 "水滴为你鼓掌 💧",
-                $"今天第 {completedCount} 次久坐休息，你的身体谢谢你。",
+                $"今天第 {completedCount} 次久坐休息，你的身体谢谢你。水滴帮你记着：今天已专注 {active}。",
                 ReminderKind.Sit));
         }
     }
@@ -626,7 +681,7 @@ public class App : Application
 
     // --- Notifications -----------------------------------------------------
 
-    private void ShowNotification(string title, string body, ReminderKind kind)
+    private void ShowNotification(string title, string body, ReminderKind kind, IReadOnlyList<ReminderKind>? snoozeKinds = null)
     {
         _notification?.Close();
 
@@ -638,7 +693,23 @@ public class App : Application
             ReminderKind = kind,
             SnoozeMinutes = _config.SnoozeMinutes,
         };
-        _notification.Snoozed += (_, k) => _scheduler.Snooze(k);
+        if (snoozeKinds is { Count: > 0 } merged)
+        {
+            // A merged toast stands in for every timer due this tick; snoozing it
+            // must postpone all of them, not just the one that colored the card.
+            _notification.Snoozed += (_, _) =>
+            {
+                foreach (var snoozedKind in merged)
+                {
+                    _scheduler.Snooze(snoozedKind);
+                }
+            };
+        }
+        else
+        {
+            _notification.Snoozed += (_, k) => _scheduler.Snooze(k);
+        }
+
         _notification.Show();
     }
 

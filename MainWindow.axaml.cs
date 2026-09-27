@@ -7,12 +7,12 @@ namespace MoveBit;
 
 public partial class MainWindow : Window
 {
-    private const double DefaultWidth = 520;
-    private const double DefaultHeight = 900;
-    private const double MinimumWidth = 460;
+    private const double DefaultWidth = 760;
+    private const double DefaultHeight = 840;
+    private const double MinimumWidth = 680;
     private const double PreferredMinimumHeight = 560;
     private const double AbsoluteMinimumHeight = 320;
-    private const double MaximumComfortableWidth = 720;
+    private const double MaximumComfortableWidth = 840;
     private const double ScreenMargin = 24;
 
     public MainWindow()

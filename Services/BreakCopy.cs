@@ -6,7 +6,8 @@ namespace MoveBit.Services;
 /// <summary>
 /// Copy pools in the droplet's first-person voice. Reminders that say the exact same
 /// thing every time get ignored; a persona with rotating lines earns a smile and one
-/// extra second of attention.
+/// extra second of attention. The highest-frequency pools are the largest, and after
+/// 22:00 the droplet drops the jokes and keeps it soft.
 /// </summary>
 internal static class BreakCopy
 {
@@ -25,13 +26,17 @@ internal static class BreakCopy
         "屁股放假五分钟，效率不会跑的",
     ];
 
-    // Water toast lines.
+    // Water toast lines. Shown every ~30 minutes, so this pool is the largest.
     internal static readonly string[] WaterLines =
     [
         "我是水滴，喝口水，咱们就算团聚了",
         "你的杯子说它好空虚",
         "水分充足的人，debug 都快三分（大概）",
         "干了这杯白开水，不为别的，为你的肾",
+        "看完这行字去喝一口，就一口",
+        "咖啡因是借的水，迟早要还的",
+        "嗓子有点干了吧？我掐指一算的",
+        "水喝够了，思路才不容易打结",
     ];
 
     // Sit toast lines (used when forced break is disabled).
@@ -40,6 +45,9 @@ internal static class BreakCopy
         "椅子不会想你，但你的腰会——水滴敬上",
         "起来晃两分钟，屏幕我帮你看着",
         "站起来，让血液重新认识一下下半身",
+        "屏幕不会跑，腿会锈——去动动",
+        "你坐着的姿势，我看着都替你腰疼",
+        "去接杯水顺便散两步，一举两得（我批准了）",
     ];
 
     // Micro break lines: short, one glance readable, no lock needed.
@@ -50,6 +58,25 @@ internal static class BreakCopy
         "站起来，肩膀向后绕两圈",
         "看一眼 6 米外的任何东西，20 秒就够",
         "掌心捂眼十秒，让眼睛歇口气",
+        "脖子写个「米」字，写慢一点",
+        "原地踏步十秒，假装自己在赶路",
+        "蹲下再站起五次，比咖啡因管用",
+        "去走廊走个来回，顺便看看谁在摸鱼",
+    ];
+
+    // After 22:00 the same jokes get tired; the droplet switches to a quieter voice.
+    internal static readonly string[] LateNightWaterLines =
+    [
+        "都这个点了，水还是要喝的",
+        "深夜赶工也要润嗓子，我轻点说",
+        "夜再深，杯子也别空着",
+    ];
+
+    internal static readonly string[] LateNightMicroLines =
+    [
+        "夜深了，站 20 秒就好，我小声说",
+        "眼睛也要下夜班，看会儿远处吧",
+        "轻一点，站起来 20 秒，别吵醒开着的标签页",
     ];
 
     // Milestone celebration counts (completed sit breaks per day).
@@ -57,7 +84,17 @@ internal static class BreakCopy
 
     private static readonly Random Rng = new();
 
+    private static bool IsLateNight => DateTime.Now.Hour is >= 22 or < 6;
+
     public static string Pick(IReadOnlyList<string> pool) => pool[Rng.Next(pool.Count)];
+
+    public static string PickHint() => Pick(BreakHints);
+
+    public static string PickSit() => Pick(SitLines);
+
+    public static string PickWater() => IsLateNight ? Pick(LateNightWaterLines) : Pick(WaterLines);
+
+    public static string PickMicro() => IsLateNight ? Pick(LateNightMicroLines) : Pick(MicroLines);
 
     public static bool ShouldCelebrate(int completedToday) =>
         Array.IndexOf(CelebrateAt, completedToday) >= 0;
