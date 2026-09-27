@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-27
+
+### Changed
+
+- Main window reflowed into two columns (daily stats/chart/insights left, settings/about right), with a wider default window so the page fits vertically on common screens instead of hanging off them; long setting labels now wrap in narrow columns
+- "接管全屏" renamed to "强制休息" and moved above its parameters (duration, skip delay, snooze) so the toggle and its numbers read as one group; onboarding copy now uses the same term
+- Reminder timers that come due in the same tick now merge into one interruption: water and micro-break never pop as two separate windows, and a merged toast's snooze postpones every timer it stands in for
+- Expanded water/micro/sit copy pools and added a quieter late-night tone after 22:00; milestone cheers now mention the day's accumulated focus time
+- Sound toggle sits on its own row, plainly labeled "提示音"
+
 ## [1.2.0] - 2026-09-27
 
 ### Changed

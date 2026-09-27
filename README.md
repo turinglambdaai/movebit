@@ -162,15 +162,15 @@ Requires the .NET 10 SDK. Native package scripts live under `packaging/`:
 
 ```bash
 # macOS runner
-bash packaging/macos/build-native.sh 1.2.0
+bash packaging/macos/build-native.sh 1.3.0
 
 # Debian/Ubuntu runner
-bash packaging/linux/build-deb.sh 1.2.0
+bash packaging/linux/build-deb.sh 1.3.0
 ```
 
 ## Release process
 
-1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.2.0` ↔ `v1.2.0`).
+1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.3.0` ↔ `v1.3.0`).
 2. Merge only with the Windows/macOS/Linux build-test matrix green; CI additionally smoke-tests Windows Setup, mounts/verifies the DMG, and installs/removes the Debian package.
 3. Push the version tag.
 4. Release automation builds portable ZIPs, Windows Setup, macOS `.app.zip` + DMG, Linux `.deb`, and SHA-256 sidecars; one GitHub Release is created only after every required package succeeds.
