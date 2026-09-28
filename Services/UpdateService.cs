@@ -293,22 +293,21 @@ public static class UpdateService
 
     private static string? GetCurrentPlatformAssetName()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-            && RuntimeInformation.ProcessArchitecture == Architecture.X64)
+        var arm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return "MoveBit-windows-x64.zip";
+            return arm64 ? "MoveBit-windows-arm64.zip" : "MoveBit-windows-x64.zip";
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
-            && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return "MoveBit-macos-arm64.zip";
+            return arm64 ? "MoveBit-macos-arm64.zip" : "MoveBit-macos-x64.zip";
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-            && RuntimeInformation.ProcessArchitecture == Architecture.X64)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return "MoveBit-linux-x64.zip";
+            return arm64 ? "MoveBit-linux-arm64.zip" : "MoveBit-linux-x64.zip";
         }
 
         return null;

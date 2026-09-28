@@ -83,9 +83,9 @@ sudo apt install ./MoveBit-linux-x64.deb
 
 | 平台 | 便携压缩包 |
 | --- | --- |
-| Windows x64 | `MoveBit-windows-x64.zip` |
-| macOS arm64 | `MoveBit-macos-arm64.zip` |
-| Linux x64 | `MoveBit-linux-x64.zip` |
+| Windows x64 / ARM64 | `MoveBit-windows-x64.zip` / `MoveBit-windows-arm64.zip` |
+| macOS arm64 / Intel | `MoveBit-macos-arm64.zip` / `MoveBit-macos-x64.zip` |
+| Linux x64 / arm64 | `MoveBit-linux-x64.zip` / `MoveBit-linux-arm64.zip` |
 
 发布构建已经包含所需 .NET 运行时，不需要另外安装。每个正式发布包都有对应的 `.sha256` 文件。
 

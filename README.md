@@ -81,9 +81,9 @@ Portable archives remain available:
 
 | Platform | Portable archive |
 | --- | --- |
-| Windows x64 | `MoveBit-windows-x64.zip` |
-| macOS arm64 | `MoveBit-macos-arm64.zip` |
-| Linux x64 | `MoveBit-linux-x64.zip` |
+| Windows x64 / ARM64 | `MoveBit-windows-x64.zip` / `MoveBit-windows-arm64.zip` |
+| macOS arm64 / Intel | `MoveBit-macos-arm64.zip` / `MoveBit-macos-x64.zip` |
+| Linux x64 / arm64 | `MoveBit-linux-x64.zip` / `MoveBit-linux-arm64.zip` |
 
 The packaged builds are self-contained; no separate .NET runtime is required. Every published package has a matching `.sha256` file.
 
