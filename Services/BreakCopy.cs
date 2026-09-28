@@ -79,22 +79,90 @@ internal static class BreakCopy
         "轻一点，站起来 20 秒，别吵醒开着的标签页",
     ];
 
+    // English pools carry the same droplet persona: warm, a little cheeky, never preachy.
+    internal static readonly string[] EnBreakHints =
+    [
+        "I'll watch the screen — you go drink that water",
+        "Bathroom break. I'd keep your seat warm… fine, just go",
+        "As a certified water droplet, I declare this hydration time",
+        "Stand up and roll your neck — I'll be right here waiting",
+        "The light outside is gentler than the screen. Go have a look",
+        "Your back needs this more than you think it does",
+        "Go get some water — say hi to my relatives",
+        "Think about that bug standing up. Maybe it cracks first",
+        "Three deep breaths before you decide to sit back down",
+        "Your hips are on break for five minutes. The work isn't going anywhere",
+    ];
+
+    internal static readonly string[] EnWaterLines =
+    [
+        "I'm Droplet — take a sip and we're reunited",
+        "Your glass says it's feeling a little empty",
+        "Hydrated people debug 30% faster. (Allegedly.)",
+        "Bottoms up — your kidneys will thank you",
+        "Finish this line, then take one sip. Just one",
+        "Coffee is borrowed water. Time to pay it back",
+        "Throat a little dry? I had a feeling",
+        "Water first. The tangled thoughts come apart easier after",
+    ];
+
+    internal static readonly string[] EnLateNightWaterLines =
+    [
+        "It's late — water still counts",
+        "Working late? I'll keep it down: one sip",
+        "However deep the night, don't leave the glass empty",
+    ];
+
+    internal static readonly string[] EnSitLines =
+    [
+        "The chair won't miss you, but your back will — Droplet",
+        "Sway for two minutes; I'll mind the screen",
+        "Stand up and let your blood rediscover your legs",
+        "The screen isn't going anywhere. Your legs are rusting — move",
+        "The way you're sitting hurts just from watching",
+        "Refill your water and take a stroll — two birds, one stone (I approve)",
+    ];
+
+    internal static readonly string[] EnMicroLines =
+    [
+        "Stand for 20 seconds. Look far away 👀",
+        "Eyes off the screen — find the farthest thing you can see",
+        "Stand up and roll those shoulders back, twice",
+        "Anything six meters away, for 20 seconds. That's it",
+        "Palms over your eyes for ten seconds. Let them breathe",
+        "Spell your name with your nose. Slowly",
+        "March in place for ten seconds",
+        "Five squats — better than caffeine",
+        "Walk to the end of the hall. See who else is slacking",
+    ];
+
+    internal static readonly string[] EnLateNightMicroLines =
+    [
+        "It's late. Twenty seconds on your feet — I'll whisper",
+        "Your eyes want off duty too. Gaze far for a moment",
+        "Quietly now: stand for 20 seconds. Don't wake the open tabs",
+    ];
+
     // Milestone celebration counts (completed sit breaks per day).
     internal static readonly int[] CelebrateAt = [3, 5, 8];
 
     private static readonly Random Rng = new();
 
-    private static bool IsLateNight => DateTime.Now.Hour is >= 22 or < 6;
-
     public static string Pick(IReadOnlyList<string> pool) => pool[Rng.Next(pool.Count)];
 
-    public static string PickHint() => Pick(BreakHints);
+    private static bool IsLateNight => DateTime.Now.Hour is >= 22 or < 6;
 
-    public static string PickSit() => Pick(SitLines);
+    public static string PickHint() => Pick(L10n.IsEnglish ? EnBreakHints : BreakHints);
 
-    public static string PickWater() => IsLateNight ? Pick(LateNightWaterLines) : Pick(WaterLines);
+    public static string PickSit() => Pick(L10n.IsEnglish ? EnSitLines : SitLines);
 
-    public static string PickMicro() => IsLateNight ? Pick(LateNightMicroLines) : Pick(MicroLines);
+    public static string PickWater() => L10n.IsEnglish
+        ? Pick(IsLateNight ? EnLateNightWaterLines : EnWaterLines)
+        : Pick(IsLateNight ? LateNightWaterLines : WaterLines);
+
+    public static string PickMicro() => L10n.IsEnglish
+        ? Pick(IsLateNight ? EnLateNightMicroLines : EnMicroLines)
+        : Pick(IsLateNight ? LateNightMicroLines : MicroLines);
 
     public static bool ShouldCelebrate(int completedToday) =>
         Array.IndexOf(CelebrateAt, completedToday) >= 0;

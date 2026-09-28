@@ -61,8 +61,16 @@ public sealed record UpdateInstallResult(
 /// </summary>
 public static class UpdateService
 {
+#if PRO
+    // Pro builds must never see the public release channel: applying a public
+    // update would replace the Pro binary with the MIT build. The Pro channel
+    // is a license-gated feed on the product site (endpoint TODO with release).
+    private const string LatestReleaseApi = "https://jrtx.site/movebit/pro/releases/latest.json";
+    private const string ProductUrl = "https://jrtx.site/movebit/pro";
+#else
     private const string LatestReleaseApi = "https://api.github.com/repos/turinglambdaai/movebit/releases/latest";
     private const string ProductUrl = "https://github.com/turinglambdaai/movebit";
+#endif
     private const string UpdatesFolderName = "movebit-updates";
     private static readonly HttpClient Client = CreateHttpClient();
 

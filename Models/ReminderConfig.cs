@@ -43,6 +43,9 @@ public sealed class ReminderConfig
     /// False until the user has seen the first-run welcome card (config absent = first run).
     public bool WelcomeShown { get; set; }
 
+    /// UI language: "auto" (follow the system), "zh", or "en".
+    public string Language { get; set; } = "auto";
+
     public ReminderConfig Clone() => new()
     {
         SitReminderMinutes = SitReminderMinutes,
@@ -58,5 +61,6 @@ public sealed class ReminderConfig
         SoundEnabled = SoundEnabled,
         AutoCheckUpdates = AutoCheckUpdates,
         WelcomeShown = WelcomeShown,
+        Language = Language,
     };
 }

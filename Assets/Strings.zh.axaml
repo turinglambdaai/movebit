@@ -1,0 +1,175 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Main window: today card -->
+    <x:String x:Key="Today.Title">今日活跃</x:String>
+    <x:String x:Key="Today.SitCycle">本轮久坐进度</x:String>
+    <x:String x:Key="Today.Sit">久坐提醒</x:String>
+    <x:String x:Key="Today.Water">喝水提醒</x:String>
+    <x:String x:Key="Today.Micro">微休息</x:String>
+
+    <!-- Main window: history chart -->
+    <x:String x:Key="Hist.Toggle7">7 天</x:String>
+    <x:String x:Key="Hist.Toggle30">30 天</x:String>
+    <x:String x:Key="Hist.Range7">最近 7 天</x:String>
+    <x:String x:Key="Hist.Range30">最近 30 天</x:String>
+    <x:String x:Key="Hist.TotalLong">合计 {0} 小时 {1} 分钟</x:String>
+    <x:String x:Key="Hist.TotalShort">合计 {0} 分钟</x:String>
+    <x:String x:Key="Hist.Avg">日均 {0}</x:String>
+    <x:String x:Key="Hist.Today">今天</x:String>
+    <x:String x:Key="Hist.Tooltip">{0:yyyy-MM-dd} · 活跃 {1} 分钟 · 久坐提醒 {2} 次 · 最长连续 {3} 分钟</x:String>
+
+    <!-- Main window: insights -->
+    <x:String x:Key="Insight.Title">工作模式洞察</x:String>
+    <x:String x:Key="Insight.Current">当前连续工作</x:String>
+    <x:String x:Key="Insight.TodayLongest">今日最长连续</x:String>
+    <x:String x:Key="Insight.RecentLongest">近 30 天最长连续</x:String>
+    <x:String x:Key="Insight.RecentAvg">近 30 天活跃日均</x:String>
+    <x:String x:Key="Insight.Busiest">最活跃日</x:String>
+    <x:String x:Key="Insight.None">暂无</x:String>
+    <x:String x:Key="Insight.NoData">暂无足够数据</x:String>
+    <x:String x:Key="Insight.Long2">最长连续工作达到 {0}，建议更早离开座位。</x:String>
+    <x:String x:Key="Insight.Long1">最长连续工作 {0}，已达到一次久坐提醒周期。</x:String>
+    <x:String x:Key="Insight.Long0">最长连续工作 {0}，目前低于久坐提醒周期。</x:String>
+
+    <!-- Main window: settings -->
+    <x:String x:Key="Set.Title">提醒设置</x:String>
+    <x:String x:Key="Set.Intro">可直接点击数字输入；按 Enter 或点到别处后立即生效。上下按钮已按常用步长调整。</x:String>
+    <x:String x:Key="Set.SitInterval">久坐提醒间隔（分钟）</x:String>
+    <x:String x:Key="Set.WaterInterval">喝水提醒间隔（分钟）</x:String>
+    <x:String x:Key="Set.AwayReset">离开多久算休息（分钟）</x:String>
+    <x:String x:Key="Set.Force">强制休息</x:String>
+    <x:String x:Key="Set.BreakDuration">强制休息时长（分钟）</x:String>
+    <x:String x:Key="Set.SkipDelay">「跳过」按钮出现延迟（秒）</x:String>
+    <x:String x:Key="Set.Snooze">稍后再次提醒（分钟）</x:String>
+    <x:String x:Key="Set.MicroToggle">微休息：每 X 分钟站 Y 秒</x:String>
+    <x:String x:Key="Set.MicroParams">微休息间隔 / 时长（分·秒）</x:String>
+    <x:String x:Key="Set.Sound">提示音</x:String>
+    <x:String x:Key="Set.Autostart">开机自启</x:String>
+    <x:String x:Key="Set.Language">语言</x:String>
+    <x:String x:Key="Lang.Auto">跟随系统</x:String>
+    <x:String x:Key="Set.StatusDefault">可直接输入数字 · 修改后自动保存</x:String>
+    <x:String x:Key="Set.StatusSaved">✓ 已保存 · {0:HH:mm:ss}</x:String>
+    <x:String x:Key="Set.StatusApplied">✓ 已应用 · {0:HH:mm:ss}</x:String>
+    <x:String x:Key="Set.StatusSaveFailed">⚠ 已在本次运行中生效，但写入配置文件失败</x:String>
+
+    <!-- Main window: about / updates -->
+    <x:String x:Key="About.AutoUpdate">自动检查更新</x:String>
+    <x:String x:Key="About.AutoUpdateHint">启动后检查，此后约每 6 小时检查一次；不会静默安装。</x:String>
+    <x:String x:Key="Upd.CurrentVersion">当前版本 v{0}</x:String>
+    <x:String x:Key="Upd.Checking">正在检查 GitHub Releases…</x:String>
+    <x:String x:Key="Upd.CheckingShort">检查中…</x:String>
+    <x:String x:Key="Upd.Found">发现新版本 {0}。已验证发布资产存在，点击后下载、校验并重启。</x:String>
+    <x:String x:Key="Upd.Latest">已是最新版本 · v{0}</x:String>
+    <x:String x:Key="Upd.CurrentUpToDate">当前版本 v{0} · 已是最新</x:String>
+    <x:String x:Key="Upd.Unsupported">当前 CPU / 系统组合暂无官方在线更新包。</x:String>
+    <x:String x:Key="Upd.CheckFailed">检查更新失败，请稍后重试。</x:String>
+    <x:String x:Key="Upd.CheckCancelled">检查更新已取消。</x:String>
+    <x:String x:Key="Upd.Preparing">准备更新到 {0}…</x:String>
+    <x:String x:Key="Upd.DownloadingPct">正在下载 {0}… {1}%</x:String>
+    <x:String x:Key="Upd.Downloading">正在下载 {0}…</x:String>
+    <x:String x:Key="Upd.Verifying">正在校验 SHA-256…</x:String>
+    <x:String x:Key="Upd.Staging">校验通过，正在准备替换文件…</x:String>
+    <x:String x:Key="Upd.RestartPrep">准备重启到新版本…</x:String>
+    <x:String x:Key="Upd.Generic">正在更新…</x:String>
+    <x:String x:Key="Upd.Restarting">更新已校验并准备完成，MoveBit 正在重启…</x:String>
+    <x:String x:Key="Upd.NotWritable">应用目录不可写，无法自动更新。</x:String>
+    <x:String x:Key="Upd.Failed">更新失败，当前版本未被替换。</x:String>
+    <x:String x:Key="Upd.Cancelled">更新已取消，当前版本保持不变。</x:String>
+    <x:String x:Key="Upd.ActionUpdate">更新并重启</x:String>
+    <x:String x:Key="Upd.ActionRetry">重试</x:String>
+    <x:String x:Key="Upd.ActionUpdating">更新中…</x:String>
+
+    <!-- Main window footer -->
+    <x:String x:Key="Main.ConfigPath">配置文件：{0}</x:String>
+
+    <!-- Sync (Pro) -->
+    <x:String x:Key="Sync.Title">同步</x:String>
+
+    <!-- Tray -->
+    <x:String x:Key="Tray.Open">设置与统计</x:String>
+    <x:String x:Key="Tray.Pause">暂停提醒 1 小时</x:String>
+    <x:String x:Key="Tray.Resume">恢复提醒</x:String>
+    <x:String x:Key="Tray.CheckUpdate">检查更新</x:String>
+    <x:String x:Key="Tray.UpdateTo">更新并重启 {0}</x:String>
+    <x:String x:Key="Tray.Exit">退出 MoveBit</x:String>
+    <x:String x:Key="Tray.Running">MoveBit · {0}今日活跃 {1} · 久坐 {2}/{3} 分钟</x:String>
+    <x:String x:Key="Tray.Paused">MoveBit · {0}已暂停至 {1:HH:mm}</x:String>
+    <x:String x:Key="Tray.UpdatePrefix">有更新 {0} · </x:String>
+
+    <!-- Notifications -->
+    <x:String x:Key="Notif.WindowTitle">MoveBit 提醒</x:String>
+    <x:String x:Key="Notif.SitTitle">该起身动一动了 🚶</x:String>
+    <x:String x:Key="Notif.SitBody">已连续工作 {0}，今天第 {1} 次提醒。</x:String>
+    <x:String x:Key="Notif.WaterTitle">喝口水吧 💧</x:String>
+    <x:String x:Key="Notif.WaterCount">今天第 {0} 次提醒。</x:String>
+    <x:String x:Key="Notif.GotIt">知道了</x:String>
+    <x:String x:Key="Notif.Snooze">稍后 {0} 分钟</x:String>
+    <x:String x:Key="Notif.CheerTitle">水滴为你鼓掌 💧</x:String>
+    <x:String x:Key="Notif.CheerBody">今天第 {0} 次久坐休息，你的身体谢谢你。水滴帮你记着：今天已专注 {1}。</x:String>
+    <x:String x:Key="Notif.SitFallback">已连续工作过久，请离开椅子休息。</x:String>
+
+    <!-- Templates shared between windows -->
+    <x:String x:Key="Tpl.PausedUntil">已暂停至 {0:HH:mm}</x:String>
+    <x:String x:Key="Tpl.Running">运行中</x:String>
+    <x:String x:Key="Tpl.SitCycleMin">{0} / {1} 分钟</x:String>
+    <x:String x:Key="Tpl.On">开</x:String>
+    <x:String x:Key="Tpl.Off">关</x:String>
+    <x:String x:Key="App.HourMin">{0} 小时 {1} 分钟</x:String>
+    <x:String x:Key="App.Minutes">{0} 分钟</x:String>
+
+    <!-- Onboarding -->
+    <x:String x:Key="Ob.Title">欢迎使用 MoveBit</x:String>
+    <x:String x:Key="Ob.Hello">你好，我是小水滴 💧</x:String>
+    <x:String x:Key="Ob.Intro">我会在托盘里安静待命，盯着你到底工作了多久——
+然后在你需要的时候，把你从椅子上请起来。</x:String>
+    <x:String x:Key="Ob.Steps">只需三步，让我们认识一下。</x:String>
+    <x:String x:Key="Ob.StrictTitle">我该多严格？</x:String>
+    <x:String x:Key="Ob.StrictQ">连续工作多久后，我可以打断你？</x:String>
+    <x:String x:Key="Ob.ModeGentle">温和</x:String>
+    <x:String x:Key="Ob.ModeGentleHint">我自己知道分寸</x:String>
+    <x:String x:Key="Ob.ModeGentleDesc">每 60 分钟弹窗提醒，不锁屏</x:String>
+    <x:String x:Key="Ob.ModeStandard">标准</x:String>
+    <x:String x:Key="Ob.BadgeRecommended">推荐</x:String>
+    <x:String x:Key="Ob.ModeStandardDesc">每 45 分钟锁定全部屏幕，休息 5 分钟</x:String>
+    <x:String x:Key="Ob.ModeStrict">严格</x:String>
+    <x:String x:Key="Ob.BadgeEvidence">贴合研究证据</x:String>
+    <x:String x:Key="Ob.ModeStrictDesc">每 30 分钟锁定全部屏幕，休息 5 分钟</x:String>
+    <x:String x:Key="Ob.StrictFootnote">「跳过」按钮会延迟 20 秒出现；离开电脑 5 分钟以上，计时自动重置。</x:String>
+    <x:String x:Key="Ob.WaterTitle">多久提醒你喝水？</x:String>
+    <x:String x:Key="Ob.Min30">30 分钟</x:String>
+    <x:String x:Key="Ob.Min45">45 分钟</x:String>
+    <x:String x:Key="Ob.Min60">60 分钟</x:String>
+    <x:String x:Key="Ob.SoundTitle">提醒提示音</x:String>
+    <x:String x:Key="Ob.SoundHint">强制休息永远静默；仅弹窗提示音</x:String>
+    <x:String x:Key="Ob.PactTitle">就这么说定了 🤝</x:String>
+    <x:String x:Key="Ob.PactOutro">现在，回去工作吧。我盯着。</x:String>
+    <x:String x:Key="Ob.Skip">跳过，用默认设置</x:String>
+    <x:String x:Key="Ob.Next">下一步</x:String>
+    <x:String x:Key="Ob.Start">开始</x:String>
+    <x:String x:Key="Ob.Launch">开始使用</x:String>
+    <x:String x:Key="Ob.SummaryForced">连续工作 {0} 分钟 → 锁定全部屏幕，休息 {1} 分钟</x:String>
+    <x:String x:Key="Ob.SummaryToast">每 {0} 分钟弹窗提醒起身</x:String>
+    <x:String x:Key="Ob.SummaryWater">每 {0} 分钟提醒喝水</x:String>
+    <x:String x:Key="Ob.SummaryAway">离开电脑超过 {0} 分钟，计时自动重置</x:String>
+    <x:String x:Key="Ob.SummarySound">提示音：{0}（强制休息永远静默）</x:String>
+    <x:String x:Key="Ob.On">开</x:String>
+    <x:String x:Key="Ob.Off">关</x:String>
+    <x:String x:Key="Ob.Settled">就位 💧</x:String>
+    <x:String x:Key="Ob.SettledBody">我会安静待在托盘，到点见。</x:String>
+
+    <!-- Break overlay -->
+    <x:String x:Key="Brk.WindowTitle">休息一下</x:String>
+    <x:String x:Key="Brk.Title">休息时间 ☕</x:String>
+    <x:String x:Key="Brk.Done">休息完成</x:String>
+    <x:String x:Key="Brk.UntilUnlock">分钟后解锁</x:String>
+    <x:String x:Key="Brk.DefaultHint">站起来，晃晃肩膀</x:String>
+    <x:String x:Key="Brk.AutoUnlock">倒计时结束后自动解锁</x:String>
+    <x:String x:Key="Brk.Skip">跳过，{0} 分钟后再提醒</x:String>
+    <x:String x:Key="Brk.Goodbye">回去工作吧，我随叫随到</x:String>
+
+    <!-- Micro break -->
+    <x:String x:Key="Micro.WindowTitle">微休息</x:String>
+    <x:String x:Key="Micro.DefaultTitle">站 20 秒，看看远处</x:String>
+    <x:String x:Key="Micro.Hint">微休息不打断久坐计时 · 点一下或按 Esc 收起</x:String>
+</ResourceDictionary>

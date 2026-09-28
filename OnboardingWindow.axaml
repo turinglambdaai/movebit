@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MoveBit.OnboardingWindow"
-        Title="欢迎使用 MoveBit"
+        Title="{DynamicResource Ob.Title}"
         Width="500" Height="640"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
@@ -17,80 +17,79 @@
             <StackPanel x:Name="Page0" Spacing="14">
                 <Image Source="avares://MoveBit/Assets/icon.png" Width="84" Height="84"
                        HorizontalAlignment="Center" Margin="0,24,0,8" />
-                <TextBlock Text="你好，我是小水滴 💧" FontSize="26" FontWeight="Bold"
+                <TextBlock Text="{DynamicResource Ob.Hello}" FontSize="26" FontWeight="Bold"
                            Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
-                <TextBlock Text="我会在托盘里安静待命，盯着你到底工作了多久——
-然后在你需要的时候，把你从椅子上请起来。"
+                <TextBlock Text="{DynamicResource Ob.Intro}"
                            FontSize="14.5" Foreground="{DynamicResource InkSecondary}" TextWrapping="Wrap"
                            LineHeight="24" HorizontalAlignment="Center" TextAlignment="Center" />
-                <TextBlock Text="只需三步，让我们认识一下。" FontSize="13" Foreground="{DynamicResource InkMuted}"
+                <TextBlock Text="{DynamicResource Ob.Steps}" FontSize="13" Foreground="{DynamicResource InkMuted}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
 
             <!-- Page 1: strictness -->
             <StackPanel x:Name="Page1" IsVisible="False" Spacing="12">
-                <TextBlock Text="我该多严格？" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
-                <TextBlock Text="连续工作多久后，我可以打断你？" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
+                <TextBlock Text="{DynamicResource Ob.StrictTitle}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
+                <TextBlock Text="{DynamicResource Ob.StrictQ}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
 
                 <Border x:Name="ModeGentle" Classes="choice">
                     <StackPanel Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="温和" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
-                            <TextBlock Text="我自己知道分寸" FontSize="12" Foreground="{DynamicResource InkMuted}" VerticalAlignment="Center" />
+                            <TextBlock Text="{DynamicResource Ob.ModeGentle}" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="{DynamicResource Ob.ModeGentleHint}" FontSize="12" Foreground="{DynamicResource InkMuted}" VerticalAlignment="Center" />
                         </StackPanel>
-                        <TextBlock Text="每 60 分钟弹窗提醒，不锁屏" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
+                        <TextBlock Text="{DynamicResource Ob.ModeGentleDesc}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                     </StackPanel>
                 </Border>
 
                 <Border x:Name="ModeStandard" Classes="choice">
                     <StackPanel Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="标准" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="{DynamicResource Ob.ModeStandard}" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
                             <Border Classes="badge">
-                                <TextBlock Text="推荐" FontSize="11" Foreground="{DynamicResource Accent}" />
+                                <TextBlock Text="{DynamicResource Ob.BadgeRecommended}" FontSize="11" Foreground="{DynamicResource Accent}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="每 45 分钟锁定全部屏幕，休息 5 分钟" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
+                        <TextBlock Text="{DynamicResource Ob.ModeStandardDesc}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                     </StackPanel>
                 </Border>
 
                 <Border x:Name="ModeStrict" Classes="choice">
                     <StackPanel Spacing="3">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="严格" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="{DynamicResource Ob.ModeStrict}" FontSize="15.5" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" />
                             <Border Classes="badge">
-                                <TextBlock Text="贴合研究证据" FontSize="11" Foreground="{DynamicResource OkGreen}" />
+                                <TextBlock Text="{DynamicResource Ob.BadgeEvidence}" FontSize="11" Foreground="{DynamicResource OkGreen}" />
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="每 30 分钟锁定全部屏幕，休息 5 分钟" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
+                        <TextBlock Text="{DynamicResource Ob.ModeStrictDesc}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="「跳过」按钮会延迟 20 秒出现；离开电脑 5 分钟以上，计时自动重置。"
+                <TextBlock Text="{DynamicResource Ob.StrictFootnote}"
                            FontSize="11.5" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" Margin="0,4,0,0" />
             </StackPanel>
 
             <!-- Page 2: water & sound -->
             <StackPanel x:Name="Page2" IsVisible="False" Spacing="12">
-                <TextBlock Text="多久提醒你喝水？" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
+                <TextBlock Text="{DynamicResource Ob.WaterTitle}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
 
                 <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
                     <Border x:Name="Water30" Classes="choice" Grid.Column="0">
-                        <TextBlock Text="30 分钟" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
+                        <TextBlock Text="{DynamicResource Ob.Min30}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                     </Border>
                     <Border x:Name="Water45" Classes="choice" Grid.Column="1">
-                        <TextBlock Text="45 分钟" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
+                        <TextBlock Text="{DynamicResource Ob.Min45}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                     </Border>
                     <Border x:Name="Water60" Classes="choice" Grid.Column="2">
-                        <TextBlock Text="60 分钟" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
+                        <TextBlock Text="{DynamicResource Ob.Min60}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}" HorizontalAlignment="Center" />
                     </Border>
                 </Grid>
 
                 <Border Classes="card">
                     <Grid ColumnDefinitions="*, Auto" Margin="4,2">
                         <StackPanel Spacing="3">
-                            <TextBlock Text="提醒提示音" FontSize="14.5" Foreground="{DynamicResource InkPrimary}" />
-                            <TextBlock Text="强制休息永远静默；仅弹窗提示音" FontSize="11.5" Foreground="{DynamicResource InkMuted}" />
+                            <TextBlock Text="{DynamicResource Ob.SoundTitle}" FontSize="14.5" Foreground="{DynamicResource InkPrimary}" />
+                            <TextBlock Text="{DynamicResource Ob.SoundHint}" FontSize="11.5" Foreground="{DynamicResource InkMuted}" />
                         </StackPanel>
                         <ToggleSwitch x:Name="SoundToggle" Grid.Column="1" IsChecked="True" VerticalAlignment="Center" />
                     </Grid>
@@ -99,12 +98,12 @@
 
             <!-- Page 3: the pact -->
             <StackPanel x:Name="Page3" IsVisible="False" Spacing="14">
-                <TextBlock Text="就这么说定了 🤝" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
+                <TextBlock Text="{DynamicResource Ob.PactTitle}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkPrimary}" />
                 <Border Classes="card">
                     <TextBlock x:Name="SummaryText" FontSize="14.5" Foreground="{DynamicResource InkSecondary}"
                                TextWrapping="Wrap" LineHeight="26" />
                 </Border>
-                <TextBlock Text="现在，回去工作吧。我盯着。" FontSize="13.5" Foreground="{DynamicResource InkMuted}"
+                <TextBlock Text="{DynamicResource Ob.PactOutro}" FontSize="13.5" Foreground="{DynamicResource InkMuted}"
                            HorizontalAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
         </Panel>
@@ -119,9 +118,9 @@
             </StackPanel>
 
             <Grid ColumnDefinitions="Auto, *">
-                <Button x:Name="SkipButton" Grid.Column="0" Content="跳过，用默认设置"
+                <Button x:Name="SkipButton" Grid.Column="0"
                         Classes="ghost" Click="OnSkip" FontSize="13" />
-                <Button x:Name="NextButton" Grid.Column="1" Content="开始"
+                <Button x:Name="NextButton" Grid.Column="1" Content="{DynamicResource Ob.Start}"
                         Click="OnNext" FontSize="14"
                         Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" BorderThickness="0"
                         CornerRadius="11" Padding="0,11" HorizontalAlignment="Stretch"

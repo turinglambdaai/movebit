@@ -27,9 +27,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly ReminderScheduler _scheduler;
     private readonly ConfigStore _store;
     private readonly HistoryStore _history;
-    private string _settingsStatusText = "可直接输入数字 · 修改后自动保存";
-    private string _updateStatusText = $"当前版本 v{UpdateService.CurrentVersionText}";
-    private string _updateActionText = "检查更新";
+    private string _settingsStatusText = L10n.T("Set.StatusDefault");
+    private string _updateStatusText = L10n.T("Upd.CurrentVersion", UpdateService.CurrentVersionText);
+    private string _updateActionText = L10n.T("Tray.CheckUpdate");
     private bool _updateBusy;
     private int _historyDays = 7;
     private IReadOnlyList<HistoryBar> _historyBars = [];
@@ -154,7 +154,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 AutoStart.Disable();
             }
 
-            _settingsStatusText = $"✓ 已应用 · {DateTime.Now:HH:mm:ss}";
+            _settingsStatusText = L10n.T("Set.StatusApplied", DateTime.Now);
             OnPropertyChanged(nameof(SettingsStatusText));
             OnPropertyChanged();
         }
@@ -172,6 +172,59 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged();
             }
         }
+    }
+
+    /// Raised after the UI language changed, so App can rebuild chrome that lives
+    /// outside the binding system (tray menu, tray tooltip).
+    public event EventHandler? LocalizationChanged;
+
+    /// 0 = follow system, 1 = 中文, 2 = English (ComboBox order in the settings card).
+    public int LanguageIndex
+    {
+        get => _config.Language switch { "zh" => 1, "en" => 2, _ => 0 };
+        set
+        {
+            var lang = value switch { 1 => "zh", 2 => "en", _ => "auto" };
+            if (_config.Language == lang)
+            {
+                return;
+            }
+
+            _config.Language = lang;
+            PersistSettings();
+            L10n.Apply(lang);
+            Relocalize();
+            OnPropertyChanged();
+            LocalizationChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void Relocalize()
+    {
+        RefreshStats();
+
+        _settingsStatusText = L10n.T("Set.StatusDefault");
+        OnPropertyChanged(nameof(SettingsStatusText));
+
+        // Leave an in-flight update check alone; re-label only the idle state.
+        if (!_updateBusy)
+        {
+            SetUpdateState(L10n.T("Upd.CurrentVersion", UpdateService.CurrentVersionText), L10n.T("Tray.CheckUpdate"));
+        }
+    }
+
+    // --- Sync (Pro builds only) ----------------------------------------------
+
+    /// The sync card is compiled into the MIT build but only ever visible in Pro.
+    public bool SyncSectionVisible => BuildInfo.IsPro;
+
+    public string SyncStatusText { get; private set; } = "";
+
+    /// Called by the Pro overlay's bootstrap; a no-op path in the MIT build.
+    public void SetSyncStatus(string text)
+    {
+        SyncStatusText = text;
+        OnPropertyChanged(nameof(SyncStatusText));
     }
 
     // --- Online update -----------------------------------------------------
@@ -199,7 +252,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string ActiveTimeText => FormatDuration(_scheduler.Stats.ActiveTime);
 
     public string SitCycleText =>
-        IsPaused ? "—" : $"{(int)_scheduler.SitCycleElapsed.TotalMinutes} / {_config.SitReminderMinutes} 分钟";
+        IsPaused ? "—" : L10n.T("Tpl.SitCycleMin", (int)_scheduler.SitCycleElapsed.TotalMinutes, _config.SitReminderMinutes);
 
     public int SitCycleMinutes => IsPaused ? 0 : (int)_scheduler.SitCycleElapsed.TotalMinutes;
 
@@ -214,14 +267,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsPaused => _scheduler.IsPaused;
 
     public string PauseText => _scheduler.PausedUntil is { } until
-        ? $"已暂停至 {until.LocalDateTime:HH:mm}"
-        : "运行中";
+        ? L10n.T("Tpl.PausedUntil", until.LocalDateTime)
+        : L10n.T("Tpl.Running");
 
     public IBrush StatusDotBrush =>
         IsPaused ? new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C))
                  : new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A));
 
-    public string ConfigPathText => _store.ToString();
+    public string ConfigPathText => string.Format(L10n.Culture, L10n.T("Main.ConfigPath"), _store);
 
     // --- History -----------------------------------------------------------
 
@@ -233,11 +286,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// Vertical translate for the average line, measured up from the plot baseline.
     public double AvgLineTranslate { get; private set; }
 
-    public string AvgLineText { get; private set; } = "日均";
+    public string AvgLineText { get; private set; } = L10n.T("Hist.Avg", "—");
 
-    public string HistoryRangeTitle => _historyDays == 30 ? "最近 30 天" : "最近 7 天";
+    public string HistoryRangeTitle => _historyDays == 30 ? L10n.T("Hist.Range30") : L10n.T("Hist.Range7");
 
-    public string HistoryTotalText { get; private set; } = "暂无记录";
+    public string HistoryTotalText { get; private set; } = L10n.T("Hist.TotalShort", 0);
 
     public bool IsWeekSelected => _historyDays == 7;
 
@@ -309,12 +362,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var record = byDate[date];
             var isToday = date == live.Date;
             var dayLabel = isToday
-                ? (isMonth ? date.Day.ToString() : "今天")
-                : isMonth ? (date.Day % 5 == 0 ? date.Day.ToString() : "") : date.ToString("ddd");
+                ? (isMonth ? date.Day.ToString() : L10n.T("Hist.Today"))
+                : isMonth ? (date.Day % 5 == 0 ? date.Day.ToString() : "") : date.ToString("ddd", L10n.Culture);
             bars.Add(new HistoryBar(
                 dayLabel,
                 FormatMinutesCompact(record.ActiveMinutes),
-                $"{date:yyyy-MM-dd} · 活跃 {record.ActiveMinutes} 分钟 · 久坐提醒 {record.SitBreaks} 次 · 最长连续 {record.LongestSessionMinutes} 分钟",
+                L10n.T("Hist.Tooltip", date, record.ActiveMinutes, record.SitBreaks, record.LongestSessionMinutes),
                 barMin + (barMax - barMin) * record.ActiveMinutes / maxMinutes,
                 barWidth,
                 columnWidth,
@@ -324,8 +377,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         _historyBars = bars;
         HistoryTotalText = totalMinutes >= 60
-            ? $"合计 {totalMinutes / 60} 小时 {totalMinutes % 60} 分钟"
-            : $"合计 {totalMinutes} 分钟";
+            ? L10n.T("Hist.TotalLong", totalMinutes / 60, totalMinutes % 60)
+            : L10n.T("Hist.TotalShort", totalMinutes);
 
         var activeDays = byDate.Values.Where(record => record.ActiveMinutes > 0).ToList();
         ShowAvgLine = activeDays.Count > 0;
@@ -333,7 +386,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var average = activeDays.Average(record => (double)record.ActiveMinutes);
             AvgLineTranslate = -(barMin + (barMax - barMin) * average / maxMinutes);
-            AvgLineText = $"日均 {FormatMinutesCompact((int)Math.Round(average))}";
+            AvgLineText = L10n.T("Hist.Avg", FormatMinutesCompact((int)Math.Round(average)));
         }
     }
 
@@ -347,9 +400,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public string RecentAverageText { get; private set; } = "0m";
 
-    public string BusiestDayText { get; private set; } = "暂无";
+    public string BusiestDayText { get; private set; } = L10n.T("Insight.None");
 
-    public string SedentaryInsightText { get; private set; } = "暂无足够数据";
+    public string SedentaryInsightText { get; private set; } = L10n.T("Insight.NoData");
 
     private void RebuildInsights()
     {
@@ -368,24 +421,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         var busiest = activeDays.OrderByDescending(item => item.Record.ActiveMinutes).FirstOrDefault();
         BusiestDayText = busiest == default
-            ? "暂无"
-            : $"{busiest.Date:MM-dd} · {FormatMinutes(busiest.Record.ActiveMinutes)}";
+            ? L10n.T("Insight.None")
+            : $"{busiest.Date.ToString("MM-dd", L10n.Culture)} · {FormatMinutes(busiest.Record.ActiveMinutes)}";
 
         if (longest <= 0)
         {
-            SedentaryInsightText = "暂无足够数据";
+            SedentaryInsightText = L10n.T("Insight.NoData");
         }
         else if (longest >= _config.SitReminderMinutes * 2)
         {
-            SedentaryInsightText = $"最长连续工作达到 {FormatMinutes(longest)}，建议更早离开座位。";
+            SedentaryInsightText = L10n.T("Insight.Long2", FormatMinutes(longest));
         }
         else if (longest >= _config.SitReminderMinutes)
         {
-            SedentaryInsightText = $"最长连续工作 {FormatMinutes(longest)}，已达到一次久坐提醒周期。";
+            SedentaryInsightText = L10n.T("Insight.Long1", FormatMinutes(longest));
         }
         else
         {
-            SedentaryInsightText = $"最长连续工作 {FormatMinutes(longest)}，目前低于久坐提醒周期。";
+            SedentaryInsightText = L10n.T("Insight.Long0", FormatMinutes(longest));
         }
     }
 
@@ -434,8 +487,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private void PersistSettings()
     {
         _settingsStatusText = _store.TrySave(_config)
-            ? $"✓ 已保存 · {DateTime.Now:HH:mm:ss}"
-            : "⚠ 已在本次运行中生效，但写入配置文件失败";
+            ? L10n.T("Set.StatusSaved", DateTime.Now)
+            : L10n.T("Set.StatusSaveFailed");
         OnPropertyChanged(nameof(SettingsStatusText));
     }
 

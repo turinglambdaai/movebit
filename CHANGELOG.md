@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Bilingual UI (English / Chinese): every window, tray menu, tooltip, and copy pool is localized; the language follows the system by default and can be switched from a new settings row at runtime (tray and all open windows update in place)
+
+### Changed
+
+- Dropped the header tagline from the main window; the header is now a single line with the version
+
+### Fixed
+
+- Settings rows could let a control slide over its label on narrow windows or high DPI scaling (e.g. the skip-delay row's "(秒)" colliding with the stepper): labels now flex and wrap while inputs keep a fixed, never-overlapping column
+
 ## [1.3.0] - 2026-09-27
 
 ### Changed

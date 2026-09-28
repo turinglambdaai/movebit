@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MoveBit.MicroBreakWindow"
-        Title="微休息"
+        Title="{DynamicResource Micro.WindowTitle}"
         Width="400"
         SizeToContent="Height"
         SystemDecorations="None"
@@ -23,11 +23,11 @@
         <StackPanel Spacing="5">
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <TextBlock Text="👀" FontSize="22" VerticalAlignment="Center" />
-                <TextBlock x:Name="TitleText" Text="站 20 秒，看看远处" FontSize="18"
+                <TextBlock x:Name="TitleText" Text="{DynamicResource Micro.DefaultTitle}" FontSize="18"
                            FontWeight="SemiBold" Foreground="{DynamicResource InkPrimary}"
                            VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Text="微休息不打断久坐计时 · 点一下或按 Esc 收起"
+            <TextBlock Text="{DynamicResource Micro.Hint}"
                        FontSize="11.5" Foreground="{DynamicResource InkMuted}" />
             <ProgressBar x:Name="ShrinkingBar" Minimum="0" Maximum="100" Value="100"
                          Height="4" CornerRadius="2" Margin="0,6,0,0"

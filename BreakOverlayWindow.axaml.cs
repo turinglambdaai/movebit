@@ -58,11 +58,11 @@ public partial class BreakOverlayWindow : Window
     /// </summary>
     public void PlayGoodbye(Action onDone)
     {
-        BreakTitle.Text = "休息完成";
+        BreakTitle.Text = L10n.T("Brk.Done");
         CountdownText.Text = "💪";
         CountdownText.FontSize = 56;
         RingSub.IsVisible = false;
-        BreakHint.Text = "回去工作吧，我随叫随到";
+        BreakHint.Text = L10n.T("Brk.Goodbye");
         ProgressRing.Opacity = 0.35;
 
         // Float the droplet up and out (~0.6 s), then hand control back on the UI thread.
@@ -92,7 +92,7 @@ public partial class BreakOverlayWindow : Window
     {
         base.OnOpened(e);
 
-        SkipButton.Content = $"跳过，{SnoozeMinutes} 分钟后再提醒";
+        SkipButton.Content = L10n.T("Brk.Skip", SnoozeMinutes);
 
         // Cover the full screen bounds, taskbar included.
         Position = TargetBounds.Position;

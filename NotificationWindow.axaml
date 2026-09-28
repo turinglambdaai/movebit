@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MoveBit.NotificationWindow"
-        Title="MoveBit 提醒"
+        Title="{DynamicResource Notif.WindowTitle}"
         Width="380"
         SizeToContent="Height"
         SystemDecorations="None"
@@ -28,8 +28,8 @@
                            TextWrapping="Wrap" Foreground="{DynamicResource InkSecondary}" />
 
                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
-                    <Button x:Name="SnoozeButton" Content="稍后 10 分钟" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
-                    <Button Content="知道了" Click="OnAcknowledge" FontSize="12.5" />
+                    <Button x:Name="SnoozeButton" Click="OnSnooze" Classes="ghost" FontSize="12.5" />
+                    <Button Content="{DynamicResource Notif.GotIt}" Click="OnAcknowledge" FontSize="12.5" />
                 </StackPanel>
             </StackPanel>
         </DockPanel>

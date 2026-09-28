@@ -38,7 +38,7 @@ public partial class NotificationWindow : Window
 
         TitleText.Text = NotificationTitle;
         BodyText.Text = NotificationBody;
-        SnoozeButton.Content = $"稍后 {SnoozeMinutes} 分钟";
+        SnoozeButton.Content = L10n.T("Notif.Snooze", SnoozeMinutes);
 
         // Color-code by kind: orange = move, blue = water.
         AccentBar.Background = ReminderKind == ReminderKind.Water

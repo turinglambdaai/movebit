@@ -55,6 +55,7 @@ public class App : Application
     {
         _configStore = new ConfigStore();
         _config = _configStore.Load();
+        L10n.Apply(_config.Language);
 
         _history = new HistoryStore();
         _history.Load();
@@ -72,6 +73,13 @@ public class App : Application
         }
 
         _viewModel = new MainViewModel(_config, _scheduler, _configStore, _history);
+        _viewModel.LocalizationChanged += (_, _) => UpdateTrayState();
+
+#if PRO
+        // Pro overlay: wire the paid sync feature into the app. The MIT build
+        // never compiles this call (MoveBit.Sync lives in the private repo).
+        Sync.Bootstrap.Initialize(_config, _scheduler, _history, _viewModel);
+#endif
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _timer.Tick += (_, _) => OnTimerTick();
@@ -160,7 +168,7 @@ public class App : Application
                 await _updateGate.WaitAsync(cancellationToken);
                 entered = true;
                 await Dispatcher.UIThread.InvokeAsync(() =>
-                    _viewModel.SetUpdateState("正在检查 GitHub Releases…", "检查中…", busy: true));
+                    _viewModel.SetUpdateState(L10n.T("Upd.Checking"), L10n.T("Upd.CheckingShort"), busy: true));
             }
             else
             {
@@ -179,7 +187,7 @@ public class App : Application
             if (userInitiated)
             {
                 await Dispatcher.UIThread.InvokeAsync(() =>
-                    _viewModel.SetUpdateState("检查更新已取消。", "检查更新"));
+                    _viewModel.SetUpdateState(L10n.T("Upd.CheckCancelled"), L10n.T("Tray.CheckUpdate")));
             }
         }
         finally
@@ -197,34 +205,34 @@ public class App : Application
         {
             case UpdateCheckStatus.UpdateAvailable when result.Update is { } update:
                 _availableUpdate = update;
-                _updateItem.Header = $"更新并重启 {update.TagName}";
+                _updateItem.Header = L10n.T("Tray.UpdateTo", update.TagName);
                 _viewModel.SetUpdateState(
-                    $"发现新版本 {update.TagName}。已验证发布资产存在，点击后下载、校验并重启。",
-                    "更新并重启");
+                    L10n.T("Upd.Found", update.TagName),
+                    L10n.T("Upd.ActionUpdate"));
                 break;
 
             case UpdateCheckStatus.UpToDate:
                 _availableUpdate = null;
-                _updateItem.Header = "检查更新";
+                _updateItem.Header = L10n.T("Tray.CheckUpdate");
                 _viewModel.SetUpdateState(
                     userInitiated
-                        ? $"已是最新版本 · v{UpdateService.CurrentVersionText}"
-                        : $"当前版本 v{UpdateService.CurrentVersionText} · 已是最新",
-                    "检查更新");
+                        ? L10n.T("Upd.Latest", UpdateService.CurrentVersionText)
+                        : L10n.T("Upd.CurrentUpToDate", UpdateService.CurrentVersionText),
+                    L10n.T("Tray.CheckUpdate"));
                 break;
 
             case UpdateCheckStatus.UnsupportedPlatform:
                 _availableUpdate = null;
-                _updateItem.Header = "检查更新";
-                _viewModel.SetUpdateState("当前 CPU / 系统组合暂无官方在线更新包。", "检查更新");
+                _updateItem.Header = L10n.T("Tray.CheckUpdate");
+                _viewModel.SetUpdateState(L10n.T("Upd.Unsupported"), L10n.T("Tray.CheckUpdate"));
                 break;
 
             default:
                 _availableUpdate = null;
-                _updateItem.Header = "检查更新";
+                _updateItem.Header = L10n.T("Tray.CheckUpdate");
                 _viewModel.SetUpdateState(
-                    result.ErrorMessage ?? "检查更新失败，请稍后重试。",
-                    "重试");
+                    result.ErrorMessage ?? L10n.T("Upd.CheckFailed"),
+                    L10n.T("Upd.ActionRetry"));
                 break;
         }
 
@@ -248,14 +256,14 @@ public class App : Application
                 {
                     var text = p.Stage switch
                     {
-                        UpdateStage.Downloading when p.Percentage is { } percent => $"正在下载 {update.TagName}… {percent}%",
-                        UpdateStage.Downloading => $"正在下载 {update.TagName}…",
-                        UpdateStage.Verifying => "正在校验 SHA-256…",
-                        UpdateStage.Preparing => "校验通过，正在准备替换文件…",
-                        UpdateStage.Restarting => "准备重启到新版本…",
-                        _ => "正在更新…",
+                        UpdateStage.Downloading when p.Percentage is { } percent => L10n.T("Upd.DownloadingPct", update.TagName, percent),
+                        UpdateStage.Downloading => L10n.T("Upd.Downloading", update.TagName),
+                        UpdateStage.Verifying => L10n.T("Upd.Verifying"),
+                        UpdateStage.Preparing => L10n.T("Upd.Staging"),
+                        UpdateStage.Restarting => L10n.T("Upd.RestartPrep"),
+                        _ => L10n.T("Upd.Generic"),
                     };
-                    _viewModel.SetUpdateState(text, "更新中…", busy: true);
+                    _viewModel.SetUpdateState(text, L10n.T("Upd.ActionUpdating"), busy: true);
                 }));
 
             var result = await UpdateService.DownloadAndApplyAsync(update, progress, CancellationToken.None);
@@ -263,7 +271,7 @@ public class App : Application
             {
                 case UpdateInstallStatus.Restarting:
                     await Dispatcher.UIThread.InvokeAsync(() =>
-                        _viewModel.SetUpdateState("更新已校验并准备完成，MoveBit 正在重启…", "正在重启…", busy: true));
+                        _viewModel.SetUpdateState(L10n.T("Upd.Restarting"), L10n.T("Upd.ActionUpdating"), busy: true));
                     _updateCancellation.Cancel();
                     FlushToday();
                     _configStore.Save(_config);
@@ -273,28 +281,28 @@ public class App : Application
 
                 case UpdateInstallStatus.PermissionDenied:
                     await Dispatcher.UIThread.InvokeAsync(() =>
-                        _viewModel.SetUpdateState(result.ErrorMessage ?? "应用目录不可写，无法自动更新。", "重试"));
+                        _viewModel.SetUpdateState(result.ErrorMessage ?? L10n.T("Upd.NotWritable"), L10n.T("Upd.ActionRetry")));
                     break;
 
                 case UpdateInstallStatus.NoUpdate:
                     _availableUpdate = null;
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        _updateItem.Header = "检查更新";
-                        _viewModel.SetUpdateState($"已是最新版本 · v{UpdateService.CurrentVersionText}", "检查更新");
+                        _updateItem.Header = L10n.T("Tray.CheckUpdate");
+                        _viewModel.SetUpdateState(L10n.T("Upd.Latest", UpdateService.CurrentVersionText), L10n.T("Tray.CheckUpdate"));
                     });
                     break;
 
                 default:
                     await Dispatcher.UIThread.InvokeAsync(() =>
-                        _viewModel.SetUpdateState(result.ErrorMessage ?? "更新失败，当前版本未被替换。", "重试"));
+                        _viewModel.SetUpdateState(result.ErrorMessage ?? L10n.T("Upd.Failed"), L10n.T("Upd.ActionRetry")));
                     break;
             }
         }
         catch (OperationCanceledException)
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
-                _viewModel.SetUpdateState("更新已取消，当前版本保持不变。", "重试"));
+                _viewModel.SetUpdateState(L10n.T("Upd.Cancelled"), L10n.T("Upd.ActionRetry")));
         }
         finally
         {
@@ -470,8 +478,8 @@ public class App : Application
         if (sit is { } s)
         {
             kind = ReminderKind.Sit;
-            title = "该起身动一动了 🚶";
-            lines.Add($"已连续工作 {FormatDuration(s.ActiveTimeToday)}，今天第 {s.CountToday} 次提醒。");
+            title = L10n.T("Notif.SitTitle");
+            lines.Add(L10n.T("Notif.SitBody", FormatDuration(s.ActiveTimeToday), s.CountToday));
             lines.Add(BreakCopy.PickSit());
             kinds.Add(ReminderKind.Sit);
         }
@@ -480,8 +488,8 @@ public class App : Application
         {
             if (sit is null)
             {
-                title = "喝口水吧 💧";
-                lines.Add($"今天第 {w.CountToday} 次提醒。");
+                title = L10n.T("Notif.WaterTitle");
+                lines.Add(L10n.T("Notif.WaterCount", w.CountToday));
             }
 
             lines.Add(BreakCopy.PickWater());
@@ -538,7 +546,7 @@ public class App : Application
         var screens = EnumerateScreens();
         if (screens.Count == 0)
         {
-            ShowNotification("该起身动一动了 🚶", "已连续工作过久，请离开椅子休息。", ReminderKind.Sit);
+            ShowNotification(L10n.T("Notif.SitTitle"), L10n.T("Notif.SitFallback"), ReminderKind.Sit);
             return;
         }
 
@@ -645,8 +653,8 @@ public class App : Application
         {
             var active = FormatDuration(_scheduler.Stats.ActiveTime);
             Dispatcher.UIThread.Post(() => ShowNotification(
-                "水滴为你鼓掌 💧",
-                $"今天第 {completedCount} 次久坐休息，你的身体谢谢你。水滴帮你记着：今天已专注 {active}。",
+                L10n.T("Notif.CheerTitle"),
+                L10n.T("Notif.CheerBody", completedCount, active),
                 ReminderKind.Sit));
         }
     }
@@ -720,16 +728,16 @@ public class App : Application
         using var stream = AssetLoader.Open(new Uri("avares://MoveBit/Assets/icon.png"));
         var icon = new WindowIcon(stream);
 
-        var openItem = new NativeMenuItem { Header = "设置与统计" };
+        var openItem = new NativeMenuItem { Header = L10n.T("Tray.Open") };
         openItem.Click += (_, _) => ShowMainWindow();
 
-        _pauseItem = new NativeMenuItem { Header = "暂停提醒 1 小时" };
+        _pauseItem = new NativeMenuItem { Header = L10n.T("Tray.Pause") };
         _pauseItem.Click += (_, _) => TogglePause();
 
-        _updateItem = new NativeMenuItem { Header = "检查更新" };
+        _updateItem = new NativeMenuItem { Header = L10n.T("Tray.CheckUpdate") };
         _updateItem.Click += async (_, _) => await CheckOrInstallUpdateFromUiAsync();
 
-        var exitItem = new NativeMenuItem { Header = "退出 MoveBit" };
+        var exitItem = new NativeMenuItem { Header = L10n.T("Tray.Exit") };
         exitItem.Click += (_, _) => Shutdown();
 
         var menu = new NativeMenu();
@@ -771,17 +779,23 @@ public class App : Application
             return;
         }
 
-        var updatePrefix = _availableUpdate is { } update ? $"有更新 {update.TagName} · " : string.Empty;
+        var updatePrefix = _availableUpdate is { } update ? L10n.T("Tray.UpdatePrefix", update.TagName) : string.Empty;
+        _updateItem.Header = _availableUpdate is { } up ? L10n.T("Tray.UpdateTo", up.TagName) : L10n.T("Tray.CheckUpdate");
         if (_scheduler.IsPaused)
         {
             var until = _scheduler.PausedUntil!.Value.LocalDateTime;
-            _trayIcon.ToolTipText = $"MoveBit · {updatePrefix}已暂停至 {until:HH:mm}";
-            _pauseItem.Header = "恢复提醒";
+            _trayIcon.ToolTipText = L10n.T("Tray.Paused", updatePrefix, until);
+            _pauseItem.Header = L10n.T("Tray.Resume");
         }
         else
         {
-            _trayIcon.ToolTipText = $"MoveBit · {updatePrefix}今日活跃 {FormatDuration(_scheduler.Stats.ActiveTime)} · 久坐 {FormatDuration(_scheduler.SitCycleElapsed)}/{_config.SitReminderMinutes} 分钟";
-            _pauseItem.Header = "暂停提醒 1 小时";
+            _trayIcon.ToolTipText = L10n.T(
+                "Tray.Running",
+                updatePrefix,
+                FormatDuration(_scheduler.Stats.ActiveTime),
+                FormatDuration(_scheduler.SitCycleElapsed),
+                _config.SitReminderMinutes);
+            _pauseItem.Header = L10n.T("Tray.Pause");
         }
     }
 
@@ -819,7 +833,7 @@ public class App : Application
             _config.WelcomeShown = true;
             _configStore.Save(_config);
             _viewModel.RefreshStats();
-            ShowNotification("就位 💧", "我会安静待在托盘，到点见。", ReminderKind.Water);
+            ShowNotification(L10n.T("Ob.Settled"), L10n.T("Ob.SettledBody"), ReminderKind.Water);
         };
 
         // Closed via the title bar without finishing: still counts as seen, so the
@@ -867,6 +881,6 @@ public class App : Application
     internal static string FormatDuration(TimeSpan t)
     {
         var total = (int)t.TotalMinutes;
-        return total >= 60 ? $"{total / 60} 小时 {total % 60} 分钟" : $"{Math.Max(total, 0)} 分钟";
+        return total >= 60 ? L10n.T("App.HourMin", total / 60, total % 60) : L10n.T("App.Minutes", Math.Max(total, 0));
     }
 }

@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shapes="clr-namespace:Avalonia.Controls.Shapes;assembly=Avalonia.Controls"
         x:Class="MoveBit.BreakOverlayWindow"
-        Title="休息一下"
+        Title="{DynamicResource Brk.WindowTitle}"
         SystemDecorations="None"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
@@ -27,7 +27,7 @@
             <Image x:Name="DropIcon" Source="avares://MoveBit/Assets/icon.png" Width="64" Height="64"
                    HorizontalAlignment="Center" />
 
-            <TextBlock x:Name="BreakTitle" Text="休息时间 ☕" FontSize="30" FontWeight="SemiBold"
+            <TextBlock x:Name="BreakTitle" Text="{DynamicResource Brk.Title}" FontSize="30" FontWeight="SemiBold"
                        Foreground="#F0EEE6" HorizontalAlignment="Center" />
 
             <!-- Countdown ring: one real arc whose sweep is driven by the same remaining time as the text. -->
@@ -41,19 +41,19 @@
                             HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <TextBlock x:Name="CountdownText" Text="5:00" FontSize="76" FontWeight="Bold"
                            Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBlock x:Name="RingSub" Text="分钟后解锁" FontSize="13"
+                <TextBlock x:Name="RingSub" Text="{DynamicResource Brk.UntilUnlock}" FontSize="13"
                            Foreground="#8A84A0" HorizontalAlignment="Center"
                            VerticalAlignment="Bottom" Margin="0,0,0,58" />
             </Grid>
 
-            <TextBlock x:Name="BreakHint" Text="站起来，晃晃肩膀" FontSize="18"
+            <TextBlock x:Name="BreakHint" Text="{DynamicResource Brk.DefaultHint}" FontSize="18"
                        Foreground="#B8B2C7" HorizontalAlignment="Center" />
 
-            <TextBlock x:Name="CycleText" Text="倒计时结束后自动解锁" FontSize="12.5"
+            <TextBlock x:Name="CycleText" Text="{DynamicResource Brk.AutoUnlock}" FontSize="12.5"
                        Foreground="#6E6884" HorizontalAlignment="Center" Margin="0,2,0,0" />
         </StackPanel>
 
-        <Button x:Name="SkipButton" Content="跳过，10 分钟后再提醒" Click="OnSkip"
+        <Button x:Name="SkipButton" Click="OnSkip"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48"
                 IsVisible="False" FontSize="13.5"
                 Foreground="#8A849E" Background="Transparent" BorderBrush="#3A3550"

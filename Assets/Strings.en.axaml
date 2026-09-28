@@ -1,0 +1,175 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Main window: today card -->
+    <x:String x:Key="Today.Title">Active today</x:String>
+    <x:String x:Key="Today.SitCycle">Sit cycle</x:String>
+    <x:String x:Key="Today.Sit">Sit reminders</x:String>
+    <x:String x:Key="Today.Water">Water</x:String>
+    <x:String x:Key="Today.Micro">Micro breaks</x:String>
+
+    <!-- Main window: history chart -->
+    <x:String x:Key="Hist.Toggle7">7 days</x:String>
+    <x:String x:Key="Hist.Toggle30">30 days</x:String>
+    <x:String x:Key="Hist.Range7">Last 7 days</x:String>
+    <x:String x:Key="Hist.Range30">Last 30 days</x:String>
+    <x:String x:Key="Hist.TotalLong">Total {0} hr {1} min</x:String>
+    <x:String x:Key="Hist.TotalShort">Total {0} min</x:String>
+    <x:String x:Key="Hist.Avg">Daily avg {0}</x:String>
+    <x:String x:Key="Hist.Today">Today</x:String>
+    <x:String x:Key="Hist.Tooltip">{0:yyyy-MM-dd} · {1} active min · {2} sit reminders · longest streak {3} min</x:String>
+
+    <!-- Main window: insights -->
+    <x:String x:Key="Insight.Title">Work pattern</x:String>
+    <x:String x:Key="Insight.Current">Current session</x:String>
+    <x:String x:Key="Insight.TodayLongest">Longest today</x:String>
+    <x:String x:Key="Insight.RecentLongest">30-day longest</x:String>
+    <x:String x:Key="Insight.RecentAvg">30-day daily avg</x:String>
+    <x:String x:Key="Insight.Busiest">Busiest day</x:String>
+    <x:String x:Key="Insight.None">None yet</x:String>
+    <x:String x:Key="Insight.NoData">Not enough data yet</x:String>
+    <x:String x:Key="Insight.Long2">Longest session hit {0} — consider standing up sooner.</x:String>
+    <x:String x:Key="Insight.Long1">Longest session {0} — a full sit-reminder cycle.</x:String>
+    <x:String x:Key="Insight.Long0">Longest session {0} — below one sit-reminder cycle.</x:String>
+
+    <!-- Main window: settings -->
+    <x:String x:Key="Set.Title">Reminders</x:String>
+    <x:String x:Key="Set.Intro">Click a number to type in it; changes apply on Enter or focus loss. Steppers use sensible steps.</x:String>
+    <x:String x:Key="Set.SitInterval">Sit reminder interval (min)</x:String>
+    <x:String x:Key="Set.WaterInterval">Water reminder (min)</x:String>
+    <x:String x:Key="Set.AwayReset">Away counts as rest (min)</x:String>
+    <x:String x:Key="Set.Force">Forced breaks</x:String>
+    <x:String x:Key="Set.BreakDuration">Forced break length (min)</x:String>
+    <x:String x:Key="Set.SkipDelay">"Skip" button delay (sec)</x:String>
+    <x:String x:Key="Set.Snooze">Snooze length (min)</x:String>
+    <x:String x:Key="Set.MicroToggle">Micro break: every X min / Y sec</x:String>
+    <x:String x:Key="Set.MicroParams">Micro interval / length (min · sec)</x:String>
+    <x:String x:Key="Set.Sound">Sound</x:String>
+    <x:String x:Key="Set.Autostart">Start at login</x:String>
+    <x:String x:Key="Set.Language">Language</x:String>
+    <x:String x:Key="Lang.Auto">Auto</x:String>
+    <x:String x:Key="Set.StatusDefault">Type directly · changes save automatically</x:String>
+    <x:String x:Key="Set.StatusSaved">✓ Saved · {0:HH:mm:ss}</x:String>
+    <x:String x:Key="Set.StatusApplied">✓ Applied · {0:HH:mm:ss}</x:String>
+    <x:String x:Key="Set.StatusSaveFailed">⚠ Active this session, but writing the config file failed</x:String>
+
+    <!-- Main window: about / updates -->
+    <x:String x:Key="About.AutoUpdate">Check updates automatically</x:String>
+    <x:String x:Key="About.AutoUpdateHint">Checks at startup, then every ~6 hours; never installs silently.</x:String>
+    <x:String x:Key="Upd.CurrentVersion">Current version v{0}</x:String>
+    <x:String x:Key="Upd.Checking">Checking GitHub Releases…</x:String>
+    <x:String x:Key="Upd.CheckingShort">Checking…</x:String>
+    <x:String x:Key="Upd.Found">New version {0} found. Release assets verified — click to download, verify, and restart.</x:String>
+    <x:String x:Key="Upd.Latest">Up to date · v{0}</x:String>
+    <x:String x:Key="Upd.CurrentUpToDate">Current version v{0} · up to date</x:String>
+    <x:String x:Key="Upd.Unsupported">No official update package for this CPU / OS combination yet.</x:String>
+    <x:String x:Key="Upd.CheckFailed">Update check failed — try again later.</x:String>
+    <x:String x:Key="Upd.CheckCancelled">Update check cancelled.</x:String>
+    <x:String x:Key="Upd.Preparing">Preparing update to {0}…</x:String>
+    <x:String x:Key="Upd.DownloadingPct">Downloading {0}… {1}%</x:String>
+    <x:String x:Key="Upd.Downloading">Downloading {0}…</x:String>
+    <x:String x:Key="Upd.Verifying">Verifying SHA-256…</x:String>
+    <x:String x:Key="Upd.Staging">Verified — preparing to swap in the new files…</x:String>
+    <x:String x:Key="Upd.RestartPrep">Preparing restart to the new version…</x:String>
+    <x:String x:Key="Upd.Generic">Updating…</x:String>
+    <x:String x:Key="Upd.Restarting">Update verified and staged — MoveBit is restarting…</x:String>
+    <x:String x:Key="Upd.NotWritable">App folder isn't writable; can't auto-update.</x:String>
+    <x:String x:Key="Upd.Failed">Update failed — current version untouched.</x:String>
+    <x:String x:Key="Upd.Cancelled">Update cancelled — current version unchanged.</x:String>
+    <x:String x:Key="Upd.ActionUpdate">Update &amp; restart</x:String>
+    <x:String x:Key="Upd.ActionRetry">Retry</x:String>
+    <x:String x:Key="Upd.ActionUpdating">Updating…</x:String>
+
+    <!-- Main window footer -->
+    <x:String x:Key="Main.ConfigPath">Config file: {0}</x:String>
+
+    <!-- Sync (Pro) -->
+    <x:String x:Key="Sync.Title">Sync</x:String>
+
+    <!-- Tray -->
+    <x:String x:Key="Tray.Open">Settings &amp; stats</x:String>
+    <x:String x:Key="Tray.Pause">Pause reminders for 1 hour</x:String>
+    <x:String x:Key="Tray.Resume">Resume reminders</x:String>
+    <x:String x:Key="Tray.CheckUpdate">Check for updates</x:String>
+    <x:String x:Key="Tray.UpdateTo">Update &amp; restart {0}</x:String>
+    <x:String x:Key="Tray.Exit">Quit MoveBit</x:String>
+    <x:String x:Key="Tray.Running">MoveBit · {0}active today {1} · sit {2}/{3} min</x:String>
+    <x:String x:Key="Tray.Paused">MoveBit · {0}paused until {1:HH:mm}</x:String>
+    <x:String x:Key="Tray.UpdatePrefix">update {0} · </x:String>
+
+    <!-- Notifications -->
+    <x:String x:Key="Notif.WindowTitle">MoveBit reminder</x:String>
+    <x:String x:Key="Notif.SitTitle">Time to move 🚶</x:String>
+    <x:String x:Key="Notif.SitBody">{0} of continuous work — reminder #{1} today.</x:String>
+    <x:String x:Key="Notif.WaterTitle">Sip some water 💧</x:String>
+    <x:String x:Key="Notif.WaterCount">Reminder #{0} today.</x:String>
+    <x:String x:Key="Notif.GotIt">Got it</x:String>
+    <x:String x:Key="Notif.Snooze">Later, {0} min</x:String>
+    <x:String x:Key="Notif.CheerTitle">Droplet applauds 💧</x:String>
+    <x:String x:Key="Notif.CheerBody">Break #{0} done — your body says thanks. Droplet's tally: {1} of focus today.</x:String>
+    <x:String x:Key="Notif.SitFallback">You've been working continuously for too long — please step away and rest.</x:String>
+
+    <!-- Templates shared between windows -->
+    <x:String x:Key="Tpl.PausedUntil">Paused until {0:HH:mm}</x:String>
+    <x:String x:Key="Tpl.Running">Running</x:String>
+    <x:String x:Key="Tpl.SitCycleMin">{0} / {1} min</x:String>
+    <x:String x:Key="Tpl.On">On</x:String>
+    <x:String x:Key="Tpl.Off">Off</x:String>
+    <x:String x:Key="App.HourMin">{0} hr {1} min</x:String>
+    <x:String x:Key="App.Minutes">{0} min</x:String>
+
+    <!-- Onboarding -->
+    <x:String x:Key="Ob.Title">Welcome to MoveBit</x:String>
+    <x:String x:Key="Ob.Hello">Hi, I'm Droplet 💧</x:String>
+    <x:String x:Key="Ob.Intro">I live quietly in your tray, watching how long you actually work —
+then, when the time comes, I'll kindly get you out of the chair.</x:String>
+    <x:String x:Key="Ob.Steps">Three quick steps and we're acquainted.</x:String>
+    <x:String x:Key="Ob.StrictTitle">How strict should I be?</x:String>
+    <x:String x:Key="Ob.StrictQ">After how much continuous work should I interrupt you?</x:String>
+    <x:String x:Key="Ob.ModeGentle">Gentle</x:String>
+    <x:String x:Key="Ob.ModeGentleHint">I know my limits</x:String>
+    <x:String x:Key="Ob.ModeGentleDesc">Toast every 60 minutes, never locks the screen</x:String>
+    <x:String x:Key="Ob.ModeStandard">Standard</x:String>
+    <x:String x:Key="Ob.BadgeRecommended">Recommended</x:String>
+    <x:String x:Key="Ob.ModeStandardDesc">Lock all screens every 45 minutes for a 5-minute break</x:String>
+    <x:String x:Key="Ob.ModeStrict">Strict</x:String>
+    <x:String x:Key="Ob.BadgeEvidence">Backed by research</x:String>
+    <x:String x:Key="Ob.ModeStrictDesc">Lock all screens every 30 minutes for a 5-minute break</x:String>
+    <x:String x:Key="Ob.StrictFootnote">The "skip" button appears after 20 seconds; being away 5+ minutes resets the timer.</x:String>
+    <x:String x:Key="Ob.WaterTitle">How often should I nudge you to drink?</x:String>
+    <x:String x:Key="Ob.Min30">30 min</x:String>
+    <x:String x:Key="Ob.Min45">45 min</x:String>
+    <x:String x:Key="Ob.Min60">60 min</x:String>
+    <x:String x:Key="Ob.SoundTitle">Reminder sound</x:String>
+    <x:String x:Key="Ob.SoundHint">Forced breaks are always silent; only toasts chime</x:String>
+    <x:String x:Key="Ob.PactTitle">It's a deal 🤝</x:String>
+    <x:String x:Key="Ob.PactOutro">Now, back to work. I'm watching.</x:String>
+    <x:String x:Key="Ob.Skip">Skip, use defaults</x:String>
+    <x:String x:Key="Ob.Next">Next</x:String>
+    <x:String x:Key="Ob.Start">Start</x:String>
+    <x:String x:Key="Ob.Launch">Let's go</x:String>
+    <x:String x:Key="Ob.SummaryForced">{0} min of continuous work → lock all screens for a {1}-minute break</x:String>
+    <x:String x:Key="Ob.SummaryToast">Toast nudge to stand up every {0} minutes</x:String>
+    <x:String x:Key="Ob.SummaryWater">Water reminder every {0} minutes</x:String>
+    <x:String x:Key="Ob.SummaryAway">Away from the desk over {0} minutes resets the timer</x:String>
+    <x:String x:Key="Ob.SummarySound">Sound: {0} (forced breaks are always silent)</x:String>
+    <x:String x:Key="Ob.On">On</x:String>
+    <x:String x:Key="Ob.Off">Off</x:String>
+    <x:String x:Key="Ob.Settled">All set 💧</x:String>
+    <x:String x:Key="Ob.SettledBody">I'll wait quietly in the tray. See you at the next break.</x:String>
+
+    <!-- Break overlay -->
+    <x:String x:Key="Brk.WindowTitle">Take a break</x:String>
+    <x:String x:Key="Brk.Title">Break time ☕</x:String>
+    <x:String x:Key="Brk.Done">Break complete</x:String>
+    <x:String x:Key="Brk.UntilUnlock">until unlock</x:String>
+    <x:String x:Key="Brk.DefaultHint">Stand up, shake out your shoulders</x:String>
+    <x:String x:Key="Brk.AutoUnlock">Unlocks automatically when the countdown ends</x:String>
+    <x:String x:Key="Brk.Skip">Skip — remind me in {0} minutes</x:String>
+    <x:String x:Key="Brk.Goodbye">Back to work — I'm on call</x:String>
+
+    <!-- Micro break -->
+    <x:String x:Key="Micro.WindowTitle">Micro break</x:String>
+    <x:String x:Key="Micro.DefaultTitle">Stand 20 seconds, look far away</x:String>
+    <x:String x:Key="Micro.Hint">Micro breaks don't touch the sit timer · click or press Esc to dismiss</x:String>
+</ResourceDictionary>

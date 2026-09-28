@@ -4,6 +4,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using MoveBit.Models;
+using MoveBit.Services;
 
 namespace MoveBit;
 
@@ -114,7 +115,8 @@ public partial class OnboardingWindow : Window
         SetActive(Dot2, page == 2);
         SetActive(Dot3, page == 3);
 
-        NextButton.Content = page == 0 ? "开始" : page == LastPage ? "开始使用" : "下一步";
+        NextButton.Content = page == 0 ? L10n.T("Ob.Start") : page == LastPage ? L10n.T("Ob.Launch") : L10n.T("Ob.Next");
+        SkipButton.Content = L10n.T("Ob.Skip");
         SkipButton.IsVisible = page != LastPage;
 
         if (page == LastPage)
@@ -138,12 +140,12 @@ public partial class OnboardingWindow : Window
     private string BuildSummary()
     {
         var sit = _config.ForceBreakEnabled
-            ? $"连续工作 {_config.SitReminderMinutes} 分钟 → 锁定全部屏幕，休息 {_config.BreakDurationMinutes} 分钟"
-            : $"每 {_config.SitReminderMinutes} 分钟弹窗提醒起身";
+            ? L10n.T("Ob.SummaryForced", _config.SitReminderMinutes, _config.BreakDurationMinutes)
+            : L10n.T("Ob.SummaryToast", _config.SitReminderMinutes);
 
-        return $"{sit}\n每 {_config.WaterReminderMinutes} 分钟提醒喝水"
-            + $"\n离开电脑超过 {_config.AwayResetMinutes} 分钟，计时自动重置"
-            + $"\n提示音：{(_config.SoundEnabled ? "开" : "关")}（强制休息永远静默）";
+        return $"{sit}\n{L10n.T("Ob.SummaryWater", _config.WaterReminderMinutes)}"
+            + $"\n{L10n.T("Ob.SummaryAway", _config.AwayResetMinutes)}"
+            + $"\n{L10n.T("Ob.SummarySound", L10n.T(_config.SoundEnabled ? "Ob.On" : "Ob.Off"))}";
     }
 
     private void OnNext(object? sender, RoutedEventArgs e)

@@ -51,5 +51,11 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- The Fluent theme hardcodes OnContent="On"/OffContent="Off" as setters;
+             re-point them at the localized strings. -->
+        <Style Selector="ToggleSwitch">
+            <Setter Property="OnContent" Value="{DynamicResource Tpl.On}" />
+            <Setter Property="OffContent" Value="{DynamicResource Tpl.Off}" />
+        </Style>
     </Application.Styles>
 </Application>
