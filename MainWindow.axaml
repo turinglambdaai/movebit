@@ -15,14 +15,7 @@
                   VerticalScrollBarVisibility="Auto"
                   HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Stretch">
-        <StackPanel Margin="28,24" Spacing="18" HorizontalAlignment="Stretch">
-
-            <!-- Header -->
-            <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,0,0,4" HorizontalAlignment="Stretch">
-                <Image Source="avares://MoveBit/Assets/icon.png" Width="48" Height="48" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding VersionText}" FontSize="24" FontWeight="Bold"
-                           Foreground="{DynamicResource InkPrimary}" VerticalAlignment="Center" />
-            </StackPanel>
+        <StackPanel Margin="28,20" Spacing="18" HorizontalAlignment="Stretch">
 
             <!-- Two-column card layout: short enough to fit a laptop screen without
                  scrolling, and the ScrollViewer below stays as the small-screen fallback. -->
