@@ -87,7 +87,7 @@ Portable archives remain available:
 
 The packaged builds are self-contained; no separate .NET runtime is required. Every published package has a matching `.sha256` file.
 
-> Release binaries are currently unsigned. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Paid code signing/notarization is the remaining distribution roadmap item.
+> Release binaries are currently unsigned. Windows users can also install from winget once manifests are submitted per [docs/WINGET.md](docs/WINGET.md). Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Paid code signing/notarization is the remaining distribution roadmap item.
 
 ## Online updates
 
