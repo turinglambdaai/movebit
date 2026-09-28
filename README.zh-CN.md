@@ -167,15 +167,15 @@ dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
 
 ```bash
 # 在 macOS runner 上
-bash packaging/macos/build-native.sh 1.3.0
+bash packaging/macos/build-native.sh 1.4.0
 
 # 在 Debian/Ubuntu runner 上
-bash packaging/linux/build-deb.sh 1.3.0
+bash packaging/linux/build-deb.sh 1.4.0
 ```
 
 ## 发布流程
 
-1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.3.0` ↔ `v1.3.0`。
+1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.4.0` ↔ `v1.4.0`。
 2. 只有 Windows / macOS / Linux 构建和测试全绿后再合并；CI 还会额外验证 Windows Setup、挂载并检查 DMG、真实安装并卸载 `.deb`。
 3. 推送版本 tag。
 4. Release workflow 生成三个 Portable ZIP、Windows Setup、macOS `.app.zip` + DMG、Linux `.deb` 和所有 SHA-256 sidecar；所有必要包都成功后才创建一次 GitHub Release。
