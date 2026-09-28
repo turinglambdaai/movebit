@@ -269,7 +269,10 @@ h1, h2, h3, p { margin-top: 0; }
 .format-link:hover { border-color: rgba(47,158,85,.45); background: white; transform: translateY(-1px); }
 .format-kind { flex: none; padding: 2px 8px; border-radius: 7px; background: var(--accent-soft); color: var(--accent-strong); font-size: 11px; font-weight: 600; }
 .format-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 12px var(--mono); }
-.format-link .download-arrow { float: none; flex: none; }
+.format-link .download-arrow { float: none; flex: none; width: 1.2em; line-height: 1; font-size: 15px; text-align: center; }
+.head-icon { flex: none; display: flex; align-items: center; color: var(--muted); }
+.head-icon svg { width: 20px; height: 20px; }
+.download-head strong { flex: 1; }
 .download-note { margin: 22px auto 0; max-width: 790px; color: var(--muted); text-align: center; font-size: 13px; }
 .warning { margin-top: 18px; padding: 14px 16px; border: 1px solid rgba(194,134,37,.22); border-radius: 14px; background: var(--warn-soft); color: #775015; font-size: 13px; }
 
