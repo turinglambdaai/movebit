@@ -19,8 +19,8 @@
 
             <!-- Two-column card layout: short enough to fit a laptop screen without
                  scrolling, and the ScrollViewer below stays as the small-screen fallback. -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                <StackPanel Grid.Column="0" Spacing="16">
+            <Grid x:Name="ContentColumns" ColumnDefinitions="*,*" ColumnSpacing="14">
+                <StackPanel x:Name="LeftColumn" Grid.Column="0" Spacing="16">
 
             <!-- Today card -->
             <Border Classes="card">
@@ -199,7 +199,7 @@
             </Border>
 
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="16">
+                <StackPanel x:Name="RightColumn" Grid.Column="1" Spacing="16">
 
             <!-- Settings card -->
             <Border Classes="card">
@@ -218,76 +218,76 @@
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.SitInterval}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SitReminderMinutes}"
                                       Minimum="10" Maximum="240" Increment="5"
-                                      HorizontalAlignment="Right" Width="132" />
+                                      VerticalAlignment="Center" HorizontalAlignment="Right" Width="132" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.WaterInterval}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding WaterReminderMinutes}"
                                       Minimum="5" Maximum="180" Increment="5"
-                                      HorizontalAlignment="Right" Width="132" />
+                                      VerticalAlignment="Center" HorizontalAlignment="Right" Width="132" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.AwayReset}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding AwayResetMinutes}"
                                       Minimum="1" Maximum="60" Increment="1"
-                                      HorizontalAlignment="Right" Width="132" />
+                                      VerticalAlignment="Center" HorizontalAlignment="Right" Width="132" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.Force}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceBreakEnabled}" HorizontalAlignment="Right" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding ForceBreakEnabled}" VerticalAlignment="Center" HorizontalAlignment="Right" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.BreakDuration}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding BreakDurationMinutes}"
                                       Minimum="1" Maximum="30" Increment="1"
-                                      HorizontalAlignment="Right" Width="132" />
+                                      VerticalAlignment="Center" HorizontalAlignment="Right" Width="132" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.SkipDelay}" VerticalAlignment="Center" Foreground="{DynamicResource InkPrimary}" TextWrapping="Wrap" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SkipAfterSeconds}"
                                       Minimum="0" Maximum="120" Increment="5"
-                                      HorizontalAlignment="Right" Width="132" />
+                                      VerticalAlignment="Center" HorizontalAlignment="Right" Width="132" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.Snooze}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SnoozeMinutes}"
                                       Minimum="5" Maximum="60" Increment="5"
-                                      HorizontalAlignment="Right" Width="132" />
+                                      VerticalAlignment="Center" HorizontalAlignment="Right" Width="132" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.MicroToggle}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding MicroBreakEnabled}" HorizontalAlignment="Right" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding MicroBreakEnabled}" VerticalAlignment="Center" HorizontalAlignment="Right" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.MicroParams}" VerticalAlignment="Center" Foreground="{DynamicResource InkSecondary}" FontSize="12.5" TextWrapping="Wrap" />
                         <NumericUpDown Grid.Column="2" Value="{Binding MicroBreakIntervalMinutes}"
-                                      Minimum="10" Maximum="60" Increment="5" Width="112" />
+                                      Minimum="10" Maximum="60" Increment="5" VerticalAlignment="Center" HorizontalAlignment="Right" Width="112" />
                         <NumericUpDown Grid.Column="3" Value="{Binding MicroBreakDurationSeconds}"
-                                      Minimum="10" Maximum="60" Increment="5" Width="112" />
+                                      Minimum="10" Maximum="60" Increment="5" VerticalAlignment="Center" HorizontalAlignment="Right" Width="112" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.Sound}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding SoundEnabled}" HorizontalAlignment="Right" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding SoundEnabled}" VerticalAlignment="Center" HorizontalAlignment="Right" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.Autostart}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoStartEnabled}" HorizontalAlignment="Right" />
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoStartEnabled}" VerticalAlignment="Center" HorizontalAlignment="Right" />
                     </Grid>
 
                     <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10">
                         <TextBlock Grid.Column="0" Text="{DynamicResource Set.Language}" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource InkPrimary}" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="0">
-                            <ComboBox SelectedIndex="{Binding LanguageIndex}" MinWidth="132">
+                            <ComboBox SelectedIndex="{Binding LanguageIndex}" MinWidth="132" VerticalAlignment="Center">
                                 <ComboBoxItem Content="{DynamicResource Lang.Auto}" />
                                 <ComboBoxItem Content="中文" />
                                 <ComboBoxItem Content="English" />

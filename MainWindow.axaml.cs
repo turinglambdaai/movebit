@@ -9,11 +9,17 @@ public partial class MainWindow : Window
 {
     private const double DefaultWidth = 760;
     private const double DefaultHeight = 840;
-    private const double MinimumWidth = 680;
+    private const double MinimumWidth = 460;
     private const double PreferredMinimumHeight = 560;
     private const double AbsoluteMinimumHeight = 320;
     private const double MaximumComfortableWidth = 840;
     private const double ScreenMargin = 24;
+
+    /// Below this width two half-columns get too tight for label+control rows;
+    /// the card panels stack full-width instead so nothing shares a line.
+    private const double TwoColumnThreshold = 760;
+
+    private bool _narrowLayout;
 
     public MainWindow()
     {
@@ -35,7 +41,11 @@ public partial class MainWindow : Window
         ScalingChanged += (_, _) => FitToCurrentScreen();
         PropertyChanged += (_, change) =>
         {
-            if (change.Property == WindowStateProperty && WindowState == WindowState.Normal)
+            if (change.Property == BoundsProperty)
+            {
+                UpdateColumnLayout();
+            }
+            else if (change.Property == WindowStateProperty && WindowState == WindowState.Normal)
             {
                 FitToCurrentScreen();
             }
@@ -49,6 +59,26 @@ public partial class MainWindow : Window
     {
         base.OnOpened(e);
         FitToCurrentScreen();
+        UpdateColumnLayout();
+    }
+
+    private void UpdateColumnLayout()
+    {
+        var narrow = Bounds.Width < TwoColumnThreshold;
+        if (narrow == _narrowLayout)
+        {
+            return;
+        }
+
+        _narrowLayout = narrow;
+        ContentColumns.ColumnDefinitions = narrow
+            ? new ColumnDefinitions("*")
+            : new ColumnDefinitions("*,*");
+        ContentColumns.RowDefinitions = narrow
+            ? new RowDefinitions("Auto,Auto")
+            : new RowDefinitions("Auto");
+        Grid.SetColumn(RightColumn, narrow ? 0 : 1);
+        Grid.SetRow(RightColumn, narrow ? 1 : 0);
     }
 
     private void FitToCurrentScreen()

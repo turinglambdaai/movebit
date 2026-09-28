@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Responsive layout: below 760 DIP width the two card columns stack full-width, so labels and controls stop sharing cramped lines when the window is narrow; settings controls are vertically centered so multi-line labels no longer stretch them; the minimum window width drops to 460 accordingly
 - Removed the in-window header (large icon + version line); the title bar already carries the app identity and the About card carries the version, so the window now opens straight into today's stats
 - Main window reflowed into two columns (daily stats/chart/insights left, settings/about right), with a wider default window so the page fits vertically on common screens instead of hanging off them; long setting labels now wrap in narrow columns
 - "接管全屏" renamed to "强制休息" and moved above its parameters (duration, skip delay, snooze) so the toggle and its numbers read as one group; onboarding copy now uses the same term
