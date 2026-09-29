@@ -88,15 +88,6 @@ button { font: inherit; }
 .nav-links { display: flex; align-items: center; gap: 27px; }
 .nav-links a { font-size: 14px; color: var(--muted); font-weight: 590; }
 .nav-links a:hover { color: var(--ink); }
-.lang-switch {
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,.68);
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 7px 11px;
-  cursor: pointer;
-}
-.lang-switch:hover { border-color: var(--line-strong); color: var(--ink); }
 
 .hero { padding: 108px 0 84px; overflow: hidden; }
 .hero-copy { text-align: center; max-width: 900px; margin: 0 auto; }
@@ -351,7 +342,7 @@ h1, h2, h3, p { margin-top: 0; }
   }
   body { background: radial-gradient(circle at 50% -15%, rgba(79,199,117,.08), transparent 34rem), var(--bg); }
   .nav { background: rgba(17,21,18,.8); }
-  .eyebrow, .trust-chip, .lang-switch, .btn-secondary { background: rgba(25,31,27,.72); }
+  .eyebrow, .trust-chip, .btn-secondary { background: rgba(25,31,27,.72); }
   .core-card, .feature, .privacy-item, .faq details { background: rgba(25,31,27,.72); }
   .core-card::after { color: rgba(255,255,255,.035); }
   .flow-step { background: rgba(25,31,27,.67); }
@@ -368,3 +359,12 @@ h1, h2, h3, p { margin-top: 0; }
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .js .animate { opacity: 1; transform: none; }
 }
+
+/* Language dropdown (family standard) */
+.lang-dropdown-wrapper { position: relative; }
+.lang-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; font-family: var(--sans); font-size: 14px; color: var(--muted); padding: 6px 10px; border-radius: 8px; transition: color .2s, background .2s; }
+.lang-btn:hover { color: var(--accent); background: var(--accent-soft); }
+.lang-menu { position: absolute; top: calc(100% + 6px); right: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12); padding: 6px; min-width: 132px; margin: 0; list-style: none; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .18s, visibility .18s, transform .18s; z-index: 10000; }
+.lang-dropdown-wrapper:hover .lang-menu, .lang-dropdown-wrapper:focus-within .lang-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+.lang-menu li { padding: 7px 12px; font-size: 14px; color: var(--ink); border-radius: 6px; cursor: pointer; transition: background .15s, color .15s; }
+.lang-menu li:hover { background: var(--accent-soft); color: var(--accent); }

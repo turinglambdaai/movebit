@@ -52,7 +52,16 @@
         <a class="optional" href="#updates"><span data-en="Updates" data-zh="在线更新">Updates</span></a>
         <a class="optional" href="#privacy"><span data-en="Privacy" data-zh="隐私">Privacy</span></a>
         <a class="download-link" href="#download"><span data-en="Download" data-zh="下载">Download</span></a>
-        <button class="lang-switch" id="lang-switch" type="button" aria-label="Switch language">中文</button>
+        <div class="lang-dropdown-wrapper">
+            <button class="lang-btn" type="button" onclick="void 0" aria-label="Switch language">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span id="current-lang-label">English</span>
+            </button>
+            <ul class="lang-menu">
+                <li onclick="setLanguage('en')">English</li>
+                <li onclick="setLanguage('zh')">简体中文</li>
+            </ul>
+        </div>
       </nav>
     </div>
   </header>
@@ -317,7 +326,7 @@
 
   <script>
     (function () {
-      var switcher = document.getElementById('lang-switch');
+      var langLabel = document.getElementById('current-lang-label');
       var title = document.querySelector('title');
       var description = document.querySelector('meta[name="description"]');
       var ogTitle = document.querySelector('meta[property="og:title"]');
@@ -363,7 +372,7 @@
           if (ogDescription) ogDescription.setAttribute('content', zhDescription);
           if (twitterTitle) twitterTitle.setAttribute('content', zhTitle);
           if (twitterDescription) twitterDescription.setAttribute('content', zhDescription);
-          switcher.textContent = 'EN';
+          if (langLabel) langLabel.textContent = '简体中文';
         } else {
           var enTitle = "MoveBit — Break reminders you can't ignore";
           var enDescription = "MoveBit is a local-first desktop break companion that tracks active computer time, recognizes when you step away, puts a timed break screen on every monitor, offers a Windows installer, and supports verified in-app updates.";
@@ -373,13 +382,13 @@
           if (ogDescription) ogDescription.setAttribute('content', enDescription);
           if (twitterTitle) twitterTitle.setAttribute('content', enTitle);
           if (twitterDescription) twitterDescription.setAttribute('content', enDescription);
-          switcher.textContent = '中文';
+          if (langLabel) langLabel.textContent = 'English';
         }
       }
 
       try { localStorage.removeItem(LEGACY_LANGUAGE_KEY); } catch (_) {}
       applyLanguage(readLanguageOverride() || detectBrowserLanguage(), false);
-      switcher.addEventListener('click', function () { applyLanguage(current === 'en' ? 'zh' : 'en', true); });
+      window.setLanguage = function (lang) { if (lang === 'zh' || lang === 'en') applyLanguage(lang, true); };
       window.addEventListener('languagechange', function () {
         if (!readLanguageOverride()) applyLanguage(detectBrowserLanguage(), false);
       });
