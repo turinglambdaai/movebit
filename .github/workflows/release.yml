@@ -80,7 +80,7 @@ jobs:
           sha256sum "MoveBit-${{ matrix.platform }}.zip" > "MoveBit-${{ matrix.platform }}.zip.sha256"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MoveBit-${{ matrix.platform }}
           if-no-files-found: error
@@ -121,7 +121,7 @@ jobs:
           hdiutil detach -quiet "$mount_dir"
 
       - name: Upload native macOS packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MoveBit-macos-native
           if-no-files-found: error
@@ -166,7 +166,7 @@ jobs:
           test ! -e /usr/bin/movebit
 
       - name: Upload Debian package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MoveBit-linux-deb
           if-no-files-found: error
@@ -396,7 +396,7 @@ jobs:
           "$hash  MoveBit-Setup-windows-x64.exe" | Set-Content "$setup.sha256" -NoNewline
 
       - name: Upload Windows portable artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MoveBit-windows-x64
           if-no-files-found: error
@@ -405,7 +405,7 @@ jobs:
             MoveBit-windows-x64.zip.sha256
 
       - name: Upload Windows ARM64 portable artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MoveBit-windows-arm64
           if-no-files-found: error
@@ -414,7 +414,7 @@ jobs:
             MoveBit-windows-arm64.zip.sha256
 
       - name: Upload Windows installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: MoveBit-windows-installer
           if-no-files-found: error
