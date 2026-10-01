@@ -1,0 +1,238 @@
+{
+  "today": {
+    "title": "Active today",
+    "sitCycle": "Sit cycle",
+    "sit": "Sit reminders",
+    "water": "Water",
+    "micro": "Micro breaks"
+  },
+  "hist": {
+    "toggle7": "7 days",
+    "toggle30": "30 days",
+    "range7": "Last 7 days",
+    "range30": "Last 30 days",
+    "totalLong": "Total {0} hr {1} min",
+    "totalShort": "Total {0} min",
+    "avg": "Daily avg {0}",
+    "today": "Today",
+    "tooltip": "{0:yyyy-MM-dd} · {1} active min · {2} sit reminders · longest streak {3} min"
+  },
+  "insight": {
+    "title": "Work pattern",
+    "current": "Current session",
+    "todayLongest": "Longest today",
+    "recentLongest": "30-day longest",
+    "recentAvg": "30-day daily avg",
+    "busiest": "Busiest day",
+    "none": "None yet",
+    "noData": "Not enough data yet",
+    "long2": "Longest session hit {0} — consider standing up sooner.",
+    "long1": "Longest session {0} — a full sit-reminder cycle.",
+    "long0": "Longest session {0} — below one sit-reminder cycle."
+  },
+  "set": {
+    "title": "Reminders",
+    "intro": "Click a number to type in it; changes apply on Enter or focus loss. Steppers use sensible steps.",
+    "sitInterval": "Sit reminder interval (min)",
+    "waterInterval": "Water reminder (min)",
+    "awayReset": "Away counts as rest (min)",
+    "force": "Forced breaks",
+    "breakDuration": "Forced break length (min)",
+    "skipDelay": "\"Skip\" button delay (sec)",
+    "snooze": "Snooze length (min)",
+    "microToggle": "Micro break: every X min / Y sec",
+    "microParams": "Micro interval / length (min · sec)",
+    "sound": "Sound",
+    "autostart": "Start at login",
+    "language": "Language",
+    "statusDefault": "Type directly · changes save automatically",
+    "statusSaved": "✓ Saved · {0:HH:mm:ss}",
+    "statusApplied": "✓ Applied · {0:HH:mm:ss}",
+    "statusSaveFailed": "⚠ Active this session, but writing the config file failed"
+  },
+  "lang": {
+    "auto": "Auto"
+  },
+  "about": {
+    "autoUpdate": "Check updates automatically",
+    "autoUpdateHint": "Checks at startup, then every ~6 hours; never installs silently."
+  },
+  "upd": {
+    "currentVersion": "Current version v{0}",
+    "checking": "Checking GitHub Releases…",
+    "checkingShort": "Checking…",
+    "found": "New version {0} found. Release assets verified — click to download, verify, and restart.",
+    "latest": "Up to date · v{0}",
+    "currentUpToDate": "Current version v{0} · up to date",
+    "unsupported": "No official update package for this CPU / OS combination yet.",
+    "checkFailed": "Update check failed — try again later.",
+    "checkCancelled": "Update check cancelled.",
+    "preparing": "Preparing update to {0}…",
+    "downloadingPct": "Downloading {0}… {1}%",
+    "downloading": "Downloading {0}…",
+    "verifying": "Verifying SHA-256…",
+    "staging": "Verified — preparing to swap in the new files…",
+    "restartPrep": "Preparing restart to the new version…",
+    "generic": "Updating…",
+    "restarting": "Update verified and staged — MoveBit is restarting…",
+    "notWritable": "App folder isn't writable; can't auto-update.",
+    "failed": "Update failed — current version untouched.",
+    "cancelled": "Update cancelled — current version unchanged.",
+    "actionUpdate": "Update &amp; restart",
+    "actionRetry": "Retry",
+    "actionUpdating": "Updating…"
+  },
+  "main": {
+    "configPath": "Config file: {0}"
+  },
+  "sync": {
+    "title": "Sync"
+  },
+  "tray": {
+    "open": "Settings &amp; stats",
+    "pause": "Pause reminders for 1 hour",
+    "resume": "Resume reminders",
+    "checkUpdate": "Check for updates",
+    "updateTo": "Update &amp; restart {0}",
+    "exit": "Quit MoveBit",
+    "running": "MoveBit · {0}active today {1} · sit {2}/{3} min",
+    "paused": "MoveBit · {0}paused until {1:HH:mm}",
+    "updatePrefix": "update {0} · "
+  },
+  "notif": {
+    "windowTitle": "MoveBit reminder",
+    "sitTitle": "Time to move 🚶",
+    "sitBody": "{0} of continuous work — reminder #{1} today.",
+    "waterTitle": "Sip some water 💧",
+    "waterCount": "Reminder #{0} today.",
+    "gotIt": "Got it",
+    "snooze": "Later, {0} min",
+    "cheerTitle": "Droplet applauds 💧",
+    "cheerBody": "Break #{0} done — your body says thanks. Droplet's tally: {1} of focus today.",
+    "sitFallback": "You've been working continuously for too long — please step away and rest."
+  },
+  "tpl": {
+    "pausedUntil": "Paused until {0:HH:mm}",
+    "running": "Running",
+    "sitCycleMin": "{0} / {1} min",
+    "on": "On",
+    "off": "Off"
+  },
+  "app": {
+    "hourMin": "{0} hr {1} min",
+    "minutes": "{0} min"
+  },
+  "ob": {
+    "title": "Welcome to MoveBit",
+    "hello": "Hi, I'm Droplet 💧",
+    "intro": "I live quietly in your tray, watching how long you actually work —\nthen, when the time comes, I'll kindly get you out of the chair.",
+    "steps": "Three quick steps and we're acquainted.",
+    "strictTitle": "How strict should I be?",
+    "strictQ": "After how much continuous work should I interrupt you?",
+    "modeGentle": "Gentle",
+    "modeGentleHint": "I know my limits",
+    "modeGentleDesc": "Toast every 60 minutes, never locks the screen",
+    "modeStandard": "Standard",
+    "badgeRecommended": "Recommended",
+    "modeStandardDesc": "Lock all screens every 45 minutes for a 5-minute break",
+    "modeStrict": "Strict",
+    "badgeEvidence": "Backed by research",
+    "modeStrictDesc": "Lock all screens every 30 minutes for a 5-minute break",
+    "strictFootnote": "The \"skip\" button appears after 20 seconds; being away 5+ minutes resets the timer.",
+    "waterTitle": "How often should I nudge you to drink?",
+    "min30": "30 min",
+    "min45": "45 min",
+    "min60": "60 min",
+    "soundTitle": "Reminder sound",
+    "soundHint": "Forced breaks are always silent; only toasts chime",
+    "pactTitle": "It's a deal 🤝",
+    "pactOutro": "Now, back to work. I'm watching.",
+    "skip": "Skip, use defaults",
+    "next": "Next",
+    "start": "Start",
+    "launch": "Let's go",
+    "summaryForced": "{0} min of continuous work → lock all screens for a {1}-minute break",
+    "summaryToast": "Toast nudge to stand up every {0} minutes",
+    "summaryWater": "Water reminder every {0} minutes",
+    "summaryAway": "Away from the desk over {0} minutes resets the timer",
+    "summarySound": "Sound: {0} (forced breaks are always silent)",
+    "on": "On",
+    "off": "Off",
+    "settled": "All set 💧",
+    "settledBody": "I'll wait quietly in the tray. See you at the next break."
+  },
+  "brk": {
+    "windowTitle": "Take a break",
+    "title": "Break time ☕",
+    "done": "Break complete",
+    "untilUnlock": "until unlock",
+    "defaultHint": "Stand up, shake out your shoulders",
+    "autoUnlock": "Unlocks automatically when the countdown ends",
+    "skip": "Skip — remind me in {0} minutes",
+    "goodbye": "Back to work — I'm on call"
+  },
+  "micro": {
+    "windowTitle": "Micro break",
+    "defaultTitle": "Stand 20 seconds, look far away",
+    "hint": "Micro breaks don't touch the sit timer · click or press Esc to dismiss"
+  },
+  "copy": {
+    "breakHintPool": [
+      "I'll watch the screen — you go drink that water",
+      "Bathroom break. I'd keep your seat warm… fine, just go",
+      "As a certified water droplet, I declare this hydration time",
+      "Stand up and roll your neck — I'll be right here waiting",
+      "The light outside is gentler than the screen. Go have a look",
+      "Your back needs this more than you think it does",
+      "Go get some water — say hi to my relatives",
+      "Think about that bug standing up. Maybe it cracks first",
+      "Three deep breaths before you decide to sit back down",
+      "Your hips are on break for five minutes. The work isn't going anywhere"
+    ],
+    "sitToastPool": [
+      "The chair won't miss you, but your back will — Droplet",
+      "Sway for two minutes; I'll mind the screen",
+      "Stand up and let your blood rediscover your legs",
+      "The screen isn't going anywhere. Your legs are rusting — move",
+      "The way you're sitting hurts just from watching",
+      "Refill your water and take a stroll — two birds, one stone (I approve)"
+    ],
+    "waterPool": [
+      "I'm Droplet — take a sip and we're reunited",
+      "Your glass says it's feeling a little empty",
+      "Hydrated people debug 30% faster. (Allegedly.)",
+      "Bottoms up — your kidneys will thank you",
+      "Finish this line, then take one sip. Just one",
+      "Coffee is borrowed water. Time to pay it back",
+      "Throat a little dry? I had a feeling",
+      "Water first. The tangled thoughts come apart easier after"
+    ],
+    "microPool": [
+      "Stand for 20 seconds. Look far away 👀",
+      "Eyes off the screen — find the farthest thing you can see",
+      "Stand up and roll those shoulders back, twice",
+      "Anything six meters away, for 20 seconds. That's it",
+      "Palms over your eyes for ten seconds. Let them breathe",
+      "Spell your name with your nose. Slowly",
+      "March in place for ten seconds",
+      "Five squats — better than caffeine",
+      "Walk to the end of the hall. See who else is slacking"
+    ],
+    "lateNightWaterPool": [
+      "It's late — water still counts",
+      "Working late? I'll keep it down: one sip",
+      "However deep the night, don't leave the glass empty"
+    ],
+    "lateNightMicroPool": [
+      "It's late. Twenty seconds on your feet — I'll whisper",
+      "Your eyes want off duty too. Gaze far for a moment",
+      "Quietly now: stand for 20 seconds. Don't wake the open tabs"
+    ],
+    "celebrateAt": [
+      3,
+      5,
+      8
+    ],
+    "lateNightWindow": "22:00-06:00"
+  }
+}
