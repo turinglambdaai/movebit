@@ -626,7 +626,7 @@ void MainWindow::ShowHistoryBars() {
     bar.VerticalAlignment(VerticalAlignment::Bottom);
 
     auto cell = Controls::StackPanel{};
-    cell.Orientation(Orientation::Vertical);
+    cell.Orientation(Controls::Orientation::Vertical);
     cell.VerticalAlignment(VerticalAlignment::Bottom);
     if (!is_month) {
       auto value = make_text(
@@ -655,7 +655,7 @@ void MainWindow::ShowHistoryBars() {
         label, 10.5, slice.is_today,
         slice.is_today ? "#C25E3E" : "#6E6A5E");
     Controls::StackPanel full_cell{};
-    full_cell.Orientation(Orientation::Vertical);
+    full_cell.Orientation(Controls::Orientation::Vertical);
     full_cell.VerticalAlignment(VerticalAlignment::Bottom);
     full_cell.Children().Append(cell);
     full_cell.Children().Append(label_block);

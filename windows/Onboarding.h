@@ -54,7 +54,7 @@ struct OnboardingWizard {
 
     Controls::ScrollViewer scroll;
     Controls::StackPanel root;
-    root.Orientation(Orientation::Vertical);
+    root.Orientation(Controls::Orientation::Vertical);
     root.Padding(Thickness{32, 28, 32, 28});
     root.Spacing(14);
 
@@ -69,7 +69,7 @@ struct OnboardingWizard {
     dots = make_text(L"● ○ ○ ○", 14, false, "#C25E3E");
 
     Controls::StackPanel controls;
-    controls.Orientation(Orientation::Horizontal);
+    controls.Orientation(Controls::Orientation::Horizontal);
     skip_button = make_button(winrt::to_hstring(l10n::t("ObSkip")), "#00000000",
                               "#A39B8D", false);
     skip_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
@@ -126,9 +126,9 @@ struct OnboardingWizard {
                                     std::string const& title,
                                     std::string const& badge,
                                     std::string const& desc) {
-    std::wstring text = wide(title);
-    if (!badge.empty()) text += L"  ·  " + wide(badge);
-    text += L"\n" + wide(desc);
+    winrt::hstring text = wide(title);
+    if (!badge.empty()) text = text + L"  ·  " + wide(badge);
+    text = text + L"\n" + wide(desc);
     auto button = make_button(text, "#FFFFFF", "#26241F", true);
     button.BorderBrush(brush_from("#EAE2D6"));
     button.CornerRadius(CornerRadius{12, 12, 12, 12});
@@ -201,7 +201,7 @@ struct OnboardingWizard {
         make_text(winrt::to_hstring(l10n::t("ObWaterTitle")), 20, true,
                   "#26241F"));
     Controls::StackPanel row;
-    row.Orientation(Orientation::Horizontal);
+    row.Orientation(Controls::Orientation::Horizontal);
     row.Spacing(10);
     water30 = make_water_button(
         30, l10n::t("ObMin30"));
@@ -219,7 +219,7 @@ struct OnboardingWizard {
     sound_title.HorizontalAlignment(HorizontalAlignment::Left);
     water_page.Children().Append(sound_title);
     Controls::StackPanel sound_row;
-    sound_row.Orientation(Orientation::Horizontal);
+    sound_row.Orientation(Controls::Orientation::Horizontal);
     sound_row.Spacing(8);
     sound_switch = Controls::ToggleSwitch{};
     sound_switch.IsOn(sound);
@@ -306,7 +306,7 @@ struct OnboardingWizard {
     for (int i = 0; i <= kLastPage; ++i) {
       dots_text += i == page ? L"● " : L"○ ";
     }
-    dots.Text(dots_text);
+    dots.Text(winrt::to_hstring(dots_text));
     next_button.Content(winrt::box_value(winrt::hstring(wide(l10n::t(
         page == kLastPage ? "ObLaunch" : page == 0 ? "ObStart" : "ObNext")))));
     skip_button.Visibility(page < kLastPage ? Visibility::Visible

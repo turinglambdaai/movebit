@@ -78,6 +78,7 @@ struct MainWindow : MainWindowT<MainWindow> {
   void RefreshHistoryCard();
   void RefreshInsightCard();
   void RefreshSettingsWidgets();
+  void RefreshStatusMarker();
   void RefreshPauseButton();
   void RefreshFooter();
   void ShowHistoryBars();

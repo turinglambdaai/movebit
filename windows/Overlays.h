@@ -38,7 +38,7 @@ inline Media::SolidColorBrush brush_from(char const* hex) {
   return brush;
 }
 
-inline Controls::TextBlock make_text(std::wstring const& text, double size,
+inline Controls::TextBlock make_text(winrt::hstring const& text, double size,
                                      bool bold, char const* hex_color) {
   Controls::TextBlock block;
   block.Text(text);
@@ -50,11 +50,11 @@ inline Controls::TextBlock make_text(std::wstring const& text, double size,
   return block;
 }
 
-inline std::wstring wide(std::string const& utf8) {
+inline winrt::hstring wide(std::string const& utf8) {
   return winrt::to_hstring(utf8);
 }
 
-inline Controls::Button make_button(std::wstring const& content,
+inline Controls::Button make_button(winrt::hstring const& content,
                                     char const* background_hex,
                                     char const* foreground_hex,
                                     bool bordered) {
@@ -312,7 +312,7 @@ struct ToastCard {
     root.Width(380);
 
     Controls::StackPanel body;
-    body.Orientation(Orientation::Vertical);
+    body.Orientation(Controls::Orientation::Vertical);
     body.Padding(Thickness{24, 16, 20, 14});
     body.Spacing(10);
 
@@ -330,7 +330,7 @@ struct ToastCard {
     body.Children().Append(lines_panel);
 
     Controls::StackPanel buttons;
-    buttons.Orientation(Orientation::Horizontal);
+    buttons.Orientation(Controls::Orientation::Horizontal);
     buttons.HorizontalAlignment(HorizontalAlignment::Right);
     buttons.Spacing(10);
     if (!kinds.empty()) {
@@ -414,12 +414,12 @@ struct MicroCard {
     root.Width(400);
 
     Controls::StackPanel body;
-    body.Orientation(Orientation::Vertical);
+    body.Orientation(Controls::Orientation::Vertical);
     body.Padding(Thickness{26, 18, 26, 18});
     body.Spacing(5);
 
     Controls::StackPanel head;
-    head.Orientation(Orientation::Horizontal);
+    head.Orientation(Controls::Orientation::Horizontal);
     head.Spacing(10);
     head.Children().Append(make_text(L"👀", 22, false, "#26241F"));
     auto title_block = make_text(wide(title), 18, true, "#26241F");
