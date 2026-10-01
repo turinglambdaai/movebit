@@ -58,6 +58,17 @@
       (check-false (file-exists? plist))
       (check-false (autostart-enabled?))))]
 
+  [(windows)
+   ;; --- Windows HKCU Run key ------------------------------------------------
+   ;; Read-only check only: the toggle writes the runner's real registry, so
+   ;; it is verified by inspection plus the advapi32 signature (the FFI
+   ;; mirrors AutoStart.cs: quoted exe path under the Run key).
+
+   (with-sandbox
+    (lambda (_)
+      ;; enabled? never throws, whatever the registry says.
+      (check-true (let ([v (autostart-enabled?)]) (boolean? v)))))]
+
   [else
    ;; --- Linux XDG autostart -------------------------------------------------
 

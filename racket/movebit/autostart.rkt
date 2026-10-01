@@ -12,8 +12,8 @@
 (require racket/file
          racket/path
          racket/port
+         racket/runtime-path
          racket/string
-         racket/system
          (only-in racket/format ~a))
 
 (provide autostart-enabled?
@@ -140,23 +140,19 @@
    "\""))
 
 ;; --- Windows HKCU Run key --------------------------------------------------
-;; Best-effort through reg.exe (always present; HKCU is per-user so no
-;; elevation is needed). The stored value is the quoted exe path, so
-;; Program Files style spaces survive command-line parsing.
+;; Implemented in autostart-registry.rkt (advapi32 FFI), loaded lazily so the
+;; ffi-lib call never runs on macOS/Linux.
+
+(define-runtime-path registry-module "autostart-registry.rkt")
+
+(define (registry-fun name)
+  (dynamic-require registry-module name))
 
 (define (windows-value-present?)
-  (parameterize ([current-output-port (open-output-nowhere)]
-                 [current-error-port (open-output-nowhere)])
-    (zero? (system*/exit-code
-            "reg.exe" "query" (windows-run-key) "/v" "MoveBit"))))
+  (with-handlers ([exn:fail? (lambda (_) #f)])
+    ((registry-fun 'registry-value-present?))))
 
 (define (windows-set! enable?)
-  (cond
-    [enable?
-     (void (system* "reg.exe" "add" (windows-run-key)
-                    "/v" "MoveBit" "/t" "REG_SZ"
-                    "/d" (~a "\"" (autostart-executable-path) "\"")
-                    "/f"))]
-    [else
-     (void (system* "reg.exe" "delete" (windows-run-key)
-                    "/v" "MoveBit" "/f"))]))
+  (if enable?
+      ((registry-fun 'registry-set-value!) (autostart-executable-path))
+      ((registry-fun 'registry-delete-value!))))
