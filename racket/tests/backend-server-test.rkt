@@ -19,30 +19,10 @@
          racket/string
          rivet/backend
          rivet/protocol
-         rivet/system
          json
          "../../app/backend.rkt"
          "../movebit/idle.rkt"
          "../movebit/timeutil.rkt")
-
-;; --- fake system adapter (autostart over the wire) -------------------------
-
-(define autostart-box (box #f))
-
-(define (unimpl who) (lambda args (error who "unavailable in test adapter")))
-
-(define fake-adapter
-  (system-adapter 'fake '(autostart)
-                  (unimpl 'acquire-single-instance!)
-                  (unimpl 'register-activation-handler!)
-                  (unimpl 'show-system-notification!)
-                  (unimpl 'set-tray-menu!)
-                  (lambda (enabled?) (set-box! autostart-box enabled?))
-                  (lambda () (unbox autostart-box))
-                  (unimpl 'secure-store-set!)
-                  (unimpl 'secure-store-ref)
-                  (unimpl 'secure-store-remove!)
-                  (unimpl 'install-crash-hook!)))
 
 ;; --- temp data dir with a fast config --------------------------------------
 
@@ -78,8 +58,7 @@
                  [current-now-ms virtual-now-ms]
                  [current-idle-provider
                   (lambda () (make-constant-idle-provider 0))] ; always active
-                 [current-tick-interval-seconds 0.05]
-                 [current-system-adapter fake-adapter])
+                 [current-tick-interval-seconds 0.05])
     (thread (lambda () (serve server-in server-out)))))
 
 (define hello (read-frame client-in))
@@ -206,15 +185,37 @@
 (check-true (>= (list-ref (list-ref history-wire 6) 1) 10)) ; today active-mins
 (check-true (zero? (list-ref (list-ref history-wire 0) 1))) ; oldest is a hole
 
-;; --- 6. autostart delegates to the system adapter ---------------------------
+;; --- 6. autostart persists through the sandboxed home -----------------------
+;; Autostart is domain-owned now (port of AutoStart.cs), so the round-trip
+;; writes a real file — point MOVEBIT_AUTOSTART_HOME at a sandbox for the
+;; section, whatever thread the RPC handler runs on.
+
+(define autostart-sandbox
+  (make-temporary-file "movebit-server-autostart-~a" 'directory))
+(define old-autostart-home (getenv "MOVEBIT_AUTOSTART_HOME"))
+(putenv "MOVEBIT_AUTOSTART_HOME" (path->string autostart-sandbox))
 
 (define-values (autostart-before asb-ev) (call "get-autostart"))
 (check-false autostart-before)
 (define-values (set-autostart-result as-set-ev) (call "set-autostart" #t))
 (check-true (void? set-autostart-result))
-(check-true (unbox autostart-box))
 (define-values (autostart-after asa-ev) (call "get-autostart"))
 (check-true autostart-after)
+(case (system-type)
+  [(macosx)
+   (check-true
+    (file-exists?
+     (build-path autostart-sandbox "Library" "LaunchAgents"
+                 "com.turinglambdaai.movebit.plist")))])
+(define-values (unset-autostart-result asunset-ev) (call "set-autostart" #f))
+(check-true (void? unset-autostart-result))
+(define-values (autostart-off asoff-ev) (call "get-autostart"))
+(check-false autostart-off)
+
+(if old-autostart-home
+    (putenv "MOVEBIT_AUTOSTART_HOME" old-autostart-home)
+    (putenv "MOVEBIT_AUTOSTART_HOME" ""))
+(delete-directory/files autostart-sandbox #:must-exist? #f)
 
 ;; --- 7. diagnostics + flush-now touch real behavior -------------------------
 

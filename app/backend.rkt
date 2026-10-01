@@ -17,9 +17,9 @@
 ;; float); durations are Int64 milliseconds and stats are Int64 minutes.
 
 (require rivet/backend
-         rivet/system
          racket/format
          racket/string
+         "../racket/movebit/autostart.rkt"
          "../racket/movebit/config.rkt"
          "../racket/movebit/history.rkt"
          "../racket/movebit/idle.rkt"
@@ -393,7 +393,7 @@
               (day-record-micro-breaks r)
               (day-record-longest-session-minutes r))))
 
-;; --- Autostart (delegates to the installed Rivet system adapter) ----------
+;; --- Autostart (domain-owned; port of Services/AutoStart.cs) ---------------
 
 (define-rpc (get-autostart : Bool)
   (autostart-enabled?))
