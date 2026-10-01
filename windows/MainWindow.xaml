@@ -3,35 +3,450 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Padding="32">
-        <StackPanel
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Spacing="16"
-            Width="320">
-            <TextBlock
-                Text="Rivet"
-                FontSize="32"
-                FontWeight="SemiBold" />
-            <TextBlock
-                Text="Racket + WinUI 3"
-                Opacity="0.65" />
-            <InfoBar
-                x:Name="StatusBar"
-                IsOpen="True"
-                IsClosable="False"
-                Severity="Informational"
-                Message="Starting embedded Racket CS…" />
-            <TextBlock
-                x:Name="CountText"
-                Text="Count: 0"
-                FontSize="24" />
-            <Button
-                x:Name="IncrementButton"
-                Content="Increment in Racket"
-                IsEnabled="False"
-                HorizontalAlignment="Stretch"
-                Click="Increment_Click" />
+    <!-- Fixed warm-light palette (parity with the old Avalonia app and the
+         GTK host; dark mode is a documented v1 gap on Windows/Linux). -->
+    <ScrollViewer Background="#F5F2EB">
+        <StackPanel Orientation="Vertical">
+            <Grid Padding="20,14,20,0" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <InfoBar Grid.Column="0"
+                         x:Name="StatusBar"
+                         IsOpen="True"
+                         IsClosable="False"
+                         Severity="Informational"
+                         Message="Starting embedded Racket CS…" />
+                <Button Grid.Column="1"
+                        x:Name="PauseButton"
+                        Content="Pause"
+                        Click="Pause_Click" />
+                <Button Grid.Column="2"
+                        x:Name="QuitButton"
+                        Content="Quit"
+                        Click="Quit_Click" />
+            </Grid>
+
+            <Grid Padding="20" ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- left column -->
+                <StackPanel Grid.Column="0" Spacing="14">
+                    <Border Background="#FFFFFF" BorderBrush="#EAE2D6"
+                            BorderThickness="1" CornerRadius="16"
+                            Padding="20">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           x:Name="TodayTitle"
+                                           Text="Today"
+                                           FontSize="13"
+                                           Foreground="#6E6A5E" />
+                                <TextBlock Grid.Column="1"
+                                           x:Name="TodayStatus"
+                                           Text="—"
+                                           FontSize="12.5"
+                                           Foreground="#16A34A" />
+                            </Grid>
+                            <TextBlock x:Name="TodayDuration" Text="0m"
+                                       FontSize="44" FontWeight="Bold"
+                                       Foreground="#26241F" />
+                            <ProgressBar x:Name="SitBar" Minimum="0" Maximum="1"
+                                         Value="0" Height="9"
+                                         Foreground="#C25E3E"
+                                         Background="#EAE6DC"
+                                         CornerRadius="4,4,4,4" />
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock x:Name="SitCycleText" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="#26241F" />
+                                    <TextBlock x:Name="SitCycleCaption"
+                                               Text="Sit cycle"
+                                               FontSize="11"
+                                               Foreground="#6E6A5E" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="🚶" FontSize="14" />
+                                        <TextBlock x:Name="TodaySit" Text="0"
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TodaySitCaption"
+                                               Text="Sit" FontSize="11"
+                                               Foreground="#6E6A5E" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="💧" FontSize="14" />
+                                        <TextBlock x:Name="TodayWater" Text="0"
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TodayWaterCaption"
+                                               Text="Water" FontSize="11"
+                                               Foreground="#6E6A5E" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Spacing="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="👀" FontSize="14" />
+                                        <TextBlock x:Name="TodayMicro" Text="0"
+                                                   FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="TodayMicroCaption"
+                                               Text="Micro" FontSize="11"
+                                               Foreground="#6E6A5E" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#FFFFFF" BorderBrush="#EAE2D6"
+                            BorderThickness="1" CornerRadius="16"
+                            Padding="20">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock x:Name="HistTitle" Text="Last 7 days"
+                                               FontSize="13"
+                                               Foreground="#6E6A5E" />
+                                    <TextBlock x:Name="HistTotal" Text=""
+                                               FontSize="12.5" FontWeight="SemiBold"
+                                               Foreground="#26241F" />
+                                </StackPanel>
+                                <ComboBox Grid.Column="1"
+                                          x:Name="HistRange"
+                                          SelectionChanged="HistRange_SelectionChanged">
+                                    <ComboBoxItem Content="7" />
+                                    <ComboBoxItem Content="30" />
+                                </ComboBox>
+                            </Grid>
+                            <StackPanel x:Name="HistChartBars" Spacing="0"
+                                        MinHeight="150" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#FFFFFF" BorderBrush="#EAE2D6"
+                            BorderThickness="1" CornerRadius="16"
+                            Padding="20">
+                        <StackPanel Spacing="10">
+                            <TextBlock x:Name="InsightTitleLabel" Text="Insights"
+                                       FontSize="13" Foreground="#6E6A5E" />
+                            <Grid ColumnSpacing="10" RowSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Grid.Column="0" Background="#EAE6DC"
+                                        CornerRadius="12" Padding="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock x:Name="InsightCurrentTitle"
+                                                   Text="Current" FontSize="11"
+                                                   Foreground="#A39B8D" />
+                                        <TextBlock x:Name="InsightCurrent" Text="0m"
+                                                   FontSize="20" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="0" Grid.Column="1" Background="#EAE6DC"
+                                        CornerRadius="12" Padding="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock x:Name="InsightTodayLongestTitle"
+                                                   Text="Today longest" FontSize="11"
+                                                   Foreground="#A39B8D" />
+                                        <TextBlock x:Name="InsightTodayLongest" Text="0m"
+                                                   FontSize="20" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Grid.Column="0" Background="#EAE6DC"
+                                        CornerRadius="12" Padding="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock x:Name="InsightRecentLongestTitle"
+                                                   Text="Recent longest" FontSize="11"
+                                                   Foreground="#A39B8D" />
+                                        <TextBlock x:Name="InsightRecentLongest" Text="0m"
+                                                   FontSize="20" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Grid.Column="1" Background="#EAE6DC"
+                                        CornerRadius="12" Padding="12">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock x:Name="InsightRecentAvgTitle"
+                                                   Text="Recent average" FontSize="11"
+                                                   Foreground="#A39B8D" />
+                                        <TextBlock x:Name="InsightRecentAvg" Text="0m"
+                                                   FontSize="20" FontWeight="SemiBold"
+                                                   Foreground="#26241F" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock x:Name="InsightBusiestLabel"
+                                           Text="Busiest" FontSize="11.5"
+                                           Foreground="#A39B8D" />
+                                <TextBlock x:Name="InsightBusiest" Text=""
+                                           FontSize="11.5"
+                                           Foreground="#26241F" />
+                            </StackPanel>
+                            <TextBlock x:Name="InsightSedentary" Text=""
+                                       FontSize="11.5" TextWrapping="Wrap"
+                                       Foreground="#6E6A5E" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- right column -->
+                <StackPanel Grid.Column="1" Spacing="14">
+                    <Border Background="#FFFFFF" BorderBrush="#EAE2D6"
+                            BorderThickness="1" CornerRadius="16"
+                            Padding="20">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SettingsTitle"
+                                           Text="Settings" FontSize="13"
+                                           Foreground="#6E6A5E" />
+                                <TextBlock Grid.Column="1" x:Name="ConfigStatus"
+                                           Text="" FontSize="11.5"
+                                           Foreground="#C25E3E"
+                                           TextWrapping="Wrap" />
+                            </Grid>
+                            <TextBlock x:Name="SettingsIntro" Text=""
+                                       FontSize="11" Foreground="#A39B8D"
+                                       TextWrapping="Wrap" />
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetSitLabel"
+                                           Text="Sit interval" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="SitBox"
+                                           Min="10" Max="240" SmallChange="5"
+                                           Value="45" SpinButtonPlacementMode="Compact"
+                                           Width="120"
+                                           ValueChanged="Sit_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetWaterLabel"
+                                           Text="Water interval" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="WaterBox"
+                                           Min="5" Max="180" SmallChange="5"
+                                           Value="30" SpinButtonPlacementMode="Compact"
+                                           Width="120"
+                                           ValueChanged="Water_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetAwayLabel"
+                                           Text="Away reset" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="AwayBox"
+                                           Min="1" Max="60" SmallChange="1"
+                                           Value="5" SpinButtonPlacementMode="Compact"
+                                           Width="120"
+                                           ValueChanged="Away_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetForceLabel"
+                                           Text="Force break" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ToggleSwitch Grid.Column="1" x:Name="ForceSwitch"
+                                              OnContent="" OffContent=""
+                                              Toggled="Force_Toggled" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetBreakLabel"
+                                           Text="Break duration" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="BreakBox"
+                                           Min="1" Max="30" SmallChange="1"
+                                           Value="5" SpinButtonPlacementMode="Compact"
+                                           Width="120"
+                                           ValueChanged="Break_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetSkipLabel"
+                                           Text="Skip delay" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="SkipBox"
+                                           Min="0" Max="120" SmallChange="5"
+                                           Value="20" SpinButtonPlacementMode="Compact"
+                                           Width="120"
+                                           ValueChanged="Skip_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetSnoozeLabel"
+                                           Text="Snooze" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="SnoozeBox"
+                                           Min="5" Max="60" SmallChange="5"
+                                           Value="10" SpinButtonPlacementMode="Compact"
+                                           Width="120"
+                                           ValueChanged="Snooze_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMicroLabel"
+                                           Text="Micro breaks" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ToggleSwitch Grid.Column="1" x:Name="MicroSwitch"
+                                              OnContent="" OffContent=""
+                                              Toggled="Micro_Toggled" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMicroParamsLabel"
+                                           Text="Interval / duration" FontSize="13"
+                                           Foreground="#26241F" />
+                                <NumberBox Grid.Column="1" x:Name="MicroIntervalBox"
+                                           Min="10" Max="60" SmallChange="5"
+                                           Value="30" SpinButtonPlacementMode="Compact"
+                                           Width="96"
+                                           ValueChanged="MicroInterval_ValueChanged" />
+                                <NumberBox Grid.Column="2" x:Name="MicroDurationBox"
+                                           Min="10" Max="60" SmallChange="5"
+                                           Value="20" SpinButtonPlacementMode="Compact"
+                                           Width="96"
+                                           ValueChanged="MicroDuration_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetSoundLabel"
+                                           Text="Sound" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ToggleSwitch Grid.Column="1" x:Name="SoundSwitch"
+                                              OnContent="" OffContent=""
+                                              Toggled="Sound_Toggled" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetAutostartLabel"
+                                           Text="Launch at login" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ToggleSwitch Grid.Column="1" x:Name="AutostartSwitch"
+                                              OnContent="" OffContent=""
+                                              Toggled="Autostart_Toggled" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetLanguageLabel"
+                                           Text="Language" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ComboBox Grid.Column="1" x:Name="LanguageDrop"
+                                          Width="132"
+                                          SelectionChanged="Language_SelectionChanged">
+                                    <ComboBoxItem Content="Auto" />
+                                    <ComboBoxItem Content="中文" />
+                                    <ComboBoxItem Content="English" />
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#FFFFFF" BorderBrush="#EAE2D6"
+                            BorderThickness="1" CornerRadius="16"
+                            Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock x:Name="AboutVersion" Text="MoveBit"
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="#26241F" />
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock x:Name="AboutUpdateLabel"
+                                               Text="Check for updates" FontSize="13"
+                                               Foreground="#26241F" />
+                                    <TextBlock x:Name="AboutUpdateHint"
+                                               Text="" FontSize="11"
+                                               Foreground="#A39B8D" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" x:Name="UpdatesSwitch"
+                                              OnContent="" OffContent=""
+                                              Toggled="Updates_Toggled" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="FooterText" Text="" FontSize="11"
+                               Foreground="#A39B8D" TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </Window>
