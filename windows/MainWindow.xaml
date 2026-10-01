@@ -254,7 +254,7 @@
                                            Text="Sit interval" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="SitBox"
-                                           Min="10" Max="240" SmallChange="5"
+                                           Minimum="10" Maximum="240" SmallChange="5"
                                            Value="45" SpinButtonPlacementMode="Compact"
                                            Width="120"
                                            ValueChanged="Sit_ValueChanged" />
@@ -268,7 +268,7 @@
                                            Text="Water interval" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="WaterBox"
-                                           Min="5" Max="180" SmallChange="5"
+                                           Minimum="5" Maximum="180" SmallChange="5"
                                            Value="30" SpinButtonPlacementMode="Compact"
                                            Width="120"
                                            ValueChanged="Water_ValueChanged" />
@@ -282,7 +282,7 @@
                                            Text="Away reset" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="AwayBox"
-                                           Min="1" Max="60" SmallChange="1"
+                                           Minimum="1" Maximum="60" SmallChange="1"
                                            Value="5" SpinButtonPlacementMode="Compact"
                                            Width="120"
                                            ValueChanged="Away_ValueChanged" />
@@ -308,7 +308,7 @@
                                            Text="Break duration" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="BreakBox"
-                                           Min="1" Max="30" SmallChange="1"
+                                           Minimum="1" Maximum="30" SmallChange="1"
                                            Value="5" SpinButtonPlacementMode="Compact"
                                            Width="120"
                                            ValueChanged="Break_ValueChanged" />
@@ -322,7 +322,7 @@
                                            Text="Skip delay" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="SkipBox"
-                                           Min="0" Max="120" SmallChange="5"
+                                           Minimum="0" Maximum="120" SmallChange="5"
                                            Value="20" SpinButtonPlacementMode="Compact"
                                            Width="120"
                                            ValueChanged="Skip_ValueChanged" />
@@ -336,7 +336,7 @@
                                            Text="Snooze" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="SnoozeBox"
-                                           Min="5" Max="60" SmallChange="5"
+                                           Minimum="5" Maximum="60" SmallChange="5"
                                            Value="10" SpinButtonPlacementMode="Compact"
                                            Width="120"
                                            ValueChanged="Snooze_ValueChanged" />
@@ -363,12 +363,12 @@
                                            Text="Interval / duration" FontSize="13"
                                            Foreground="#26241F" />
                                 <NumberBox Grid.Column="1" x:Name="MicroIntervalBox"
-                                           Min="10" Max="60" SmallChange="5"
+                                           Minimum="10" Maximum="60" SmallChange="5"
                                            Value="30" SpinButtonPlacementMode="Compact"
                                            Width="96"
                                            ValueChanged="MicroInterval_ValueChanged" />
                                 <NumberBox Grid.Column="2" x:Name="MicroDurationBox"
-                                           Min="10" Max="60" SmallChange="5"
+                                           Minimum="10" Maximum="60" SmallChange="5"
                                            Value="20" SpinButtonPlacementMode="Compact"
                                            Width="96"
                                            ValueChanged="MicroDuration_ValueChanged" />
