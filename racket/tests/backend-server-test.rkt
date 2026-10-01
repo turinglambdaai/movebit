@@ -134,7 +134,7 @@
 
 ;; --- 1. init starts the lazy tick thread -----------------------------------
 
-(define-values (init-result init-events) (call "init"))
+(define-values (init-result init-events) (call "initialize"))
 (check-true (void? init-result))
 
 ;; The tick thread (inside the init RPC) emits tick-stats State updates and

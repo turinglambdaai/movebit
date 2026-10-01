@@ -256,7 +256,7 @@
 
 ;; --- Init -----------------------------------------------------------------
 
-(define-rpc (init : Void)
+(define-rpc (initialize : Void)
   (unless (unbox runtime-box)
     (define data-dir (current-data-dir))
     (define loaded-config (load-config data-dir))
