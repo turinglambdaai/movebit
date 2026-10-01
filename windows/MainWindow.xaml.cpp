@@ -5,6 +5,7 @@
 #endif
 #include "GeneratedBackend.hpp"
 
+#include <chrono>
 #include <stdexcept>
 
 namespace winrt::RivetHost::implementation {
