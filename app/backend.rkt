@@ -180,7 +180,9 @@
 
 (define-state today : DayStats
   (DayStats (ms->date-key (now-ms)) 0 0 0 0 0))
-(define-state config : ReminderConfig
+;; Named active-config: a state called `config` collides with the RPC
+;; set-config in the native client generators (both normalize to setConfig).
+(define-state active-config : ReminderConfig
   (config->dto (default-config)))
 (define-state paused : PauseState
   (PauseState #f (void)))
@@ -299,7 +301,7 @@
       (orchestrator-restore-today! o (cdr (car recent))))
     ;; Publish initial state and start the lazy tick thread (inherits the
     ;; event emitter + injection parameters from this request thread).
-    (state-set! config (config->dto loaded-config))
+    (state-set! active-config (config->dto loaded-config))
     (publish-stats! rt)
     (publish-paused! rt)
     (publish-break! rt)
@@ -367,7 +369,7 @@
   ;; All writes are immediate auto-save; failure keeps in-memory settings.
   (save-config (runtime-data-dir rt) clamped)
   (set-scheduler-config! (runtime-scheduler rt) clamped)
-  (state-set! config (config->dto clamped))
+  (state-set! active-config (config->dto clamped))
   (state-set! loops (loops->dto rt))
   (config-changed (config->dto clamped))
   (void))

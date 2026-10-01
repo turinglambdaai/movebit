@@ -9,3 +9,9 @@ publish/
 *.DotSettings.user
 TestResults/
 *.binlog
+
+# rivet build artifacts
+.rivet/
+build/
+dist/
+compiled/
