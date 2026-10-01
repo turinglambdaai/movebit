@@ -16,6 +16,6 @@ jobs:
         with:
           version: stable
       - name: Install rivet (upstream main)
-        run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet
+        run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
       - name: Domain core tests
         run: raco test racket/
