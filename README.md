@@ -1,5 +1,7 @@
 # MoveBit
 
+> **Rivet rebuild (this branch):** `umovebit` is being rebuilt on [Rivet](https://github.com/turinglambdaai/rivet) — one Racket domain core driving first-party native hosts over typed RPC (see AGENTS.md). The stack described below is the archived `main` line, kept as the behavior/visual reference.
+
 A tray-resident health companion that watches how long you **actually work** and gets you out of the chair — sit reminders can cover **every monitor** with a countdown break screen, while water reminders stay lightweight. Built with **Avalonia 11** / .NET 10 for Windows, macOS, and Linux.
 
 ![C#](https://img.shields.io/badge/C%23-512BD4?logo=csharp&logoColor=white) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)

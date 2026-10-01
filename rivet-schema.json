@@ -1,0 +1,518 @@
+{
+  "device-rpcs": [],
+  "enums": [
+    {
+      "cases": [
+        "sit",
+        "water",
+        "micro"
+      ],
+      "name": "ReminderKind"
+    }
+  ],
+  "events": [
+    {
+      "name": "break-ended",
+      "type": {
+        "kind": "record",
+        "name": "BreakEnded"
+      }
+    },
+    {
+      "name": "break-started",
+      "type": {
+        "kind": "record",
+        "name": "BreakStarted"
+      }
+    },
+    {
+      "name": "config-changed",
+      "type": {
+        "kind": "record",
+        "name": "ReminderConfig"
+      }
+    },
+    {
+      "name": "day-completed",
+      "type": {
+        "kind": "record",
+        "name": "DayStats"
+      }
+    },
+    {
+      "name": "reminders-due",
+      "type": {
+        "kind": "record",
+        "name": "RemindersDue"
+      }
+    },
+    {
+      "name": "tick-stats",
+      "type": {
+        "kind": "record",
+        "name": "DayStats"
+      }
+    }
+  ],
+  "format": "rivet-schema",
+  "format-version": 1,
+  "records": [
+    {
+      "fields": [
+        {
+          "name": "completed",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        }
+      ],
+      "name": "BreakEnded"
+    },
+    {
+      "fields": [
+        {
+          "name": "duration-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "skip-after-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "BreakStarted"
+    },
+    {
+      "fields": [
+        {
+          "name": "ends-at-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "skip-after-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "started-at-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "BreakState"
+    },
+    {
+      "fields": [
+        {
+          "name": "date",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "active-mins",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "sit-breaks",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "water-reminders",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "micro-breaks",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "longest-session-mins",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "DayStats"
+    },
+    {
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "record",
+            "name": "ReminderKind"
+          }
+        },
+        {
+          "name": "due-in-active-mins",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "Int64"
+            },
+            "kind": "optional"
+          }
+        },
+        {
+          "name": "accumulated-mins",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "LoopInfo"
+    },
+    {
+      "fields": [
+        {
+          "name": "paused",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "until-ms",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "Int64"
+            },
+            "kind": "optional"
+          }
+        }
+      ],
+      "name": "PauseState"
+    },
+    {
+      "fields": [
+        {
+          "name": "sit-reminder-minutes",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "water-reminder-minutes",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "away-reset-minutes",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "force-break-enabled",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "break-duration-minutes",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "skip-after-seconds",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "snooze-minutes",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "micro-break-enabled",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "micro-break-interval-minutes",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "micro-break-duration-seconds",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "sound-enabled",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "auto-check-updates",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "welcome-shown",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "language",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        }
+      ],
+      "name": "ReminderConfig"
+    },
+    {
+      "fields": [
+        {
+          "name": "kinds",
+          "type": {
+            "element": {
+              "kind": "record",
+              "name": "ReminderKind"
+            },
+            "kind": "list"
+          }
+        },
+        {
+          "name": "merged",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        }
+      ],
+      "name": "RemindersDue"
+    }
+  ],
+  "rpcs": [
+    {
+      "arguments": [],
+      "name": "complete-break",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "flush-now",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "get-autostart",
+      "result": {
+        "kind": "scalar",
+        "name": "Bool"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "get-diagnostics",
+      "result": {
+        "kind": "scalar",
+        "name": "String"
+      }
+    },
+    {
+      "arguments": [
+        {
+          "name": "days",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "get-history",
+      "result": {
+        "element": {
+          "kind": "record",
+          "name": "DayStats"
+        },
+        "kind": "list"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "initialize",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "pause-1h",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "resume",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [
+        {
+          "name": "enabled",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        }
+      ],
+      "name": "set-autostart",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [
+        {
+          "name": "value",
+          "type": {
+            "kind": "record",
+            "name": "ReminderConfig"
+          }
+        }
+      ],
+      "name": "set-config",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "skip-break",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "record",
+            "name": "ReminderKind"
+          }
+        }
+      ],
+      "name": "snooze",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    }
+  ],
+  "rvt-protocol": 1,
+  "states": [
+    {
+      "name": "active-config",
+      "type": {
+        "kind": "record",
+        "name": "ReminderConfig"
+      }
+    },
+    {
+      "name": "break-active",
+      "type": {
+        "element": {
+          "kind": "record",
+          "name": "BreakState"
+        },
+        "kind": "optional"
+      }
+    },
+    {
+      "name": "loops",
+      "type": {
+        "element": {
+          "kind": "record",
+          "name": "LoopInfo"
+        },
+        "kind": "list"
+      }
+    },
+    {
+      "name": "paused",
+      "type": {
+        "kind": "record",
+        "name": "PauseState"
+      }
+    },
+    {
+      "name": "today",
+      "type": {
+        "kind": "record",
+        "name": "DayStats"
+      }
+    }
+  ]
+}

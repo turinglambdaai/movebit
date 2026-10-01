@@ -1,5 +1,7 @@
 # MoveBit
 
+> **Rivet 重建（本分支）：** 正在以 [Rivet](https://github.com/turinglambdaai/rivet) 重建——一份 Racket 领域核心通过类型化 RPC 驱动各平台第一方原生宿主（见 AGENTS.md）。下文描述的旧栈是已归档的 `main` 线，仅作行为与视觉参照。
+
 一个托盘常驻的健康小卫士：监测你**真正处于电脑前工作的时间**，到点把你从椅子上请起来——久坐提醒可用带倒计时的休息屏**覆盖所有显示器**，喝水提醒保持轻量。基于 **Avalonia 11** / .NET 10 构建，支持 Windows、macOS 和 Linux。
 
 ![C#](https://img.shields.io/badge/C%23-512BD4?logo=csharp&logoColor=white) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
