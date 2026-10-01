@@ -89,7 +89,7 @@ struct OnboardingWizard {
     controls.Children().Append(next_button);
 
     root.Children().Append(page_host);
-    root.Children().Append(*dots);
+    root.Children().Append(dots);
     root.Children().Append(controls);
     scroll.Content(root);
     scroll.IsVerticalScrollChainingEnabled(false);
@@ -113,12 +113,12 @@ struct OnboardingWizard {
     intro_page.Children().Append(hello);
     auto intro = make_text(winrt::to_hstring(l10n::t("ObIntro")), 14.5, false,
                            "#6E6A5E");
-    intro.TextAlignment(Text::TextAlignment::Center);
+    intro.TextAlignment(TextAlignment::Center);
     intro.MaxWidth(380);
     intro_page.Children().Append(intro);
     auto steps = make_text(winrt::to_hstring(l10n::t("ObSteps")), 13, false,
                            "#A39B8D");
-    steps.TextAlignment(Text::TextAlignment::Center);
+    steps.TextAlignment(TextAlignment::Center);
     intro_page.Children().Append(steps);
   }
 
@@ -306,7 +306,7 @@ struct OnboardingWizard {
     for (int i = 0; i <= kLastPage; ++i) {
       dots_text += i == page ? L"● " : L"○ ";
     }
-    dots.Text(winrt::to_hstring(dots_text));
+    dots.Text(winrt::to_hstring(dots_text.c_str()));
     next_button.Content(winrt::box_value(winrt::hstring(wide(l10n::t(
         page == kLastPage ? "ObLaunch" : page == 0 ? "ObStart" : "ObNext")))));
     skip_button.Visibility(page < kLastPage ? Visibility::Visible

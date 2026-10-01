@@ -45,7 +45,7 @@ inline Controls::TextBlock make_text(winrt::hstring const& text, double size,
   block.FontSize(size);
   if (bold) block.FontWeight(Microsoft::UI::Text::FontWeights::SemiBold());
   block.Foreground(brush_from(hex_color));
-  block.TextWrapping(Text::TextWrapping::Wrap);
+  block.TextWrapping(TextWrapping::Wrap);
   block.HorizontalAlignment(HorizontalAlignment::Center);
   return block;
 }
@@ -167,9 +167,9 @@ struct BreakOverlay {
       auto const area = displays.GetAt(i);
       Window window;
       auto app_window = window.AppWindow();
-      app_window.Move({area.ScreenArea().X, area.ScreenArea().Y});
+      app_window.Move({area.WorkArea().X, area.WorkArea().Y});
       app_window.Resize(
-          {area.ScreenArea().Width, area.ScreenArea().Height});
+          {area.WorkArea().Width, area.WorkArea().Height});
 
       Controls::Grid root;
       root.Background(brush_from("#0D1220"));
@@ -187,7 +187,7 @@ struct BreakOverlay {
       hint_text = make_text(wide(movebit::pick_break_hint()), 18, false,
                             "#B8B2C7");
       hint_text.MaxWidth(520);
-      hint_text.TextAlignment(Text::TextAlignment::Center);
+      hint_text.TextAlignment(TextAlignment::Center);
 
       center.Children().Append(emoji);
       center.Children().Append(title_text);
