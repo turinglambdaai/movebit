@@ -171,7 +171,7 @@
   (get-ffi-obj "RegOpenKeyExW" (advapi32)
                (_fun _fpointer _string/utf-16 _uint32 _uint32
                      (out : (_ptr o _fpointer)) -> (rcode : _sint32)
-                     -> (and (zero? rcode) out))))
+                     -> (values rcode out))))
 (define (reg-close)
   (get-ffi-obj "RegCloseKey" (advapi32) (_fun _fpointer -> _sint32)))
 (define (reg-query)
@@ -186,11 +186,13 @@
   (get-ffi-obj "RegDeleteValueW" (advapi32)
                (_fun _fpointer _string/utf-16 -> _sint32)))
 
-(define hkey-current-user (cast #x80000001 _sint64 _fpointer))
+(define hkey-current-user (integer->pointer #x80000001))
 
 (define (call-with-run-key access proc)
-  (define key ((reg-open) hkey-current-user (windows-run-key) 0 access))
-  (unless key (error 'autostart "could not open the HKCU Run key"))
+  (define-values (rcode key)
+    ((reg-open) hkey-current-user (windows-run-key) 0 access))
+  (unless (zero? rcode)
+    (error 'autostart "RegOpenKeyExW failed: ~a" rcode))
   (dynamic-wind
     void
     (lambda () (proc key))
