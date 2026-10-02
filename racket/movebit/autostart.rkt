@@ -191,7 +191,7 @@
   (get-ffi-obj "RegCreateKeyExW" (advapi32)
                (_fun _fpointer _string/utf-16 _uint32 _pointer _uint32 _uint32
                      _pointer (out : (_ptr o _fpointer))
-                     (disposition : (_ptr o _uint32))
+                     (_disposition : (_ptr o _uint32))
                      -> (rcode : _sint32)
                      -> (values rcode out))))
 
@@ -208,7 +208,7 @@
     (lambda () ((reg-close) key))))
 
 (define (call-with-run-key-create proc)
-  (define-values (rcode key _disposition)
+  (define-values (rcode key)
     ((reg-create) hkey-current-user (windows-run-key) 0 #f 0 (key-write) #f))
   (unless (zero? rcode)
     (error 'autostart "RegCreateKeyExW failed: ~a" rcode))
