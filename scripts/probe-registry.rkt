@@ -1,24 +1,25 @@
 #lang racket/base
 
-;; CI probe for the Windows autostart Run-key path, driven through the public
-;; autostart API with a parameterized exe path: set, read back, set a path
-;; with spaces, read back, delete, confirm gone. Exits non-zero on any
-;; mismatch so the step fails visibly. Windows runners only.
+;; CI probe for the Windows autostart Run-key path. The public set-autostart!
+;; is best-effort (errors swallowed, old-app parity), so this drives
+;; windows-set! directly and lets failures fail LOUDLY. Windows runners only.
 
-(require racket/format
-         "../racket/movebit/autostart.rkt")
+(require "../racket/movebit/autostart.rkt")
 
 (define probe-plain "C:\\probe-movebit.exe")
 (define probe-spaces "C:\\Program Files\\MoveBit Host.exe")
 
 (define (roundtrip exe)
   (parameterize ([autostart-executable-path exe])
-    (set-autostart! #t)
-    (define present (autostart-enabled?))
-    (set-autostart! #f)
-    (define gone (not (autostart-enabled?)))
-    (printf "set -> ~s, delete -> gone: ~s (path: ~a)\n" present gone exe)
-    (and present gone)))
+    (with-handlers ([exn:fail? (lambda (e)
+                                 (printf "set FAILED: ~a\n" (exn-message e))
+                                 #f)])
+      (windows-set! #t)
+      (define present (windows-value-present?))
+      (windows-set! #f)
+      (define gone (not (windows-value-present?)))
+      (printf "set -> ~s, delete -> gone: ~s (path: ~a)\n" present gone exe)
+      (and present gone))))
 
 (define ok-plain (roundtrip probe-plain))
 (define ok-spaces (roundtrip probe-spaces))

@@ -21,6 +21,9 @@
          ;; test hooks
          autostart-home
          autostart-executable-path)
+         ;; CI probe: surface the errors set-autostart! swallows
+         windows-value-present?
+         windows-set!)
 
 (define autostart-home
   (make-parameter (find-system-path 'home-dir)))
