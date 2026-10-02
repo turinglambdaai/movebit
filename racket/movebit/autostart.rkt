@@ -57,7 +57,9 @@
   (build-path (xdg-autostart-dir) "movebit.desktop"))
 
 (define (windows-run-key)
-  "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run")
+  ;; Subkey under HKEY_CURRENT_USER — the HKCU root is the handle, not part
+  ;; of the path (RegOpenKeyExW rejects the "HKCU\..." textual form here).
+  "Software\\Microsoft\\Windows\\CurrentVersion\\Run")
 
 ;; --- enabled? --------------------------------------------------------------
 
