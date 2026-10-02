@@ -652,7 +652,7 @@ void MainWindow::ShowHistoryBars() {
       label = language_ == "en" ? en_days[lt.tm_wday] : zh_days[lt.tm_wday];
     }
     auto label_block = make_text(
-        winrt::to_hstring(label), 10.5, slice.is_today,
+        winrt::to_hstring(label.c_str()), 10.5, slice.is_today,
         slice.is_today ? "#C25E3E" : "#6E6A5E");
     Controls::StackPanel full_cell{};
     full_cell.Orientation(Controls::Orientation::Vertical);

@@ -6,7 +6,7 @@
 ;; mismatch so the step fails visibly. Windows runners only.
 
 (require racket/format
-         "racket/movebit/autostart.rkt")
+         "../racket/movebit/autostart.rkt")
 
 (define probe-plain "C:\\probe-movebit.exe")
 (define probe-spaces "C:\\Program Files\\MoveBit Host.exe")
