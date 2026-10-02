@@ -185,6 +185,15 @@
 (define (reg-delete)
   (get-ffi-obj "RegDeleteValueW" (advapi32)
                (_fun _fpointer _string/utf-16 -> _sint32)))
+(define (reg-create)
+  ;; Port of AutoStart.cs CreateSubKey(writable: true): the Run key and its
+  ;; parents are created when missing instead of failing the toggle.
+  (get-ffi-obj "RegCreateKeyExW" (advapi32)
+               (_fun _fpointer _string/utf-16 _uint32 _pointer _uint32 _uint32
+                     _pointer (out : (_ptr o _fpointer))
+                     (disposition : (_ptr o _uint32))
+                     -> (rcode : _sint32)
+                     -> (values rcode out))))
 
 (define hkey-current-user (cast #x80000001 _sint64 _fpointer))
 
@@ -193,6 +202,16 @@
     ((reg-open) hkey-current-user (windows-run-key) 0 access))
   (unless (zero? rcode)
     (error 'autostart "RegOpenKeyExW failed: ~a" rcode))
+  (dynamic-wind
+    void
+    (lambda () (proc key))
+    (lambda () ((reg-close) key))))
+
+(define (call-with-run-key-create proc)
+  (define-values (rcode key _disposition)
+    ((reg-create) hkey-current-user (windows-run-key) 0 #f 0 (key-write) #f))
+  (unless (zero? rcode)
+    (error 'autostart "RegCreateKeyExW failed: ~a" rcode))
   (dynamic-wind
     void
     (lambda () (proc key))
@@ -213,8 +232,7 @@
        (lambda () (free size) (free data))))))
 
 (define (windows-set! enable?)
-  (call-with-run-key
-   (key-write)
+  (call-with-run-key-create
    (lambda (key)
      (cond
        [enable?
