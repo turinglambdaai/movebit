@@ -17,13 +17,13 @@ jobs:
           version: stable
       - name: Install rivet (upstream main)
         run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
-      - name: Domain core tests
-        run: raco test racket/
       - name: Windows registry autostart probe
         if: runner.os == 'Windows'
         shell: pwsh
         run: racket scripts/probe-registry.rkt
 
+      - name: Domain core tests
+        run: raco test racket/
   # The Linux host needs an embeddable static libracketcs, which the standard
   # Racket installers do not ship; build the minimal distribution from the
   # pinned 9.3 source archive once and cache it (recipe from rivet's own CI).

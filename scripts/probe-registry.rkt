@@ -1,28 +1,28 @@
 #lang racket/base
 
-;; CI probe for the Windows autostart Run-key path: write, read back, verify
-;; the quoted value, delete, and confirm it is gone. Exits non-zero on any
+;; CI probe for the Windows autostart Run-key path, driven through the public
+;; autostart API with a parameterized exe path: set, read back, set a path
+;; with spaces, read back, delete, confirm gone. Exits non-zero on any
 ;; mismatch so the step fails visibly. Windows runners only.
 
-(require racket/file
-         racket/format
-         "racket/movebit/autostart-registry.rkt")
+(require racket/format
+         "racket/movebit/autostart.rkt")
 
 (define probe-plain "C:\\probe-movebit.exe")
 (define probe-spaces "C:\\Program Files\\MoveBit Host.exe")
 
-(registry-set-value! probe-plain)
-(define present-1 (registry-value-present?))
-(printf "present after set: ~s\n" present-1)
+(define (roundtrip exe)
+  (parameterize ([autostart-executable-path exe])
+    (set-autostart! #t)
+    (define present (autostart-enabled?))
+    (set-autostart! #f)
+    (define gone (not (autostart-enabled?)))
+    (printf "set -> ~s, delete -> gone: ~s (path: ~a)\n" present gone exe)
+    (and present gone)))
 
-(registry-set-value! probe-spaces)
-(define present-2 (registry-value-present?))
-(printf "present after set (path with spaces): ~s\n" present-2)
+(define ok-plain (roundtrip probe-plain))
+(define ok-spaces (roundtrip probe-spaces))
 
-(registry-delete-value!)
-(define present-3 (registry-value-present?))
-(printf "present after delete: ~s\n" present-3)
-
-(unless (and present-1 present-2 (not present-3))
+(unless (and ok-plain ok-spaces)
   (exit 1))
 (printf "registry probe OK\n")
