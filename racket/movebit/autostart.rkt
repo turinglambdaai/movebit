@@ -20,7 +20,7 @@
          set-autostart!
          ;; test hooks
          autostart-home
-         autostart-executable-path)
+         autostart-executable-path
          ;; CI probe: surface the errors set-autostart! swallows
          windows-value-present?
          windows-set!)
