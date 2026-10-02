@@ -186,7 +186,7 @@
   (get-ffi-obj "RegDeleteValueW" (advapi32)
                (_fun _fpointer _string/utf-16 -> _sint32)))
 
-(define hkey-current-user (integer->pointer #x80000001))
+(define hkey-current-user (cast #x80000001 _sint64 _fpointer))
 
 (define (call-with-run-key access proc)
   (define-values (rcode key)
