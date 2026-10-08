@@ -28,7 +28,7 @@ jobs:
           VERSION=$(racket -e '(begin (require racket/file) (hash-ref (file->value "rivet.rktd") (quote version) #f))' | tr -d '"')
           echo "tag=$TAG rivet.rktd=$VERSION"
           test "$TAG" = "$VERSION" || { echo "::error::tag $TAG != rivet.rktd version $VERSION"; exit 1; }
-          grep -q "^## $TAG" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## $TAG' section"; exit 1; }
+          grep -qE "^## (\[)?$TAG(\])?" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## $TAG' section"; exit 1; }
 
   macos:
     name: macOS DMG
