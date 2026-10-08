@@ -154,3 +154,20 @@ jobs:
         run: |
           if (-not (Test-Path '.rivet/stage/RivetHost.exe')) { throw 'staged RivetHost.exe missing' }
           if (-not (Test-Path '.rivet/stage/res/core.zo')) { throw 'staged backend bundle missing' }
+      - name: Crash-diagnose the staged host under cdb
+        shell: pwsh
+        run: |
+          $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits' -Recurse -Filter cdb.exe -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $cdb) { Write-Host 'cdb.exe not found; skipping crash diagnosis'; exit 0 }
+          Set-Content -Path '.rivet/stage/cdbcmds.txt' -Value 'sxe -c "k 40; qd" av; g'
+          $job = Start-Job -ScriptBlock {
+            Set-Location (Join-Path (Get-Location) '.rivet/stage')
+            $cdb = $using:cdb
+            & $cdb -accepteula -G -cf cdbcmds.txt RivetHost.exe 2>&1
+          }
+          Wait-Job $job -Timeout 60 | Out-Null
+          Stop-Job $job
+          Receive-Job $job | Select-Object -Last 80
+          Remove-Job $job -Force
+          exit 0
