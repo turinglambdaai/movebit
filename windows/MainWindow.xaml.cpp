@@ -148,7 +148,7 @@ void MainWindow::SubscribeEvents() {
   backend_->set_event_handler(
       [weak](std::string const& name, rivet::Value const& value) {
         if (auto window = weak.get()) {
-          windowindow->dispatcher_.TryEnqueue([weak, name, value] {
+          window->dispatcher_.TryEnqueue([weak, name, value] {
             if (auto self = weak.get()) self->HandleEvent(name, value);
           });
         }
