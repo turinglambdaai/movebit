@@ -123,8 +123,7 @@ jobs:
               Select-Object -First 1 -ExpandProperty FullName
           }
           if (-not $cdb) { Write-Host 'cdb.exe (x64) not found; skipping dump analysis'; exit 0 }
-          $dumpDir = "$env:LOCALAPPDATA\CrashDumps"
-          $dump = Get-ChildItem $dumpDir -Filter *.dmp -ErrorAction SilentlyContinue |
+          $dump = Get-ChildItem "$env:TEMP" -Filter 'movebit-crash.dmp' -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $dump) { Write-Host 'no crash dump was written'; exit 0 }
           Write-Host "analyzing $($dump.FullName)"

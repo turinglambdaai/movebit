@@ -6,7 +6,35 @@
 #include "GeneratedBackend.hpp"
 
 #include <chrono>
+#include <dbghelp.h>
 #include <stdexcept>
+
+#pragma comment(lib, "dbghelp.lib")
+
+namespace {
+
+// The launch smoke reported exit-status 0xC0000005 with empty output and the
+// runner's WER LocalDumps produced nothing, so the host writes its own
+// minidump: an unhandled exception lands as %TEMP%\\movebit-crash.dmp and
+// the release job analyzes it on failure.
+LONG WINAPI WriteCrashDumpAndContinue(EXCEPTION_POINTERS* info) noexcept {
+  wchar_t path[MAX_PATH];
+  DWORD const length = ::GetTempPathW(MAX_PATH, path);
+  if (length > 0 && length < MAX_PATH - 20) {
+    wcscpy_s(path + length, MAX_PATH - length, L"movebit-crash.dmp");
+    HANDLE file = ::CreateFileW(path, GENERIC_WRITE, 0, nullptr,
+                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file != INVALID_HANDLE_VALUE) {
+      MINIDUMP_EXCEPTION_INFORMATION mei{GetCurrentThreadId(), info, FALSE};
+      ::MiniDumpWriteDump(::GetCurrentProcess(), ::GetCurrentProcessId(), file,
+                          MiniDumpNormal, &mei, nullptr, nullptr);
+      ::CloseHandle(file);
+    }
+  }
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+}  // namespace
 
 namespace winrt::RivetHost::implementation {
 namespace {
@@ -65,6 +93,7 @@ rivet::windows::RacketRuntimeConfig runtime_config() {
 using namespace winrt::Microsoft::UI::Xaml;
 
 MainWindow::MainWindow() {
+  ::SetUnhandledExceptionFilter(&WriteCrashDumpAndContinue);
   InitializeComponent();
   dispatcher_ = DispatcherQueue();
   Title(L"MoveBit");
