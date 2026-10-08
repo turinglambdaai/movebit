@@ -90,6 +90,19 @@ jobs:
       - name: Install WiX (v5; v7 requires EULA acceptance, v5 runs the v4 schema)
         run: dotnet tool install --global wix --version 5.0.2
         shell: bash
+      - name: Crash-diagnose the staged host under cdb (pre-release)
+        shell: pwsh
+        run: |
+          raco rivet build
+          $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits' -Recurse -Filter cdb.exe -ErrorAction SilentlyContinue |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $cdb) { Write-Host 'cdb.exe not found; skipping crash diagnosis'; exit 0 }
+          Set-Content -Path '.rivet/stage/cdbcmds.txt' -Value 'sxe -c "k 40; qd" av; g'
+          Set-Location '.rivet/stage'
+          $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula','-G','-cf','cdbcmds.txt','RivetHost.exe' -WorkingDirectory (Get-Location) -NoNewWindow -PassThru -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); Write-Host '(no crash within 90 s — host survived)' }
+          Get-Content cdb-out.txt | Select-Object -Last 80
+          exit 0
       - name: Package + installer (rivet release, development signing)
         env:
           RIVET_UPDATE_BASE_URL: https://github.com/turinglambdaai/movebit/releases/download/${{ github.ref_name }}

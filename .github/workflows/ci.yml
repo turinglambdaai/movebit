@@ -161,13 +161,8 @@ jobs:
             Select-Object -First 1 -ExpandProperty FullName
           if (-not $cdb) { Write-Host 'cdb.exe not found; skipping crash diagnosis'; exit 0 }
           Set-Content -Path '.rivet/stage/cdbcmds.txt' -Value 'sxe -c "k 40; qd" av; g'
-          $job = Start-Job -ScriptBlock {
-            Set-Location (Join-Path (Get-Location) '.rivet/stage')
-            $cdb = $using:cdb
-            & $cdb -accepteula -G -cf cdbcmds.txt RivetHost.exe 2>&1
-          }
-          Wait-Job $job -Timeout 60 | Out-Null
-          Stop-Job $job
-          Receive-Job $job | Select-Object -Last 80
-          Remove-Job $job -Force
+          Set-Location '.rivet/stage'
+          $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula','-G','-cf','cdbcmds.txt','RivetHost.exe' -WorkingDirectory (Get-Location) -NoNewWindow -PassThru -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); Write-Host '(no crash within 90 s — host survived)' }
+          Get-Content cdb-out.txt | Select-Object -Last 80
           exit 0
