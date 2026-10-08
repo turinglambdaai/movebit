@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-02
+
+### Added
+
+- Full Rivet rebuild: the Avalonia/.NET stack is replaced by one embedded-Racket domain core (scheduler, reminder loops, break lifecycle, history, config) driving first-party native hosts on macOS (SwiftUI), Windows (WinUI 3), and Linux (GTK4); data files, paths, and settings stay byte-compatible, so 1.4.x installs upgrade in place
+- Login autostart now ships on every platform (macOS LaunchAgent, Linux XDG autostart, Windows HKCU Run key) and is owned by the backend, so the settings toggle works identically everywhere
+
+### Changed
+
+- Onboarding, reminders, break overlay, toasts, and micro-breaks behave exactly as in 1.4.0; platform-only gaps on Linux/Windows are documented in the README (no tray on Linux, WM-chosen toast placement, light theme)
+
 ## [1.4.0] - 2026-09-28
 
 ### Added
