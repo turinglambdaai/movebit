@@ -89,6 +89,7 @@ struct MainWindow : MainWindowT<MainWindow> {
   void MutateConfig(F mutate);
   void SaveConfig(rivet_app::ReminderConfig draft);
 
+  Microsoft::UI::Dispatching::DispatcherQueue dispatcher_{nullptr};
   std::shared_ptr<rivet::windows::Backend> backend_;
   rivet_app::API* api_ = nullptr;
   movebit::Model model_;

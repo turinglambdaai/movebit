@@ -66,6 +66,7 @@ using namespace winrt::Microsoft::UI::Xaml;
 
 MainWindow::MainWindow() {
   InitializeComponent();
+  dispatcher_ = DispatcherQueue();
   Title(L"MoveBit");
   Closed([this](IInspectable const&, WindowEventArgs const&) {
     // Best-effort flush with a 1 s budget (port of FlushToday-on-exit).
@@ -100,13 +101,13 @@ winrt::fire_and_forget MainWindow::InitializeBackendAsync() {
                 (void)init;
                 if (auto self = weak.get()) {
                   // Re-dispatch: the completion runs on the reader thread.
-                  self->DispatcherQueue().TryEnqueue([weak] {
+                  self->dispatcher_.TryEnqueue([weak] {
                     if (auto w = weak.get()) {
                       if (w->api_ == nullptr) return;
                       (void)w->api_->get_active_config_async(
                           [weak](rivet_app::Result<rivet_app::ReminderConfig> c) {
                             if (auto self2 = weak.get()) {
-                              self2->DispatcherQueue().TryEnqueue([weak, c] {
+                              self2->dispatcher_.TryEnqueue([weak, c] {
                                 if (auto w = weak.get()) {
                                   try {
                                     w->model_.config = c.get();
@@ -134,7 +135,7 @@ winrt::fire_and_forget MainWindow::InitializeBackendAsync() {
     });
   } catch (std::exception const& e) {
     auto message = std::string(e.what());
-    dispatcher.TryEnqueue([weak, message = std::move(message)] {
+    w->dispatcher_.TryEnqueue([weak, message = std::move(message)] {
       if (auto window = weak.get()) {
         window->SetStatus(message);
       }
@@ -147,7 +148,7 @@ void MainWindow::SubscribeEvents() {
   backend_->set_event_handler(
       [weak](std::string const& name, rivet::Value const& value) {
         if (auto window = weak.get()) {
-          window->DispatcherQueue().TryEnqueue([weak, name, value] {
+          windowindow->dispatcher_.TryEnqueue([weak, name, value] {
             if (auto self = weak.get()) self->HandleEvent(name, value);
           });
         }
@@ -162,7 +163,7 @@ void MainWindow::Bootstrap() {
   // Sequential state reads land in model_; the last one renders everything.
   (void)api->get_today_async([weak](rivet_app::Result<rivet_app::DayStats> t) {
     if (auto self = weak.get()) {
-      self->DispatcherQueue().TryEnqueue([weak, t] {
+      self->dispatcher_.TryEnqueue([weak, t] {
         if (auto w = weak.get()) {
           try {
             w->model_.today = t.get();
@@ -173,7 +174,7 @@ void MainWindow::Bootstrap() {
           (void)w->api_->get_paused_async(
               [weak](rivet_app::Result<rivet_app::PauseState> p) {
                 if (auto self2 = weak.get()) {
-                  self2->DispatcherQueue().TryEnqueue([weak, p] {
+                  self2->dispatcher_.TryEnqueue([weak, p] {
                     if (auto w = weak.get()) {
                       try {
                         w->model_.paused = p.get();
@@ -184,7 +185,7 @@ void MainWindow::Bootstrap() {
                       (void)w->api_->get_loops_async(
                           [weak](rivet_app::Result<std::vector<rivet_app::LoopInfo>> l) {
                             if (auto self3 = weak.get()) {
-                              self3->DispatcherQueue().TryEnqueue([weak, l] {
+                              self3->dispatcher_.TryEnqueue([weak, l] {
                                 if (auto w = weak.get()) {
                                   try {
                                     w->model_.loops = l.get();
@@ -197,8 +198,7 @@ void MainWindow::Bootstrap() {
                                           std::optional<rivet_app::BreakState>>
                                           b) {
                                         if (auto self4 = weak.get()) {
-                                          self4->DispatcherQueue()
-                                              .TryEnqueue([weak, b] {
+                                          self4->dispatcher_.TryEnqueue([weak, b] {
                                             if (auto w = weak.get()) {
                                               try {
                                                 w->model_.break_active = b.get();
@@ -267,7 +267,7 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
                 [weak, started](
                     rivet_app::Result<std::optional<rivet_app::BreakState>> r) {
                   if (auto self = weak.get()) {
-                    self->DispatcherQueue().TryEnqueue(
+                    self->dispatcher_.TryEnqueue(
                         [weak, started, r] {
                           if (auto w = weak.get()) {
                             std::optional<rivet_app::BreakState> state;
@@ -389,7 +389,7 @@ void MainWindow::RefreshStatesAfterTick() {
   (void)api_->get_loops_async([weak](rivet_app::Result<
                                      std::vector<rivet_app::LoopInfo>> r) {
     if (auto self = weak.get()) {
-      self->DispatcherQueue().TryEnqueue([weak, r] {
+      self->dispatcher_.TryEnqueue([weak, r] {
         if (auto w = weak.get()) {
           try {
             w->model_.loops = r.get();
@@ -402,7 +402,7 @@ void MainWindow::RefreshStatesAfterTick() {
   });
   (void)api_->get_paused_async([weak](rivet_app::Result<rivet_app::PauseState> r) {
     if (auto self = weak.get()) {
-      self->DispatcherQueue().TryEnqueue([weak, r] {
+      self->dispatcher_.TryEnqueue([weak, r] {
         if (auto w = weak.get()) {
           try {
             w->model_.paused = r.get();
@@ -448,7 +448,7 @@ void MainWindow::MutateConfig(F mutate) {
   (void)api_->set_config_async(draft, [weak, previous](
                                           rivet_app::Result<void> result) {
     if (auto self = weak.get()) {
-      self->DispatcherQueue().TryEnqueue([weak, previous, result] {
+      self->dispatcher_.TryEnqueue([weak, previous, result] {
         if (auto w = weak.get()) {
           if (result.succeeded()) {
             w->model_.config_status =
@@ -748,7 +748,7 @@ void MainWindow::ReloadHistory() {
   (void)api_->get_history_async(
       30, [weak](rivet_app::Result<std::vector<rivet_app::DayStats>> r) {
         if (auto self = weak.get()) {
-          self->DispatcherQueue().TryEnqueue([weak, r] {
+          self->dispatcher_.TryEnqueue([weak, r] {
             if (auto w = weak.get()) {
               try {
                 w->model_.history = r.get();
@@ -768,7 +768,7 @@ void MainWindow::ReloadAutostart() {
   auto const weak = get_weak();
   (void)api_->get_autostart_async([weak](rivet_app::Result<bool> r) {
     if (auto self = weak.get()) {
-      self->DispatcherQueue().TryEnqueue([weak, r] {
+      self->dispatcher_.TryEnqueue([weak, r] {
         if (auto w = weak.get()) {
           try {
             w->model_.autostart = r.get();
@@ -788,7 +788,7 @@ void MainWindow::ReloadDataDir() {
   auto const weak = get_weak();
   (void)api_->get_diagnostics_async([weak](rivet_app::Result<std::string> r) {
     if (auto self = weak.get()) {
-      self->DispatcherQueue().TryEnqueue([weak, r] {
+      self->dispatcher_.TryEnqueue([weak, r] {
         if (auto w = weak.get()) {
           try {
             auto const text = r.get();
