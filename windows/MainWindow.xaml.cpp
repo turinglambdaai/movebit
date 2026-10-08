@@ -465,6 +465,9 @@ void MainWindow::ApplyConfig(rivet_app::ReminderConfig const& changed,
 
 template <typename F>
 void MainWindow::MutateConfig(F mutate) {
+  // WinUI fires NumberBox::ValueChanged and ToggleSwitch::Toggled while the
+  // XAML tree loads — long before the embedded backend (and api_) exists.
+  if (api_ == nullptr) return;
   auto const previous = model_.config;
   auto draft = previous;
   mutate(draft);
