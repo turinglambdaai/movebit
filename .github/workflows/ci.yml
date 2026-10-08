@@ -167,7 +167,7 @@ jobs:
           Set-Content -Path '.rivet/stage/cdbcmds.txt' -Value 'sxe -c "k 40; qd" av; g'
           Set-Location '.rivet/stage'
           try {
-          $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula','-G','-cf','cdbcmds.txt','RivetHost.exe' -WorkingDirectory (Get-Location) -NoNewWindow -PassThru -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
+          $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula -G -cf cdbcmds.txt RivetHost.exe' -WorkingDirectory (Get-Location) -NoNewWindow -PassThru -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
           if (-not $p.WaitForExit(90000)) { $p.Kill(); Write-Host '(no crash within 90 s — host survived)' }
           Get-Content cdb-out.txt | Select-Object -Last 80
           } catch {
