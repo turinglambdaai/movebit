@@ -135,7 +135,7 @@ winrt::fire_and_forget MainWindow::InitializeBackendAsync() {
     });
   } catch (std::exception const& e) {
     auto message = std::string(e.what());
-    w->dispatcher_.TryEnqueue([weak, message = std::move(message)] {
+    dispatcher.TryEnqueue([weak, message = std::move(message)] {
       if (auto window = weak.get()) {
         window->SetStatus(message);
       }
