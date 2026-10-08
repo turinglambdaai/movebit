@@ -99,6 +99,19 @@ jobs:
           reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /v DumpType /t REG_DWORD /d 2 /f
           reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /v DumpCount /t REG_DWORD /d 5 /f
 
+      - name: Package + installer (rivet release, development signing)
+        env:
+          RIVET_UPDATE_BASE_URL: https://github.com/turinglambdaai/movebit/releases/download/${{ github.ref_name }}
+          RIVET_UPDATE_KEY_ID: movebit-2026-10
+          RIVET_UPDATE_PRIVATE_KEY_B64: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY_B64 }}
+        run: |
+          KEY_DER="$(mktemp -d)/update-ed25519-private.der"
+          printf '%s' "$RIVET_UPDATE_PRIVATE_KEY_B64" | base64 -d > "$KEY_DER"
+          export RIVET_UPDATE_PRIVATE_KEY="$KEY_DER"
+          raco rivet release --development
+          rm -f "$KEY_DER"
+        shell: bash
+
       - name: Analyze the packaged-app crash dump (on release-smoke failure)
         if: failure()
         shell: pwsh
@@ -119,30 +132,6 @@ jobs:
           $p = Start-Process -FilePath $cdb -ArgumentList "-z `"$($dump.FullName)`" -cf cdbcmds.txt" -NoNewWindow -PassThru -RedirectStandardOutput dump-out.txt -RedirectStandardError dump-err.txt
           if (-not $p.WaitForExit(240000)) { $p.Kill() }
           Get-Content dump-out.txt | Select-Object -Last 200
-          exit 0
-      - name: Crash-diagnose the packaged app (on release-smoke failure)
-        if: failure()
-        shell: pwsh
-        run: |
-          $cdb = 'C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe'
-          if (-not (Test-Path $cdb)) {
-            $cdb = Get-ChildItem 'C:\\Program Files (x86)\\Windows Kits' -Recurse -Filter cdb.exe -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -like '*\\x64\\*' } |
-              Select-Object -First 1 -ExpandProperty FullName
-          }
-          if (-not $cdb) { Write-Host 'cdb.exe (x64) not found; skipping'; exit 0 }
-          New-Item -ItemType Directory -Force -Path smoke-cwd | Out-Null
-          Set-Content -Path 'cdbcmds.txt' -Value 'sxe -c "k 40; qd" av; g'
-          try {
-            # The launch smoke closes the child's stdin immediately and pipes
-            # stdout/stderr; mirror that exactly.
-            Set-Content -Path 'empty-stdin.txt' -Value ''
-            $p = Start-Process -FilePath $cdb -ArgumentList "-accepteula -G -cf cdbcmds.txt `"$(Join-Path (Get-Location) 'dist\movebit-windows-x64\RivetHost.exe')`"" -WorkingDirectory (Join-Path (Get-Location) 'smoke-cwd') -NoNewWindow -PassThru -RedirectStandardInput empty-stdin.txt -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
-            if (-not $p.WaitForExit(90000)) { $p.Kill(); Write-Host '(no crash within 90 s — packaged host survived)' }
-            Get-Content cdb-out.txt | Select-Object -Last 400
-          } catch {
-            Write-Host "cdb launch failed: $($_.Exception.Message)"
-          }
           exit 0
       - name: Collect MSI
         run: |
