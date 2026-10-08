@@ -94,14 +94,22 @@ jobs:
         shell: pwsh
         run: |
           raco rivet build
-          $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits' -Recurse -Filter cdb.exe -ErrorAction SilentlyContinue |
-            Select-Object -First 1 -ExpandProperty FullName
-          if (-not $cdb) { Write-Host 'cdb.exe not found; skipping crash diagnosis'; exit 0 }
+          $cdb = 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe'
+          if (-not (Test-Path $cdb)) {
+            $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits' -Recurse -Filter cdb.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -like '*\x64\*' } |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $cdb) { Write-Host 'cdb.exe (x64) not found; skipping crash diagnosis'; exit 0 }
           Set-Content -Path '.rivet/stage/cdbcmds.txt' -Value 'sxe -c "k 40; qd" av; g'
           Set-Location '.rivet/stage'
+          try {
           $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula','-G','-cf','cdbcmds.txt','RivetHost.exe' -WorkingDirectory (Get-Location) -NoNewWindow -PassThru -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
           if (-not $p.WaitForExit(90000)) { $p.Kill(); Write-Host '(no crash within 90 s — host survived)' }
           Get-Content cdb-out.txt | Select-Object -Last 80
+          } catch {
+            Write-Host "cdb launch failed: $($_.Exception.Message)"
+          }
           exit 0
       - name: Package + installer (rivet release, development signing)
         env:
