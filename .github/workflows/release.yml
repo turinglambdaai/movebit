@@ -140,7 +140,7 @@ jobs:
             # The launch smoke closes the child's stdin immediately and pipes
             # stdout/stderr; mirror that exactly.
             Set-Content -Path 'empty-stdin.txt' -Value ''
-            $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula','-G','-cf','cdbcmds.txt','dist\\movebit-windows-x64\\RivetHost.exe' -WorkingDirectory (Join-Path (Get-Location) 'smoke-cwd') -NoNewWindow -PassThru -RedirectStandardInput empty-stdin.txt -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
+            $p = Start-Process -FilePath $cdb -ArgumentList '-accepteula','-G','-cf','cdbcmds.txt','dist\movebit-windows-x64\RivetHost.exe' -WorkingDirectory (Join-Path (Get-Location) 'smoke-cwd') -NoNewWindow -PassThru -RedirectStandardInput empty-stdin.txt -RedirectStandardOutput cdb-out.txt -RedirectStandardError cdb-err.txt
             if (-not $p.WaitForExit(90000)) { $p.Kill(); Write-Host '(no crash within 90 s — packaged host survived)' }
             Get-Content cdb-out.txt | Select-Object -Last 400
           } catch {
