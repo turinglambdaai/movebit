@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Cache embeddable Racket CS
         id: cache-racket-embed
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/work/_temp/racket-embed
           key: racket-embed-9.3-${{ runner.os }}-${{ runner.arch }}-v1
