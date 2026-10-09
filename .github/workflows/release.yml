@@ -9,6 +9,12 @@ permissions:
   id-token: write
   attestations: write
 
+env:
+  # Exact rivet pin (family policy, taskly-style): CI verifies what releases
+  # ship. a5f6718 = rivet#153 (redirect-following update fetch) — the same
+  # commit the v1.5.1 release pipeline was built and published with.
+  RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
+
 jobs:
   validate:
     name: Validate release tag
@@ -40,11 +46,11 @@ jobs:
             racket-arch: x64
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout Rivet
-        uses: actions/checkout@v4
-        with:
-          repository: turinglambdaai/rivet
-          path: rivet
+      - name: Checkout pinned Rivet
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
+          git -C rivet checkout --quiet "$RIVET_COMMIT"
+        shell: bash
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.15
         with:
@@ -84,11 +90,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout Rivet
-        uses: actions/checkout@v4
-        with:
-          repository: turinglambdaai/rivet
-          path: rivet
+      - name: Checkout pinned Rivet
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
+          git -C rivet checkout --quiet "$RIVET_COMMIT"
+        shell: bash
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.15
         with:
@@ -181,11 +187,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout Rivet
-        uses: actions/checkout@v4
-        with:
-          repository: turinglambdaai/rivet
-          path: rivet
+      - name: Checkout pinned Rivet
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
+          git -C rivet checkout --quiet "$RIVET_COMMIT"
+        shell: bash
       - name: Cache embeddable Racket CS
         id: cache-racket-embed
         uses: actions/cache@v4
@@ -273,11 +279,11 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout Rivet
-        uses: actions/checkout@v4
-        with:
-          repository: turinglambdaai/rivet
-          path: rivet
+      - name: Checkout pinned Rivet
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
+          git -C rivet checkout --quiet "$RIVET_COMMIT"
+        shell: bash
       - uses: actions/download-artifact@v4
         with:
           path: dist

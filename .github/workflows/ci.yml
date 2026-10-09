@@ -3,6 +3,12 @@ on:
   push:
   pull_request:
 
+env:
+  # Exact rivet pin (family policy, taskly-style): CI verifies what releases
+  # ship — keep identical to RIVET_COMMIT in release.yml. a5f6718 = rivet#153
+  # (redirect-following update fetch), the commit the v1.5.1 release shipped.
+  RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
+
 jobs:
   racket-tests:
     strategy:
@@ -18,8 +24,12 @@ jobs:
       - name: Version preflight (VERSION == rivet.rktd == csproj)
         shell: bash
         run: bash scripts/check-release-version.sh
-      - name: Install rivet (upstream main)
-        run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
+      - name: Install pinned Rivet
+        shell: bash
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
+          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
+          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
       - name: Windows registry autostart probe
         if: runner.os == 'Windows'
         shell: pwsh
@@ -65,12 +75,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes libgtk-4-dev xvfb
-      - name: Install rivet (upstream main)
+      - name: Install pinned Rivet
         shell: bash
         run: |
           set -euo pipefail
           export PATH="$RUNNER_TEMP/racket-embed/bin:$PATH"
-          raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
+          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
+          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
+          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
       - name: Build, package, and launch-smoke the GTK4 host
         shell: bash
         run: |
@@ -119,8 +131,12 @@ jobs:
           distribution: full
           variant: CS
           version: '9.3'
-      - name: Install rivet (upstream main)
-        run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
+      - name: Install pinned Rivet
+        shell: bash
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
+          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
+          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
       - name: Build the SwiftUI host
         run: |
           raco rivet doctor
@@ -142,9 +158,12 @@ jobs:
           distribution: full
           variant: CS
           version: '9.3'
-      - name: Install rivet (upstream main)
-        shell: pwsh
-        run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
+      - name: Install pinned Rivet
+        shell: bash
+        run: |
+          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
+          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
+          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
       - name: Build the WinUI host
         shell: pwsh
         run: |
