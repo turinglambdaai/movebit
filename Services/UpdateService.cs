@@ -1,10 +1,12 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace MoveBit.Services;
 
@@ -55,10 +57,19 @@ public sealed record UpdateInstallResult(
     string? ErrorMessage = null);
 
 /// <summary>
-/// Cross-platform updater for MoveBit's existing GitHub Release ZIPs. It never silently
-/// installs an update: discovery may be automatic, but applying requires an explicit user
-/// action. The package is verified against its published SHA-256 sidecar before extraction.
+/// Cross-platform updater for MoveBit's GitHub Release portable archives. It never
+/// silently installs an update: discovery may be automatic, but applying requires an
+/// explicit user action. The package is verified against its published SHA-256 sidecar
+/// before extraction.
 /// </summary>
+/// <remarks>
+/// Feed design (deliberate, not half-migrated): discovery uses GitHub's latest-release
+/// API and the platform's portable archive, matched by the exact naming scheme the
+/// release pipeline publishes (<c>movebit-&lt;version&gt;-&lt;os&gt;-&lt;arch&gt;.&lt;ext&gt;</c>)
+/// plus its <c>.sha256</c> sidecar. The release also publishes the family's Ed25519-signed
+/// <c>update-manifest.json</c> wrapper; verifying it from C# needs a crypto dependency the
+/// project does not carry yet, so until that lands this stays on the checksum path.
+/// </remarks>
 public static class UpdateService
 {
 #if PRO
@@ -80,12 +91,12 @@ public static class UpdateService
     public static string CurrentVersionText =>
         $"{CurrentVersion.Major}.{CurrentVersion.Minor}.{CurrentVersion.Build}";
 
-    public static string? CurrentPlatformAssetName => GetCurrentPlatformAssetName();
+    public static string? CurrentPlatformAssetPattern => GetCurrentPlatformTarget()?.AssetPatternText;
 
     public static async Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
-        var packageName = GetCurrentPlatformAssetName();
-        if (packageName is null)
+        var target = GetCurrentPlatformTarget();
+        if (target is null)
         {
             return new UpdateCheckResult(UpdateCheckStatus.UnsupportedPlatform);
         }
@@ -109,13 +120,16 @@ public static class UpdateService
                 return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
             }
 
-            var package = release.Assets.Find(a => string.Equals(a.Name, packageName, StringComparison.Ordinal));
-            var checksum = release.Assets.Find(a => string.Equals(a.Name, packageName + ".sha256", StringComparison.Ordinal));
+            // Asset names carry the release version (movebit-<version>-<os>-<arch>.<ext>),
+            // so the platform archive is matched by the release pipeline's naming pattern,
+            // never by a hard-coded full name.
+            var package = release.Assets.Find(a => target.AssetPattern().IsMatch(a.Name));
+            var checksum = release.Assets.Find(a => string.Equals(a.Name, package?.Name + ".sha256", StringComparison.Ordinal));
             if (package?.BrowserDownloadUrl is null || checksum?.BrowserDownloadUrl is null)
             {
                 return new UpdateCheckResult(
                     UpdateCheckStatus.Failed,
-                    ErrorMessage: $"最新版本缺少 {packageName} 或对应的 SHA-256 校验文件。");
+                    ErrorMessage: $"最新版本缺少 {target.ArchiveDescription} 或对应的 SHA-256 校验文件。");
             }
 
             var releasePage = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var parsedPage)
@@ -131,7 +145,7 @@ public static class UpdateService
                     releasePage,
                     new Uri(package.BrowserDownloadUrl),
                     new Uri(checksum.BrowserDownloadUrl),
-                    packageName));
+                    package.Name));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -149,13 +163,14 @@ public static class UpdateService
         IProgress<UpdateProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var packageName = GetCurrentPlatformAssetName();
-        if (packageName is null)
+        var target = GetCurrentPlatformTarget();
+        if (target is null)
         {
             return new UpdateInstallResult(UpdateInstallStatus.UnsupportedPlatform);
         }
 
-        if (!string.Equals(packageName, update.PackageName, StringComparison.Ordinal))
+        // The update record must describe the archive this platform consumes.
+        if (!target.AssetPattern().IsMatch(update.PackageName))
         {
             return new UpdateInstallResult(UpdateInstallStatus.Failed, "更新包与当前平台不匹配。");
         }
@@ -209,10 +224,17 @@ public static class UpdateService
             }
 
             progress?.Report(new UpdateProgress(UpdateStage.Preparing));
-            ExtractZipSafely(packagePath, stagingDirectory);
+            if (packagePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                ExtractZipSafely(packagePath, stagingDirectory);
+            }
+            else
+            {
+                ExtractTarGzSafely(packagePath, stagingDirectory);
+            }
 
             var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "MoveBit.exe" : "MoveBit";
-            if (!File.Exists(Path.Combine(stagingDirectory, executableName)))
+            if (!StagingContainsExecutable(stagingDirectory, executableName))
             {
                 throw new InvalidDataException($"更新包中缺少 {executableName}。");
             }
@@ -291,23 +313,47 @@ public static class UpdateService
         return client;
     }
 
-    private static string? GetCurrentPlatformAssetName()
+    /// <summary>
+    /// The portable archive the update feed serves to one platform, expressed with the
+    /// release pipeline's naming scheme: <c>movebit-&lt;version&gt;-&lt;os&gt;-&lt;arch&gt;&lt;extension&gt;</c>,
+    /// always lowercase. Windows ARM64 is served the x64 archive (Windows on ARM runs it
+    /// through x64 emulation); Linux arm64 has no release artifact and stays unsupported.
+    /// </summary>
+    private sealed record PlatformTarget(string Os, string Arch, string Extension)
+    {
+        /// <summary>Anchored pattern for the exact asset names the release publishes.</summary>
+        public Regex AssetPattern() => new(
+            $"^movebit-\\d+\\.\\d+\\.\\d+-{Os}-{Arch}{Regex.Escape(Extension)}$",
+            RegexOptions.Compiled);
+
+        public string AssetPatternText => $"movebit-<version>-{Os}-{Arch}{Extension}";
+
+        public string ArchiveDescription => $"movebit-*-{Os}-{Arch}{Extension}";
+    }
+
+    /// <summary>Pure helper used by tests: does <paramref name="assetName"/> name the
+    /// portable archive this target platform consumes?</summary>
+    public static bool MatchesPlatformAsset(string assetName, string os, string arch, string extension)
+        => new PlatformTarget(os, arch, extension).AssetPattern().IsMatch(assetName);
+
+    private static PlatformTarget? GetCurrentPlatformTarget()
     {
         var arm64 = RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return arm64 ? "MoveBit-windows-arm64.zip" : "MoveBit-windows-x64.zip";
+            // ARM64 Windows is documented to run the x64 build under emulation.
+            return new PlatformTarget("windows", "x64", ".zip");
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return arm64 ? "MoveBit-macos-arm64.zip" : "MoveBit-macos-x64.zip";
+            return new PlatformTarget("macos", arm64 ? "arm64" : "x64", ".zip");
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return arm64 ? "MoveBit-linux-arm64.zip" : "MoveBit-linux-x64.zip";
+            return arm64 ? null : new PlatformTarget("linux", "x64", ".tar.gz");
         }
 
         return null;
@@ -418,6 +464,83 @@ public static class UpdateService
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
             entry.ExtractToFile(destinationPath, overwrite: true);
         }
+    }
+
+    /// <summary>Extracts a gzip-compressed tar (the Linux update artifact) with the same
+    /// path-traversal protection as the ZIP path. Uses the BCL's System.Formats.Tar.</summary>
+    private static void ExtractTarGzSafely(string tarGzPath, string destinationDirectory)
+    {
+        var destinationRoot = Path.GetFullPath(destinationDirectory) + Path.DirectorySeparatorChar;
+
+        using var sourceStream = new FileStream(
+            tarGzPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.None,
+            bufferSize: 81920,
+            useAsync: true);
+        using var gzipStream = new GZipStream(sourceStream, CompressionMode.Decompress);
+        using var reader = new TarReader(gzipStream);
+        while (reader.GetNextEntry() is { } entry)
+        {
+            var entryPath = entry.Name.Replace('\\', '/');
+            var destinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, entryPath));
+            if (!destinationPath.StartsWith(destinationRoot, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("更新包包含不安全的文件路径。");
+            }
+
+            switch (entry.EntryType)
+            {
+                case TarEntryType.Directory:
+                    Directory.CreateDirectory(destinationPath);
+                    break;
+                case TarEntryType.RegularFile:
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+                    entry.ExtractToFile(destinationPath, overwrite: true);
+                    if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        File.SetUnixFileMode(destinationPath, UnixFileMode.UserRead | UnixFileMode.UserWrite
+                            | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead
+                            | UnixFileMode.OtherWrite);
+                    }
+
+                    break;
+                default:
+                    // Symlinks/hardlinks/device nodes are never expected in the feed
+                    // artifact; skipping them keeps the extraction side-effect free.
+                    break;
+            }
+        }
+    }
+
+    /// <summary>The feed archives carry either the classic C# host layout (a bare
+    /// <c>MoveBit</c> executable) or the Rivet packaged layout (a <c>RivetHost</c>
+    /// executable, possibly inside an app/payload directory). Accept either.</summary>
+    private static bool StagingContainsExecutable(string stagingDirectory, string executableName)
+    {
+        if (File.Exists(Path.Combine(stagingDirectory, executableName)))
+        {
+            return true;
+        }
+
+        var rivetHostName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "RivetHost.exe" : "RivetHost";
+        var candidates = new HashSet<string>(StringComparer.Ordinal) { executableName, rivetHostName };
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // macOS bundles name their executable after the app (lowercase).
+            candidates.Add(executableName.ToLowerInvariant());
+        }
+
+        foreach (var file in Directory.EnumerateFiles(stagingDirectory, "*", SearchOption.AllDirectories))
+        {
+            if (candidates.Contains(Path.GetFileName(file)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool CanWriteDirectory(string directory)

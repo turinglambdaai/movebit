@@ -39,6 +39,26 @@ public sealed class UpdateServiceTests : IDisposable
         Assert.Equal(expected, UpdateService.IsNewerRelease(tag, Version.Parse(current)));
     }
 
+    [Theory]
+    [InlineData("movebit-1.6.0-windows-x64.zip", "windows", "x64", ".zip", true)]
+    [InlineData("movebit-1.6.0-windows-x64.zip.sha256", "windows", "x64", ".zip", false)]
+    [InlineData("movebit-1.6.0-windows-x64.msi", "windows", "x64", ".zip", false)]
+    [InlineData("movebit-1.6.0-linux-x64.zip", "linux", "x64", ".tar.gz", false)]
+    [InlineData("movebit-1.6.0-linux-x64.tar.gz", "linux", "x64", ".tar.gz", true)]
+    [InlineData("movebit-1.6.0-macos-arm64.zip", "macos", "arm64", ".zip", true)]
+    [InlineData("movebit-1.6.0-macos-x64.zip", "macos", "x64", ".zip", true)]
+    [InlineData("movebit-1.6.0-macos-arm64.zip", "macos", "x64", ".zip", false)]
+    [InlineData("movebit-1.5.0-macos-arm64.zip", "macos", "arm64", ".zip", true)]
+    [InlineData("MoveBit-windows-x64.zip", "windows", "x64", ".zip", false)]
+    [InlineData("movebit-1.6.0-windows-x64.backup.zip", "windows", "x64", ".zip", false)]
+    [InlineData("movebit-1.6-windows-x64.zip", "windows", "x64", ".zip", false)]
+    [InlineData("SHA256SUMS", "windows", "x64", ".zip", false)]
+    public void MatchesPlatformAsset_accepts_only_published_archive_names(
+        string assetName, string os, string arch, string extension, bool expected)
+    {
+        Assert.Equal(expected, UpdateService.MatchesPlatformAsset(assetName, os, arch, extension));
+    }
+
     [Fact]
     public void ChecksumMatches_accepts_sha256sum_sidecar()
     {
@@ -46,7 +66,7 @@ public sealed class UpdateServiceTests : IDisposable
         File.WriteAllText(path, "movebit update payload");
         var digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
-        Assert.True(UpdateService.ChecksumMatches(path, $"{digest}  MoveBit-windows-x64.zip\n"));
+        Assert.True(UpdateService.ChecksumMatches(path, $"{digest}  movebit-1.6.0-windows-x64.zip\n"));
     }
 
     [Fact]
@@ -57,7 +77,7 @@ public sealed class UpdateServiceTests : IDisposable
         var digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
         File.WriteAllText(path, "modified payload");
 
-        Assert.False(UpdateService.ChecksumMatches(path, $"{digest}  MoveBit-windows-x64.zip\n"));
+        Assert.False(UpdateService.ChecksumMatches(path, $"{digest}  movebit-1.6.0-windows-x64.zip\n"));
         Assert.False(UpdateService.ChecksumMatches(path, "not-a-checksum"));
     }
 }

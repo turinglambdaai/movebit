@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.6.0] - 2026-10-09
+
+### Added
+
+- macOS Intel builds are back: the release matrix now produces DMG and portable ZIP for both `macos-arm64` and `macos-x64`
+- Portable ZIPs ship again for Windows x64 and macOS next to the MSI/DMG installers — these are also the archives the in-app update feed serves
+- Every release asset carries its own `.sha256` sidecar alongside the `SHA256SUMS` manifest
+
+### Changed
+
+- Release assets follow one lowercase naming scheme, `movebit-<version>-<os>-<arch>.<ext>` (e.g. `movebit-1.6.0-macos-arm64.dmg`, `movebit-1.6.0-windows-x64.msi`, `movebit-1.6.0-windows-x64.zip`, `movebit-1.6.0-linux-x64.tar.gz`); the site and the in-app updater match these names exactly
+- The signed update feed manifest is published as `update-manifest.json` (family format), listing the portable archives for every platform
+- The version now lives in a single `VERSION` file; CI and the release pipeline verify `VERSION == rivet.rktd == MoveBit.csproj` before building
+
+### Fixed
+
+- The archived C# host's in-app updater searched GitHub Releases for asset names that were never published; it now matches the real portable-archive names and verifies their `.sha256` sidecars
+
 ## [1.5.1] - 2026-10-09
 
 ### Fixed

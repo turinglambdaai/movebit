@@ -16,8 +16,8 @@
 - **让长休息变成一个明确动作。** 久坐提醒可以覆盖所有已连接显示器，显示倒计时；“跳过”按钮默认延迟 20 秒出现。
 - **真的休息过，就不要马上再催。** 离开电脑达到阈值后回来，三个提醒周期都会从零开始；完整完成一次强制休息也一样，而且休息本身不会被算进工作时长。
 - **不只看今天，还要看到工作模式。** 主界面支持最近 7 天 / 30 天切换，并统计当前连续工作、今日/近 30 天最长连续工作、活跃日平均时长、最活跃的一天等指标。
-- **用户可写目录里的版本应该能自己更新。** MoveBit 会后台检查 GitHub Releases；只有用户主动点击“更新并重启”才会下载 ZIP、校验 SHA-256、替换并重新启动。
-- **需要原生安装体验时，也应该像正常桌面软件。** Windows 有 Setup，macOS 有 `.app` / DMG，Debian/Ubuntu 有 `.deb`，同时三个平台继续保留 Portable ZIP。
+- **用户可写目录里的版本应该能自己更新。** MoveBit 的更新 feed 使用 GitHub Releases 上的便携压缩包 + SHA-256 sidecar；C# 线会后台检查，校验 SHA-256、替换当前便携/按用户安装，并且只有你主动点击“更新并重启”才会动手。
+- **每个桌面平台都同时提供原生安装器和便携压缩包。** Windows 有 MSI + 便携 ZIP，macOS 在 Apple silicon 和 Intel 上都有 DMG + 便携 ZIP，Linux 提供便携 tar.gz。
 
 ## v1 产品保证
 
@@ -49,65 +49,37 @@ MoveBit v1 把这些行为固定下来：
 - 🧙 **首次运行引导**：先选择温和 / 标准 / 严格，再开始使用强制休息
 - 🔒 **单实例激活**：重复启动只会唤起已有实例
 - ⬆️ **校验后的在线更新**：用户可写安装目录支持后台检查 + 手动“更新并重启”
-- 📦 **原生包 + 便携版**：Windows Setup、macOS `.app`/DMG、Debian `.deb`，三个平台继续提供 Portable ZIP
+- 📦 **原生包 + 便携版**：Windows MSI、macOS DMG、Windows/macOS 便携 ZIP、Linux tar.gz
 
 ## 安装
 
-### Windows x64 —— 推荐安装版
+从 [Releases](https://github.com/turinglambdaai/movebit/releases/latest) 下载对应平台的构建：
 
-从 [Releases](https://github.com/turinglambdaai/movebit/releases) 下载 **`MoveBit-Setup-windows-x64.exe`**。安装器默认推荐：
+| 平台 | 便携压缩包（更新 feed） | 安装器 |
+| --- | --- | --- |
+| macOS Apple silicon | `movebit-<version>-macos-arm64.zip` | `movebit-<version>-macos-arm64.dmg` |
+| macOS Intel | `movebit-<version>-macos-x64.zip` | `movebit-<version>-macos-x64.dmg` |
+| Windows x64 | `movebit-<version>-windows-x64.zip` | `movebit-<version>-windows-x64.msi` |
+| Windows ARM64 | 通过 Windows on ARM 的 x64 模拟运行 x64 构建 | — |
+| Linux x64 | `movebit-<version>-linux-x64.tar.gz` | — |
 
-`%LOCALAPPDATA%\Programs\MoveBit`
+所有资产遵循同一套小写命名：`movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-1.6.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还带 `SHA256SUMS` 汇总清单和作为更新 feed 的 Ed25519 签名 `update-manifest.json`。
 
-这个位置**不需要管理员权限**，也最适合应用内更新；安装时仍然可以自由选择其他当前用户有写权限的位置。安装器会创建开始菜单快捷方式、标准卸载入口，并提供可选桌面快捷方式。
+平台说明：
 
-### macOS arm64 —— `.app` / DMG
+- **Windows** — 日常使用建议运行 MSI 安装；便携 ZIP 解压到任意可写目录即可。ARM64 Windows 请使用 x64 资产：Windows on ARM 会通过 x64 模拟运行，官方不发布原生 ARM64 构建。
+- **macOS** — 打开 DMG，把 **MoveBit.app** 拖进 Applications（或你自己的目录）；便携 ZIP 就是同一个应用包，只是没有磁盘镜像。构建为 ad-hoc 签名、未公证，Gatekeeper 首次运行可能要求明确允许（右键 → 打开，或 `xattr -cr /Applications/MoveBit.app`）。公证在拿到付费 Apple 开发者身份前暂缓。
+- **Linux** — 解压 tar.gz 后运行其中的宿主；GTK 4 及其系统库是仅有的运行时依赖，其余全部自带。
 
-下载 **`MoveBit-macos-arm64.dmg`**，打开后把 **MoveBit.app** 拖入 Applications（或者你自己的目录）。如果不想用 DMG，也提供 `MoveBit-macos-arm64.app.zip`。
-
-目前 macOS 原生包**没有签名和公证**，所以 Gatekeeper 首次运行时可能需要用户明确允许。这一项需要 Apple 付费开发者身份，因此按当前策略暂不做。
-
-如果把 MoveBit.app 放在 `/Applications` 这类应用自身不可写的位置，后续请用新版 DMG 替换应用；如果特别希望使用 MoveBit 的应用内替换更新，可以继续使用放在用户可写目录中的 Portable ZIP。
-
-### Debian / Ubuntu x64 —— `.deb`
-
-下载 **`MoveBit-linux-x64.deb`**，可以直接用系统包管理器安装，例如：
-
-```bash
-sudo apt install ./MoveBit-linux-x64.deb
-```
-
-`.deb` 会把程序安装到 `/opt/movebit`，同时创建 `/usr/bin/movebit`、桌面菜单入口和应用图标。因为 `/opt` 由包管理器管理，升级 `.deb` 安装版时应直接安装新版 `.deb`，MoveBit 不会尝试以普通用户权限覆盖系统包管理目录。
-
-### 便携版
-
-三个平台仍然提供 Portable ZIP：
-
-| 平台 | 便携压缩包 |
-| --- | --- |
-| Windows x64 / ARM64 | `MoveBit-windows-x64.zip` / `MoveBit-windows-arm64.zip` |
-| macOS arm64 / Intel | `MoveBit-macos-arm64.zip` / `MoveBit-macos-x64.zip` |
-| Linux x64 / arm64 | `MoveBit-linux-x64.zip` / `MoveBit-linux-arm64.zip` |
-
-发布构建已经包含所需 .NET 运行时，不需要另外安装。每个正式发布包都有对应的 `.sha256` 文件。
-
-> 当前 Release 二进制还没有做代码签名 / macOS 公证，因此 Windows SmartScreen 或 macOS Gatekeeper 首次启动时可能给出提示。付费签名/公证是目前唯一保留的分发 Roadmap 项。
+> 发布二进制没有发布者代码签名。Windows SmartScreen 或 macOS Gatekeeper 首次启动时可能给出提示。付费签名/公证是目前唯一保留的分发 Roadmap 项。
 
 ## 在线更新
 
-MoveBit 1.0.1 起默认会在启动后稍作延迟检查一次最新 GitHub Release，之后大约每 6 小时检查一次。**自动检查不等于静默安装**：任何版本替换都需要用户明确点击“更新并重启”。
+更新 feed = 当前平台的便携压缩包 + 对应 `.sha256` 文件，通过 GitHub 的 latest-release API 发现，按发布的资产命名规则匹配。任何替换发生之前都会先完成校验。
 
-对于程序目录可写的安装版 / 便携版：
+C# 线（≤ 1.4.x）具备完整的应用内更新流程：启用“自动检查更新”后，启动后稍作延迟检查一次、之后大约每 6 小时检查一次；下载当前平台的便携压缩包和 `.sha256`，本地重新计算 SHA-256，校验通过后解压到 staging；只有你明确点击“更新并重启”，MoveBit 才会退出、由独立 helper 替换应用文件（失败时回滚）并重新启动。配置与历史数据放在用户应用数据目录，应用目录之外的它们不会被子更新触碰；`/Applications` 这类系统目录对应用只读，这类安装请用新版 DMG 手动替换。
 
-1. 设置页与托盘菜单显示“更新并重启”。
-2. 下载当前平台对应的 Portable ZIP 和 `.sha256` 文件。
-3. 本地重新计算 SHA-256；不一致立即停止。
-4. 校验通过后解压到 staging。
-5. MoveBit 保存配置和当天统计，然后退出。
-6. 独立更新 helper 替换应用文件并重新启动。
-7. 替换阶段失败时恢复已经覆盖的旧文件。
-
-MoveBit 的配置与历史数据放在用户应用数据目录，不会因为替换应用文件而丢失。DMG 拖进 `/Applications` 或 `.deb` 装进 `/opt` 后，应用目录通常由系统 / 包管理器管理，这类安装方式请通过新版 DMG / `.deb` 升级。
+1.5+ 的 Rivet 原生宿主尚未接入应用内更新器；feed 和签名 `update-manifest.json` 已为这次迁移发布。在此之前，请通过运行新版 MSI/DMG 或替换便携/tar 包来升级。
 
 ## 工作原理
 
@@ -148,8 +120,8 @@ Windows 默认使用 `%APPDATA%\movebit\config.json`；macOS/Linux 使用对应�
 
 ## 平台说明
 
-- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；推荐当前用户安装版，同时保留 Portable ZIP。
-- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间；提供原生 `.app` / DMG 与 arm64 Portable ZIP。
+- **Windows**：通过 `GetLastInputInfo` 获取会话级空闲时间；提供 MSI 安装版与便携 ZIP（ARM64 通过模拟运行 x64 构建）。
+- **macOS**：通过 CoreGraphics 的 `CGEventSourceSecondsSinceLastEventType` 获取会话级空闲时间；Apple silicon 与 Intel 均提供 DMG 与便携 ZIP。
 - **Linux/X11**：通过 XScreenSaver 扩展的 `XScreenSaverQueryInfo` 获取空闲时间。
 - **Linux/Wayland**：优先查询 GNOME/Mutter `org.gnome.Mutter.IdleMonitor`，再尝试 freedesktop ScreenSaver 会话总线 idle API；如果桌面环境两者都不提供，则返回“未知空闲时间”，MoveBit 安全退化为自然时间提醒，不伪造输入状态。
 
@@ -169,19 +141,19 @@ dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
 
 ```bash
 # 在 macOS runner 上
-bash packaging/macos/build-native.sh 1.4.0
+bash packaging/macos/build-native.sh 1.6.0
 
 # 在 Debian/Ubuntu runner 上
-bash packaging/linux/build-deb.sh 1.4.0
+bash packaging/linux/build-deb.sh 1.6.0
 ```
 
 ## 发布流程
 
-1. `MoveBit.csproj` 中的 `<Version>` 必须和发布 tag 完全对应，例如 `1.4.0` ↔ `v1.4.0`。
-2. 只有 Windows / macOS / Linux 构建和测试全绿后再合并；CI 还会额外验证 Windows Setup、挂载并检查 DMG、真实安装并卸载 `.deb`。
+1. 更新单源 `VERSION` 文件；`scripts/check-release-version.sh` 会校验 `VERSION == rivet.rktd == MoveBit.csproj <Version>`，发布 tag 也必须与之一致（例如 `1.6.0` ↔ `v1.6.0`）。
+2. CI 全绿后再合并（Racket 测试 + Windows/macOS/Linux 宿主矩阵；CI 会验证 Windows 宿主编译）。
 3. 推送版本 tag。
-4. Release workflow 生成三个 Portable ZIP、Windows Setup、macOS `.app.zip` + DMG、Linux `.deb` 和所有 SHA-256 sidecar；所有必要包都成功后才创建一次 GitHub Release。
-5. 用户可写目录中的 MoveBit 1.0.1+ 可以继续通过 latest-release API 使用对应 Portable ZIP 完成应用内更新。
+4. Release workflow 生成 macOS DMG + 便携 ZIP（arm64 与 x64）、Windows MSI + 便携 ZIP、Linux tar.gz、每个资产的 `.sha256` sidecar、`SHA256SUMS` 汇总清单和签名的 `update-manifest.json`；所有必要包都成功后才创建 GitHub Release，发布说明取自 CHANGELOG 对应段落。
+5. 便携压缩包就是更新 feed：可更新的安装通过 GitHub latest-release API 发现新版本，按 `movebit-<version>-<os>-<arch>.<ext>` 命名规则匹配资产。
 
 ## Roadmap
 

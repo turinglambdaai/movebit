@@ -3,17 +3,22 @@
 # artifacts from a release dist directory.
 #
 # Usage: scripts/make-update-manifest.sh <tag> <dist-dir> <key-der-path>
-#   <tag>          release tag, e.g. v1.5.0 (must match rivet.rktd version)
-#   <dist-dir>     directory containing the packaged installers:
-#                    MoveBit-<tag>-macos.dmg
-#                    movebit-<version>-windows-x64.msi
+#   <tag>          release tag, e.g. v1.6.0 (must match the VERSION file)
+#   <dist-dir>     directory containing the packaged portable archives, i.e.
+#                  the names the release pipeline produces:
+#                    movebit-<version>-macos-arm64.zip
+#                    movebit-<version>-macos-x64.zip
+#                    movebit-<version>-windows-x64.zip
 #                    movebit-<version>-linux-x64.tar.gz
 #   <key-der-path> Ed25519 private key in DER (OneAsymmetricKey) form; the
 #                  CI secret stores it base64-encoded.
 #
-# Emits <dist-dir>/update-stable.json — a single signed channel manifest
-# carrying every platform artifact. Env overrides: RELEASE_ASSET_BASE_URL,
-# RIVET_UPDATE_KEY_ID.
+# Emits <dist-dir>/update-manifest.json — a single signed channel manifest
+# (the family format: schema + payload + Ed25519 signature block) carrying
+# every platform's portable archive. Env overrides: RELEASE_ASSET_BASE_URL,
+# RIVET_UPDATE_KEY_ID. The C# updater still consumes the GitHub latest-release
+# API + .sha256 sidecars until it grows an Ed25519 verifier; this feed is the
+# migration target.
 
 set -euo pipefail
 
@@ -24,24 +29,19 @@ VERSION="${TAG#v}"
 KEY_ID="${RIVET_UPDATE_KEY_ID:-movebit-2026-10}"
 BASE_URL="${RELEASE_ASSET_BASE_URL:-https://github.com/turinglambdaai/movebit/releases/download/$TAG}"
 
-# ---- verify tag/version alignment -------------------------------------------
-RKTD_VERSION="$(racket -e '(require racket/file) (displayln (hash-ref (file->value "rivet.rktd") (quote version)))' | tr -d '"')"
-if [ "$VERSION" != "$RKTD_VERSION" ]; then
-  echo "error: tag $VERSION != rivet.rktd version $RKTD_VERSION" >&2
-  exit 1
-fi
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[[ "$VERSION" == "$(tr -d '[:space:]' < "$ROOT/VERSION")" ]] || {
+  echo "error: tag $TAG does not match VERSION '$(cat "$ROOT/VERSION")'" >&2; exit 1; }
 
-MAC_DMG="$DIST/MoveBit-$TAG-macos.dmg"
-WIN_MSI="$DIST/movebit-$VERSION-windows-x64.msi"
-LINUX_TARGZ="$DIST/movebit-$VERSION-linux-x64.tar.gz"
-
-sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }
-size_of() {
-  if stat -f%z "$1" >/dev/null 2>&1; then stat -f%z "$1"; else stat -c%s "$1"; fi
-}
+for artifact in "$DIST/movebit-$VERSION-macos-arm64.zip" \
+                "$DIST/movebit-$VERSION-macos-x64.zip" \
+                "$DIST/movebit-$VERSION-windows-x64.zip" \
+                "$DIST/movebit-$VERSION-linux-x64.tar.gz"; do
+  [[ -f "$artifact" ]] || { echo "error: missing $artifact" >&2; exit 1; }
+done
 
 # ---- build + sign the merged manifest with rivet's own signer ---------------
-MANIFEST="$DIST/update-stable.json"
+MANIFEST="$DIST/update-manifest.json"
 
 SCRIPT="$(mktemp /tmp/movebit-manifest-XXXXXX.rkt)"
 trap 'rm -f "$SCRIPT"' EXIT
@@ -49,17 +49,15 @@ trap 'rm -f "$SCRIPT"' EXIT
 cat > "$SCRIPT" <<RKT
 #lang racket/base
 (require rivet/distribution
+         racket/date
          racket/file
-         racket/format
-         racket/list
-         racket/string)
-(define tag "$TAG")
+         racket/format)
 (define version "$VERSION")
 (define base-url "$BASE_URL")
-(define key-id "$KEY_ID")
 (define dist (path->complete-path "$DIST"))
 (define key-path (path->complete-path "$KEY_PATH"))
-(define build (hash-ref (file->value "rivet.rktd") 'build))
+(define key-id "$KEY_ID")
+(define build (hash-ref (file->value (build-path (path->complete-path "$ROOT") "rivet.rktd")) 'build))
 
 (define (artifact platform architecture file installer)
   (define path (build-path dist file))
@@ -72,28 +70,12 @@ cat > "$SCRIPT" <<RKT
                    installer
                    '()))
 
-(define artifacts
-  (filter-map
-   (lambda (entry) entry)
-   (list (let ([file (format "MoveBit-~a-macos.dmg" tag)])
-           (and (file-exists? (build-path dist file))
-                (artifact 'macos 'arm64 file 'dmg)))
-         (let ([file (format "movebit-~a-windows-x64.msi" version)])
-           (and (file-exists? (build-path dist file))
-                (artifact 'windows 'x64 file 'msi)))
-         (let ([file (format "movebit-~a-linux-x64.tar.gz" version)])
-           (and (file-exists? (build-path dist file))
-                (artifact 'linux 'x64 file 'tar-gz))))))
-
-(when (null? artifacts)
-  (error 'make-update-manifest "no installers found in ~a" dist))
-
 (define manifest
   (update-manifest "site.jrtx.movebit"
                    version
                    build
                    'stable
-                   ;; published-at: RFC 3339, second precision
+                   ;; published-at: RFC 3339, second precision, UTC
                    (let ([d (seconds->date (current-seconds) #f)])
                      (format "~a-~a-~aT~a:~a:~aZ"
                              (date-year d)
@@ -106,9 +88,19 @@ cat > "$SCRIPT" <<RKT
                    #f
                    #t
                    100
-                   artifacts))
+                   (list (artifact 'macos 'arm64
+                                   (format "movebit-~a-macos-arm64.zip" version) 'zip)
+                         (artifact 'macos 'x64
+                                   (format "movebit-~a-macos-x64.zip" version) 'zip)
+                         (artifact 'windows 'x64
+                                   (format "movebit-~a-windows-x64.zip" version) 'zip)
+                         (artifact 'linux 'x64
+                                   (format "movebit-~a-linux-x64.tar.gz" version) 'tar-gz))))
 
-(call-with-output-file (build-path dist "update-stable.json")
+;; write-signed-manifest validates the struct against the manifest schema
+;; before signing, so a malformed manifest fails the release instead of
+;; shipping something every client would reject.
+(call-with-output-file (build-path dist "update-manifest.json")
   #:exists 'truncate/replace
   (lambda (out)
     (write-signed-manifest manifest
@@ -116,8 +108,8 @@ cat > "$SCRIPT" <<RKT
                            key-id
                            out)
     (newline out)))
-(printf "manifest: ~a (~a artifacts)\\n"
-        (build-path dist "update-stable.json") (length artifacts))
+(printf "manifest: ~a (4 artifacts, key-id ~a)\\n"
+        (build-path dist "update-manifest.json") key-id)
 RKT
 
 racket "$SCRIPT"

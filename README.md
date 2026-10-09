@@ -16,8 +16,8 @@ Most reminder tools lose the moment the notification becomes easy to dismiss. Mo
 - **Make long breaks intentional.** Sit reminders can cover every connected display with a topmost countdown. The skip button appears only after a configurable delay (20 seconds by default).
 - **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return. Completing a forced break does the same, and the break itself is never counted as active work.
 - **Show patterns, not just today's number.** The main window can switch between 7-day and 30-day activity history and tracks continuous-work streaks, recent longest sessions, active-day averages, and the busiest recent day.
-- **Keep installed copies current where the installation is user-writable.** MoveBit can check GitHub Releases in the background, verify SHA-256, replace the current portable/per-user installation, and restart only after you explicitly choose **Update & Restart**.
-- **Feel native when you want it.** Windows gets a normal installer, macOS gets an `.app` and DMG, Debian/Ubuntu users get a `.deb`, and portable ZIPs remain available for every supported platform.
+- **Keep installed copies current where the installation is user-writable.** MoveBit's update feed serves portable archives from GitHub Releases with SHA-256 sidecars, and the C# line checks it in the background, verifying SHA-256, replacing the current portable/per-user installation, and restarting only after you explicitly choose **Update & Restart**.
+- **Ship native installers and portable archives for every supported desktop.** Windows gets an MSI plus a portable ZIP, macOS gets a DMG plus a portable ZIP on both Apple silicon and Intel, and Linux gets a portable tar.gz.
 
 ## v1 product guarantees
 
@@ -49,62 +49,37 @@ MoveBit v1 treats the following as product contracts rather than best-effort beh
 - 🧙 **First-run onboarding** — choose gentle / standard / strict behavior before forced breaks are enabled
 - 🔒 **Single-instance activation** — relaunching surfaces the existing instance instead of duplicating it
 - ⬆️ **Verified online updates** — automatic checks plus explicit check/update controls for writable installations
-- 📦 **Native + portable distribution** — Windows Setup, macOS `.app`/DMG, Debian `.deb`, plus portable ZIPs
+- 📦 **Native + portable distribution** — Windows MSI, macOS DMG, portable ZIPs on Windows and macOS, Linux tar.gz
 
 ## Install
 
-### Windows x64 — installer recommended
+Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releases/latest):
 
-Download **`MoveBit-Setup-windows-x64.exe`** from [Releases](https://github.com/turinglambdaai/movebit/releases). The installer recommends `%LOCALAPPDATA%\Programs\MoveBit`, which requires no administrator permission, but the destination page remains available so you can choose another writable folder. Setup creates a Start-menu shortcut, registers a standard uninstall entry, and offers an optional desktop shortcut.
+| Platform | Portable archive (update feed) | Installer |
+| --- | --- | --- |
+| macOS Apple silicon | `movebit-<version>-macos-arm64.zip` | `movebit-<version>-macos-arm64.dmg` |
+| macOS Intel | `movebit-<version>-macos-x64.zip` | `movebit-<version>-macos-x64.dmg` |
+| Windows x64 | `movebit-<version>-windows-x64.zip` | `movebit-<version>-windows-x64.msi` |
+| Windows ARM64 | runs the x64 build via Windows on ARM's x64 emulation | — |
+| Linux x64 | `movebit-<version>-linux-x64.tar.gz` | — |
 
-Once installed, launch MoveBit from the Start menu like a normal desktop app. A user-writable installation can use MoveBit's verified in-app updater.
+Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-1.6.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
 
-### macOS arm64 — app / DMG
+Platform notes:
 
-Download **`MoveBit-macos-arm64.dmg`**, open it, and drag **MoveBit.app** to Applications (or another folder). `MoveBit-macos-arm64.app.zip` is also provided when you want the native app bundle without a disk image.
+- **Windows** — run the MSI for a normal installed app, or unpack the portable ZIP anywhere you like. On ARM64 Windows, use the x64 assets: Windows on ARM runs them through its x64 emulation, and no native ARM64 build is published.
+- **macOS** — open the DMG and drag **MoveBit.app** to Applications (or another folder); the portable ZIP is the same app bundle without the disk image. Builds are ad-hoc signed, not notarized, so Gatekeeper may require an explicit first-launch approval (right-click → Open, or `xattr -cr /Applications/MoveBit.app`). Notarization is deferred until paid Apple developer credentials are available.
+- **Linux** — unpack the tar.gz and run the host inside; GTK 4 and its system libraries are the only runtime dependencies, everything else is bundled.
 
-The native macOS build is currently **unsigned and not notarized**, so Gatekeeper may require an explicit first-launch approval. Signing/notarization is intentionally deferred because it requires paid Apple developer credentials.
-
-If MoveBit.app is placed in a system-owned/non-writable location such as `/Applications`, install future native-package updates by replacing the app with the newer DMG. The portable ZIP remains the best choice when you specifically want MoveBit's self-update replacement flow in a user-writable directory.
-
-### Debian / Ubuntu x64 — `.deb`
-
-Download **`MoveBit-linux-x64.deb`** and install it with your package manager, for example:
-
-```bash
-sudo apt install ./MoveBit-linux-x64.deb
-```
-
-The package installs the application under `/opt/movebit`, adds `/usr/bin/movebit`, a desktop-menu entry, and the MoveBit icon. Because `/opt` is package-manager owned, upgrade `.deb` installations by installing the newer `.deb`; MoveBit does not try to overwrite package-manager-owned files as a normal user.
-
-### Portable builds
-
-Portable archives remain available:
-
-| Platform | Portable archive |
-| --- | --- |
-| Windows x64 / ARM64 | `MoveBit-windows-x64.zip` / `MoveBit-windows-arm64.zip` |
-| macOS arm64 / Intel | `MoveBit-macos-arm64.zip` / `MoveBit-macos-x64.zip` |
-| Linux x64 / arm64 | `MoveBit-linux-x64.zip` / `MoveBit-linux-arm64.zip` |
-
-The packaged builds are self-contained; no separate .NET runtime is required. Every published package has a matching `.sha256` file.
-
-> Release binaries are currently unsigned. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Paid code signing/notarization is the remaining distribution roadmap item.
+> Release binaries carry no publisher code signature. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Paid code signing/notarization is the remaining distribution roadmap item.
 
 ## Online updates
 
-MoveBit 1.0.1+ checks the latest GitHub Release shortly after startup and then roughly every six hours when **Automatically check for updates** is enabled. It never silently installs a release.
+The update feed is the release's portable archive for your platform plus its `.sha256` sidecar, discovered through GitHub's latest-release API and matched by the published asset naming. Downloads are always verified before anything is replaced.
 
-For a writable portable/per-user installation:
+For the C# line (≤ 1.4.x), the full in-app flow exists: MoveBit checks shortly after startup and roughly every six hours when **Automatically check for updates** is enabled, downloads the matching portable archive and its `.sha256` sidecar, verifies the checksum, stages the files, and — only after you explicitly choose **Update & Restart** — exits, lets a helper replace the application files with rollback on failure, and starts again. Configuration and history live in the user application-data directory, outside the application folder, so updates never touch user data. Installs in system-owned locations (such as `/Applications`) are read-only to the app; update those by installing the newer DMG.
 
-1. Settings and the tray change to show **Update & Restart**.
-2. MoveBit downloads the matching platform ZIP and its `.sha256` sidecar.
-3. The archive is SHA-256 verified before extraction.
-4. Files are extracted into a temporary staging directory.
-5. MoveBit saves configuration/history and exits.
-6. A helper replaces the application files, restores overwritten files if replacement fails, and starts MoveBit again.
-
-Configuration and history live in the user application-data directory, outside the application folder, so updates do not replace user data. Package-manager/system-owned native installs may be read-only to the app; use the newer DMG or `.deb` for those installs.
+The 1.5+ Rivet native hosts do not bundle the in-app updater yet; the feed and the signed `update-manifest.json` are published for that migration. Until then, upgrade those installs by running the newer MSI/DMG or replacing the portable/tar payload.
 
 ## How it works
 
@@ -143,8 +118,8 @@ Numeric time fields accept direct keyboard entry and save immediately. Common lo
 
 ## Platform notes
 
-- **Windows**: session-wide idle detection via `GetLastInputInfo`; recommended per-user installer plus portable ZIP.
-- **macOS**: session-wide idle detection via CoreGraphics; native `.app`/DMG plus portable arm64 ZIP.
+- **Windows**: session-wide idle detection via `GetLastInputInfo`; MSI installer plus portable ZIP (ARM64 runs the x64 build via emulation).
+- **macOS**: session-wide idle detection via CoreGraphics; DMG plus portable ZIP on Apple silicon and Intel.
 - **Linux/X11**: idle detection via the XScreenSaver extension (`XScreenSaverQueryInfo`).
 - **Linux/Wayland**: MoveBit first queries GNOME/Mutter `org.gnome.Mutter.IdleMonitor`, then the freedesktop ScreenSaver session-bus idle API. Desktops exposing neither return unknown idle time, so MoveBit safely falls back to elapsed-time reminders rather than guessing.
 
@@ -164,19 +139,19 @@ Requires the .NET 10 SDK. Native package scripts live under `packaging/`:
 
 ```bash
 # macOS runner
-bash packaging/macos/build-native.sh 1.4.0
+bash packaging/macos/build-native.sh 1.6.0
 
 # Debian/Ubuntu runner
-bash packaging/linux/build-deb.sh 1.4.0
+bash packaging/linux/build-deb.sh 1.6.0
 ```
 
 ## Release process
 
-1. Keep `<Version>` in `MoveBit.csproj` and the release tag identical (for example `1.4.0` ↔ `v1.4.0`).
-2. Merge only with the Windows/macOS/Linux build-test matrix green; CI additionally smoke-tests Windows Setup, mounts/verifies the DMG, and installs/removes the Debian package.
+1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `1.6.0` ↔ `v1.6.0`).
+2. Merge only with CI green (Racket tests plus the Windows/macOS/Linux host matrix; CI verifies the Windows host compile).
 3. Push the version tag.
-4. Release automation builds portable ZIPs, Windows Setup, macOS `.app.zip` + DMG, Linux `.deb`, and SHA-256 sidecars; one GitHub Release is created only after every required package succeeds.
-5. Writable MoveBit 1.0.1+ installations discover the new release through GitHub's latest-release API and can apply the matching verified portable archive in-app.
+4. Release automation builds macOS DMG + portable ZIP (arm64 and x64), the Windows MSI + portable ZIP, the Linux tar.gz, per-asset `.sha256` sidecars, the `SHA256SUMS` manifest, and the signed `update-manifest.json`; one GitHub Release is created only after every required package succeeds, with the release notes taken from the matching CHANGELOG section.
+5. The portable archives are the update feed: updatable installations discover the new release through GitHub's latest-release API and match assets by the published `movebit-<version>-<os>-<arch>.<ext>` naming.
 
 ## Roadmap
 

@@ -15,6 +15,9 @@ jobs:
       - uses: Bogdanp/setup-racket@v1.15
         with:
           version: stable
+      - name: Version preflight (VERSION == rivet.rktd == csproj)
+        shell: bash
+        run: bash scripts/check-release-version.sh
       - name: Install rivet (upstream main)
         run: raco pkg install --auto --no-docs --skip-installed https://github.com/turinglambdaai/rivet.git
       - name: Windows registry autostart probe
