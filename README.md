@@ -63,7 +63,7 @@ Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releas
 | Windows ARM64 | runs the x64 build via Windows on ARM's x64 emulation | — |
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` | — |
 
-Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-1.6.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
+Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.1.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
 
 Platform notes:
 
@@ -139,15 +139,15 @@ Requires the .NET 10 SDK. Native package scripts live under `packaging/`:
 
 ```bash
 # macOS runner
-bash packaging/macos/build-native.sh 1.6.0
+bash packaging/macos/build-native.sh 0.1.0
 
 # Debian/Ubuntu runner
-bash packaging/linux/build-deb.sh 1.6.0
+bash packaging/linux/build-deb.sh 0.1.0
 ```
 
 ## Release process
 
-1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `1.6.0` ↔ `v1.6.0`).
+1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `0.1.0` ↔ `v0.1.0`).
 2. Merge only with CI green (Racket tests plus the Windows/macOS/Linux host matrix; CI verifies the Windows host compile).
 3. Push the version tag.
 4. Release automation builds macOS DMG + portable ZIP (arm64 and x64), the Windows MSI + portable ZIP, the Linux tar.gz, per-asset `.sha256` sidecars, the `SHA256SUMS` manifest, and the signed `update-manifest.json`; one GitHub Release is created only after every required package succeeds, with the release notes taken from the matching CHANGELOG section.

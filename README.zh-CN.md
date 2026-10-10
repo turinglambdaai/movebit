@@ -63,7 +63,7 @@ MoveBit v1 把这些行为固定下来：
 | Windows ARM64 | 通过 Windows on ARM 的 x64 模拟运行 x64 构建 | — |
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` | — |
 
-所有资产遵循同一套小写命名：`movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-1.6.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还带 `SHA256SUMS` 汇总清单和作为更新 feed 的 Ed25519 签名 `update-manifest.json`。
+所有资产遵循同一套小写命名：`movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.1.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还带 `SHA256SUMS` 汇总清单和作为更新 feed 的 Ed25519 签名 `update-manifest.json`。
 
 平台说明：
 
@@ -141,15 +141,15 @@ dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
 
 ```bash
 # 在 macOS runner 上
-bash packaging/macos/build-native.sh 1.6.0
+bash packaging/macos/build-native.sh 0.1.0
 
 # 在 Debian/Ubuntu runner 上
-bash packaging/linux/build-deb.sh 1.6.0
+bash packaging/linux/build-deb.sh 0.1.0
 ```
 
 ## 发布流程
 
-1. 更新单源 `VERSION` 文件；`scripts/check-release-version.sh` 会校验 `VERSION == rivet.rktd == MoveBit.csproj <Version>`，发布 tag 也必须与之一致（例如 `1.6.0` ↔ `v1.6.0`）。
+1. 更新单源 `VERSION` 文件；`scripts/check-release-version.sh` 会校验 `VERSION == rivet.rktd == MoveBit.csproj <Version>`，发布 tag 也必须与之一致（例如 `0.1.0` ↔ `v0.1.0`）。
 2. CI 全绿后再合并（Racket 测试 + Windows/macOS/Linux 宿主矩阵；CI 会验证 Windows 宿主编译）。
 3. 推送版本 tag。
 4. Release workflow 生成 macOS DMG + 便携 ZIP（arm64 与 x64）、Windows MSI + 便携 ZIP、Linux tar.gz、每个资产的 `.sha256` sidecar、`SHA256SUMS` 汇总清单和签名的 `update-manifest.json`；所有必要包都成功后才创建 GitHub Release，发布说明取自 CHANGELOG 对应段落。

@@ -40,6 +40,9 @@ public sealed class UpdateServiceTests : IDisposable
     }
 
     [Theory]
+    [InlineData("movebit-0.1.0-windows-x64.zip", "windows", "x64", ".zip", true)]
+    [InlineData("movebit-0.1.0-macos-arm64.dmg", "macos", "arm64", ".dmg", true)]
+    [InlineData("movebit-0.1.0-linux-x64.tar.gz", "linux", "x64", ".tar.gz", true)]
     [InlineData("movebit-1.6.0-windows-x64.zip", "windows", "x64", ".zip", true)]
     [InlineData("movebit-1.6.0-windows-x64.zip.sha256", "windows", "x64", ".zip", false)]
     [InlineData("movebit-1.6.0-windows-x64.msi", "windows", "x64", ".zip", false)]

@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.1.0] - 2026-10-10
+
+**Version-era reset.** The product's technical foundation is settled — one embedded-Racket domain core driving first-party native hosts on macOS, Windows, and Linux, with an Ed25519-signed update feed — so MoveBit enters a 0.x functional-validation phase. The version counter restarts at 0.1.0, every 1.x release and tag is retired, and from here on releases accumulate without deleting one another. This entry folds the whole 1.6.x line into a single section; the 1.x sections further below are kept as an archive.
+
+Everything shipped across 1.6.0 and 1.6.1 is present in this build:
+
+### Added
+
+- The in-app updater consumes the signed update feed: it downloads the single `update-manifest.json` from `releases/latest/download`, verifies the Ed25519 signature over the exact payload bytes (BouncyCastle.Cryptography), and pins both the signature key-id (`movebit-2026-10`) and the embedded public key before trusting a manifest
+- Artifact selection happens inside the signed manifest (platform + architecture), and downloads are verified against the manifest's SHA-256 and byte size — the old GitHub-API + `.sha256`-sidecar discovery path is gone
+- `scripts/update-keys.sh` manages the signing keypair the family way (private key outside the repo, DER base64 for the `UPDATE_ED25519_PRIVATE_KEY_B64` secret, raw public key for embedding)
+- The release matrix produces DMG and portable ZIP for macOS on both Apple silicon and Intel (`macos-arm64`, `macos-x64`)
+- Portable ZIPs ship for Windows x64 and macOS next to the MSI/DMG installers — these are also the archives the in-app update feed serves
+- Every release asset carries its own `.sha256` sidecar alongside the `SHA256SUMS` manifest
+
+### Changed
+
+- Release assets follow one lowercase naming scheme, `movebit-<version>-<os>-<arch>.<ext>` (e.g. `movebit-0.1.0-macos-arm64.dmg`, `movebit-0.1.0-windows-x64.msi`, `movebit-0.1.0-windows-x64.zip`, `movebit-0.1.0-linux-x64.tar.gz`); the site and the in-app updater match these names exactly
+- The signed update feed manifest is published as `update-manifest.json` (family format), listing the portable archives for every platform
+- The version lives in a single `VERSION` file; CI and the release pipeline verify `VERSION == rivet.rktd == MoveBit.csproj` before building
+
+### Fixed
+
+- The archived C# host's in-app updater searched GitHub Releases for asset names that were never published; it now matches the real portable-archive names and verifies them through the signed manifest
+
+### Security
+
+- Unsigned or wrongly-signed feeds are refused outright: bad schema, unknown algorithm, foreign key-id, tampered payload, non-https artifact URLs, and cross-application manifests all fail closed; no update ever falls back to an unsigned path
+- The feed signing key was rotated as the signature verifier landed (1.6.1); no shipped 1.x client verified signatures, so there was no trust to migrate
+
 ## [1.6.1] - 2026-10-10
 
 ### Added
