@@ -99,10 +99,10 @@ public static class UpdateService
     // update would replace the Pro binary with the MIT build. The Pro channel
     // is a license-gated feed on the product site (endpoint TODO with release);
     // until it exists Pro reports that no feed is configured.
-    private const string? SignedFeedUrl = null;
+    private static readonly string? SignedFeedUrl = null;
     private const string ProductUrl = "https://jrtx.site/movebit/pro";
 #else
-    private const string SignedFeedUrl =
+    private static readonly string? SignedFeedUrl =
         "https://github.com/turinglambdaai/movebit/releases/latest/download/update-manifest.json";
     private const string ProductUrl = "https://github.com/turinglambdaai/movebit";
 #endif
@@ -147,7 +147,7 @@ public static class UpdateService
             return new UpdateCheckResult(UpdateCheckStatus.UnsupportedPlatform);
         }
 
-        if (SignedFeedUrl is null)
+        if (SignedFeedUrl is not { } feedUrl)
         {
             return new UpdateCheckResult(
                 UpdateCheckStatus.Failed,
@@ -158,7 +158,7 @@ public static class UpdateService
         {
             TryCleanupStaleUpdates();
 
-            using var response = await Client.GetAsync(SignedFeedUrl, cancellationToken);
+            using var response = await Client.GetAsync(feedUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             var wrapperJson = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -377,7 +377,9 @@ public static class UpdateService
         try
         {
             var wrapper = JsonSerializer.Deserialize<SignedManifestWrapper>(wrapperJson);
-            if (wrapper?.Payload is not { } payloadBase64 || wrapper.Signature is not { } signature)
+            if (wrapper?.Payload is not { } payloadBase64
+                || wrapper.Signature is not { } signature
+                || signature.Value is not { } signatureBase64)
             {
                 return false;
             }
@@ -398,7 +400,7 @@ public static class UpdateService
             }
 
             var payload = Convert.FromBase64String(payloadBase64);
-            var signatureBytes = Convert.FromBase64String(signature.Value);
+            var signatureBytes = Convert.FromBase64String(signatureBase64);
             if (signatureBytes.Length != Ed25519.SignatureSize || publicKey.Length != Ed25519.PublicKeySize)
             {
                 return false;
@@ -434,9 +436,11 @@ public static class UpdateService
         manifest = null;
         var dto = JsonSerializer.Deserialize<ManifestPayload>(payload);
         if (dto is null
-            || !string.Equals(dto.ApplicationId, FeedApplicationId, StringComparison.Ordinal)
-            || !string.Equals(dto.Channel, FeedChannel, StringComparison.Ordinal)
+            || dto.ApplicationId is not { } applicationId
+            || dto.Channel is not { } channel
             || !TryParseVersionTag(dto.Version, out var version)
+            || !string.Equals(applicationId, FeedApplicationId, StringComparison.Ordinal)
+            || !string.Equals(channel, FeedChannel, StringComparison.Ordinal)
             || dto.Artifacts is null
             || dto.Artifacts.Count == 0)
         {
@@ -478,9 +482,9 @@ public static class UpdateService
         }
 
         manifest = new SignedFeedManifest(
-            dto.ApplicationId,
+            applicationId,
             version,
-            dto.Channel,
+            channel,
             dto.MinimumVersion ?? "0.0.0",
             artifacts);
         return true;
