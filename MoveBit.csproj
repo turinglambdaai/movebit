@@ -11,9 +11,9 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- Kept in sync with the VERSION file by scripts/check-release-version.sh. -->
-    <Version>0.1.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <Version>0.2.0</Version>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <FileVersion>0.2.0.0</FileVersion>
     <Authors>turinglambdaai</Authors>
     <Product>MoveBit</Product>
     <Description>A cross-platform tray app that watches your active work time and nudges you to move, stretch, and drink water.</Description>

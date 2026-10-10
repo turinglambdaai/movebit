@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0] - 2026-10-10
+
+**Linux catches up to the family standard.** Where v0.1.0 shipped a single Linux portable archive, this release covers both Linux architectures and adds native installer formats, keeping the same embedded-Racket payload everywhere.
+
+### Added
+
+- Linux arm64 is a first-class release target: `movebit-<version>-linux-arm64.tar.gz` is built on native `ubuntu-24.04-arm` runners with the same source-built embeddable Racket CS recipe as x64 (per-arch build cache keyed on `runner.arch`)
+- Debian packages for both architectures (`movebit-<version>-linux-x64.deb`, `movebit-<version>-linux-arm64.deb`): the self-contained payload installs under `/opt/movebit`, with a `/usr/bin/movebit` symlink, a desktop entry, and the hicolor icon; the Racket CS runtime is statically linked into the host, so the only runtime Depends are `libgtk-4-1` and `libtinfo6`
+- An AppImage for Linux x64 (`movebit-<version>-linux-x64.AppImage`), assembled with the official `appimagetool` (AppImage/appimagetool 1.9.1, tag-pinned and SHA-256-checked per architecture); the arm64 AppImage builds best-effort with the aarch64 tool and warns instead of failing the release
+- The signed update feed carries a Linux arm64 entry; the update payload stays the tar.gz on every Linux architecture — deb and AppImage are installer assets and never enter the feed
+- `packaging/linux/build-deb.sh` and `packaging/linux/build-appimage.sh` self-verify their output (dpkg metadata round-trip, FHS contents, AppImage self-extraction) inside the release job, since Linux installers cannot be executed on the publishing host
+
+### Changed
+
+- The release Linux job is a two-architecture matrix (`linux-x64`, `linux-arm64` artifacts); `SHA256SUMS` covers every new asset through the same per-asset `.sha256` sidecars
+
 ## [0.1.0] - 2026-10-10
 
 **Version-era reset.** The product's technical foundation is settled — one embedded-Racket domain core driving first-party native hosts on macOS, Windows, and Linux, with an Ed25519-signed update feed — so MoveBit enters a 0.x functional-validation phase. The version counter restarts at 0.1.0, every 1.x release and tag is retired, and from here on releases accumulate without deleting one another. This entry folds the whole 1.6.x line into a single section; the 1.x sections further below are kept as an archive.

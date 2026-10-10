@@ -17,7 +17,7 @@ Most reminder tools lose the moment the notification becomes easy to dismiss. Mo
 - **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return. Completing a forced break does the same, and the break itself is never counted as active work.
 - **Show patterns, not just today's number.** The main window can switch between 7-day and 30-day activity history and tracks continuous-work streaks, recent longest sessions, active-day averages, and the busiest recent day.
 - **Keep installed copies current where the installation is user-writable.** MoveBit's update feed serves portable archives from GitHub Releases with SHA-256 sidecars, and the C# line checks it in the background, verifying SHA-256, replacing the current portable/per-user installation, and restarting only after you explicitly choose **Update & Restart**.
-- **Ship native installers and portable archives for every supported desktop.** Windows gets an MSI plus a portable ZIP, macOS gets a DMG plus a portable ZIP on both Apple silicon and Intel, and Linux gets a portable tar.gz.
+- **Ship native installers and portable archives for every supported desktop.** Windows gets an MSI plus a portable ZIP, macOS gets a DMG plus a portable ZIP on both Apple silicon and Intel, and Linux gets a portable tar.gz plus a deb and an AppImage on x64 (deb on arm64).
 
 ## v1 product guarantees
 
@@ -61,15 +61,16 @@ Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releas
 | macOS Intel | `movebit-<version>-macos-x64.zip` | `movebit-<version>-macos-x64.dmg` |
 | Windows x64 | `movebit-<version>-windows-x64.zip` | `movebit-<version>-windows-x64.msi` |
 | Windows ARM64 | runs the x64 build via Windows on ARM's x64 emulation | — |
-| Linux x64 | `movebit-<version>-linux-x64.tar.gz` | — |
+| Linux x64 | `movebit-<version>-linux-x64.tar.gz` | `movebit-<version>-linux-x64.deb` · `movebit-<version>-linux-x64.AppImage` |
+| Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` | `movebit-<version>-linux-arm64.deb` |
 
-Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.1.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
+Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.2.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
 
 Platform notes:
 
 - **Windows** — run the MSI for a normal installed app, or unpack the portable ZIP anywhere you like. On ARM64 Windows, use the x64 assets: Windows on ARM runs them through its x64 emulation, and no native ARM64 build is published.
 - **macOS** — open the DMG and drag **MoveBit.app** to Applications (or another folder); the portable ZIP is the same app bundle without the disk image. Builds are ad-hoc signed, not notarized, so Gatekeeper may require an explicit first-launch approval (right-click → Open, or `xattr -cr /Applications/MoveBit.app`). Notarization is deferred until paid Apple developer credentials are available.
-- **Linux** — unpack the tar.gz and run the host inside; GTK 4 and its system libraries are the only runtime dependencies, everything else is bundled.
+- **Linux** — install the deb (`sudo apt install ./movebit-<version>-linux-<arch>.deb`), run the AppImage, or unpack the tar.gz and run the host inside; GTK 4 and its system libraries are the only runtime dependencies, everything else is bundled. The deb installs to `/opt/movebit` with a `movebit` command and a desktop entry.
 
 > Release binaries carry no publisher code signature. Windows SmartScreen or macOS Gatekeeper may therefore show a warning on first launch. Paid code signing/notarization is the remaining distribution roadmap item.
 
@@ -139,18 +140,19 @@ Requires the .NET 10 SDK. Native package scripts live under `packaging/`:
 
 ```bash
 # macOS runner
-bash packaging/macos/build-native.sh 0.1.0
+bash packaging/macos/build-native.sh 0.2.0
 
-# Debian/Ubuntu runner
-bash packaging/linux/build-deb.sh 0.1.0
+# Debian/Ubuntu runner — package rivet's staged dist/movebit-linux-<arch>/
+bash packaging/linux/build-deb.sh 0.2.0 dist/movebit-linux-x64 x64
+bash packaging/linux/build-appimage.sh 0.2.0 dist/movebit-linux-x64 x64
 ```
 
 ## Release process
 
-1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `0.1.0` ↔ `v0.1.0`).
+1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `0.2.0` ↔ `v0.2.0`).
 2. Merge only with CI green (Racket tests plus the Windows/macOS/Linux host matrix; CI verifies the Windows host compile).
 3. Push the version tag.
-4. Release automation builds macOS DMG + portable ZIP (arm64 and x64), the Windows MSI + portable ZIP, the Linux tar.gz, per-asset `.sha256` sidecars, the `SHA256SUMS` manifest, and the signed `update-manifest.json`; one GitHub Release is created only after every required package succeeds, with the release notes taken from the matching CHANGELOG section.
+4. Release automation builds macOS DMG + portable ZIP (arm64 and x64), the Windows MSI + portable ZIP, the Linux tar.gz (x64 + arm64) plus deb (both arches) and AppImage installers, per-asset `.sha256` sidecars, the `SHA256SUMS` manifest, and the signed `update-manifest.json`; one GitHub Release is created only after every required package succeeds, with the release notes taken from the matching CHANGELOG section.
 5. The portable archives are the update feed: updatable installations discover the new release through GitHub's latest-release API and match assets by the published `movebit-<version>-<os>-<arch>.<ext>` naming.
 
 ## Roadmap

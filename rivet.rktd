@@ -1,6 +1,6 @@
 #hasheq((name . "movebit")
         (display-name . "MoveBit")
-        (version . "0.1.0")
+        (version . "0.2.0")
         (build . 1)
         (identifier . "site.jrtx.movebit")
         (release-channel . stable)
