@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Org.BouncyCastle.Math.EC.Rfc8032;
 
 namespace MoveBit.Services;
 
@@ -41,10 +42,10 @@ public sealed record UpdateProgress(UpdateStage Stage, int? Percentage = null);
 public sealed record UpdateInfo(
     Version Version,
     string TagName,
-    string ReleaseNotes,
     Uri ReleasePage,
     Uri PackageUri,
-    Uri ChecksumUri,
+    string Sha256,
+    long Size,
     string PackageName);
 
 public sealed record UpdateCheckResult(
@@ -56,32 +57,77 @@ public sealed record UpdateInstallResult(
     UpdateInstallStatus Status,
     string? ErrorMessage = null);
 
+/// <summary>One platform entry of the signed update feed's inner manifest.</summary>
+public sealed record SignedFeedArtifact(
+    string Platform,
+    string Architecture,
+    Uri Url,
+    string Sha256,
+    long Size,
+    string Installer);
+
+/// <summary>The parsed inner manifest carried (and signed) by the feed wrapper.</summary>
+public sealed record SignedFeedManifest(
+    string ApplicationId,
+    Version Version,
+    string Channel,
+    string MinimumVersion,
+    IReadOnlyList<SignedFeedArtifact> Artifacts);
+
 /// <summary>
-/// Cross-platform updater for MoveBit's GitHub Release portable archives. It never
-/// silently installs an update: discovery may be automatic, but applying requires an
-/// explicit user action. The package is verified against its published SHA-256 sidecar
-/// before extraction.
+/// Cross-platform updater for MoveBit's signed GitHub Release feed. It never
+/// silently installs an update: discovery may be automatic, but applying requires
+/// an explicit user action. The feed is a single Ed25519-signed
+/// <c>update-manifest.json</c> (family wrapper: base64 payload + signature block);
+/// the signature, the pinned key-id, and the artifact SHA-256/size are all verified
+/// before anything is staged.
 /// </summary>
 /// <remarks>
-/// Feed design (deliberate, not half-migrated): discovery uses GitHub's latest-release
-/// API and the platform's portable archive, matched by the exact naming scheme the
-/// release pipeline publishes (<c>movebit-&lt;version&gt;-&lt;os&gt;-&lt;arch&gt;.&lt;ext&gt;</c>)
-/// plus its <c>.sha256</c> sidecar. The release also publishes the family's Ed25519-signed
-/// <c>update-manifest.json</c> wrapper; verifying it from C# needs a crypto dependency the
-/// project does not carry yet, so until that lands this stays on the checksum path.
+/// Feed design: discovery fetches the moving
+/// <c>releases/latest/download/update-manifest.json</c> (HttpClient follows the
+/// 302 to the CDN — rivet#153), verifies the Ed25519 signature over the exact
+/// payload bytes with the pinned public key (<see cref="PinnedFeedPublicKey"/>,
+/// managed by <c>scripts/update-keys.sh</c>), then selects this platform's
+/// portable archive from the signed artifact list. The archive's SHA-256 and
+/// size are checked against the signed values — there are no out-of-band
+/// checksums to trust.
 /// </remarks>
 public static class UpdateService
 {
 #if PRO
     // Pro builds must never see the public release channel: applying a public
     // update would replace the Pro binary with the MIT build. The Pro channel
-    // is a license-gated feed on the product site (endpoint TODO with release).
-    private const string LatestReleaseApi = "https://jrtx.site/movebit/pro/releases/latest.json";
+    // is a license-gated feed on the product site (endpoint TODO with release);
+    // until it exists Pro reports that no feed is configured.
+    private const string? SignedFeedUrl = null;
     private const string ProductUrl = "https://jrtx.site/movebit/pro";
 #else
-    private const string LatestReleaseApi = "https://api.github.com/repos/turinglambdaai/movebit/releases/latest";
+    private const string SignedFeedUrl =
+        "https://github.com/turinglambdaai/movebit/releases/latest/download/update-manifest.json";
     private const string ProductUrl = "https://github.com/turinglambdaai/movebit";
 #endif
+
+    /// <summary>Ed25519 public key (raw 32 bytes, base64) that update manifests must
+    /// be signed with. From the keypair managed by scripts/update-keys.sh; the
+    /// private half lives only in the release signing secret and the release
+    /// manager's backup. Rotating requires a release that pins the next key.</summary>
+    public static readonly byte[] PinnedFeedPublicKey =
+        Convert.FromBase64String("t4Z+rtAk2NtcgFBUX+r139X1c2EnVOaI/HxkN4vs914=");
+
+    /// <summary>Manifests signed under any other key-id are rejected before any
+    /// crypto runs. Must match RIVET_UPDATE_KEY_ID in the release pipeline.</summary>
+    public const string PinnedFeedKeyId = "movebit-2026-10";
+
+    /// <summary>The feed wrapper schema this verifier understands; unknown schemas fail closed.</summary>
+    public const int FeedSchemaVersion = 1;
+
+    /// <summary>A manifest claiming another application's identity is rejected —
+    /// a stray or cross-app feed must never select artifacts here.</summary>
+    public const string FeedApplicationId = "site.jrtx.movebit";
+
+    /// <summary>Only the stable channel is consumed by this build.</summary>
+    public const string FeedChannel = "stable";
+
     private const string UpdatesFolderName = "movebit-updates";
     private static readonly HttpClient Client = CreateHttpClient();
 
@@ -101,51 +147,63 @@ public static class UpdateService
             return new UpdateCheckResult(UpdateCheckStatus.UnsupportedPlatform);
         }
 
+        if (SignedFeedUrl is null)
+        {
+            return new UpdateCheckResult(
+                UpdateCheckStatus.Failed,
+                ErrorMessage: "Pro 更新通道尚未开放，请前往 jrtx.site 检查更新。");
+        }
+
         try
         {
             TryCleanupStaleUpdates();
 
-            using var response = await Client.GetAsync(LatestReleaseApi, cancellationToken);
+            using var response = await Client.GetAsync(SignedFeedUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            var release = await JsonSerializer.DeserializeAsync<GitHubRelease>(stream, cancellationToken: cancellationToken);
-            if (release is null || !TryParseVersionTag(release.TagName, out var remoteVersion))
+            var wrapperJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!TryReadSignedFeed(wrapperJson, PinnedFeedPublicKey, PinnedFeedKeyId, out var manifest)
+                || manifest is null)
             {
-                return new UpdateCheckResult(UpdateCheckStatus.Failed, ErrorMessage: "GitHub 返回了无效的版本信息。");
+                // Verification failure is deliberately indistinguishable from a
+                // broken feed to a would-be attacker: the update is refused, never
+                // downgraded to an unsigned path.
+                return new UpdateCheckResult(
+                    UpdateCheckStatus.Failed,
+                    ErrorMessage: "更新清单签名验证失败，已拒绝本次更新。");
             }
 
-            if (remoteVersion.CompareTo(CurrentVersion) <= 0)
+            // Clients below the feed's minimum updatable version must not ride
+            // this channel (same rule as rivet's select-update).
+            if (TryParseVersionTag(manifest.MinimumVersion, out var minimum)
+                && CurrentVersion.CompareTo(NormalizeVersion(minimum)) < 0)
             {
                 return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
             }
 
-            // Asset names carry the release version (movebit-<version>-<os>-<arch>.<ext>),
-            // so the platform archive is matched by the release pipeline's naming pattern,
-            // never by a hard-coded full name.
-            var package = release.Assets.Find(a => target.AssetPattern().IsMatch(a.Name));
-            var checksum = release.Assets.Find(a => string.Equals(a.Name, package?.Name + ".sha256", StringComparison.Ordinal));
-            if (package?.BrowserDownloadUrl is null || checksum?.BrowserDownloadUrl is null)
+            if (manifest.Version.CompareTo(CurrentVersion) <= 0)
+            {
+                return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
+            }
+
+            var artifact = SelectArtifact(manifest, target.Os, target.Arch);
+            if (artifact is null)
             {
                 return new UpdateCheckResult(
                     UpdateCheckStatus.Failed,
-                    ErrorMessage: $"最新版本缺少 {target.ArchiveDescription} 或对应的 SHA-256 校验文件。");
+                    ErrorMessage: $"最新版本缺少 {target.ArchiveDescription} 更新包。");
             }
-
-            var releasePage = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var parsedPage)
-                ? parsedPage
-                : new Uri(ProductUrl + "/releases/latest");
 
             return new UpdateCheckResult(
                 UpdateCheckStatus.UpdateAvailable,
                 new UpdateInfo(
-                    remoteVersion,
-                    release.TagName,
-                    release.Body ?? string.Empty,
-                    releasePage,
-                    new Uri(package.BrowserDownloadUrl),
-                    new Uri(checksum.BrowserDownloadUrl),
-                    package.Name));
+                    manifest.Version,
+                    $"v{FormatVersion(manifest.Version)}",
+                    new Uri($"{ProductUrl}/releases/tag/v{FormatVersion(manifest.Version)}"),
+                    artifact.Url,
+                    artifact.Sha256,
+                    artifact.Size,
+                    Path.GetFileName(artifact.Url.LocalPath)));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -204,7 +262,6 @@ public static class UpdateService
             UpdatesFolderName,
             $"{update.Version.Major}.{update.Version.Minor}.{update.Version.Build}-{Guid.NewGuid():N}");
         var packagePath = Path.Combine(root, update.PackageName);
-        var checksumPath = packagePath + ".sha256";
         var stagingDirectory = Path.Combine(root, "staging");
 
         try
@@ -214,13 +271,13 @@ public static class UpdateService
 
             progress?.Report(new UpdateProgress(UpdateStage.Downloading, 0));
             await DownloadFileAsync(update.PackageUri, packagePath, progress, cancellationToken);
-            await DownloadFileAsync(update.ChecksumUri, checksumPath, null, cancellationToken);
 
             progress?.Report(new UpdateProgress(UpdateStage.Verifying));
-            var checksumText = await File.ReadAllTextAsync(checksumPath, cancellationToken);
-            if (!ChecksumMatches(packagePath, checksumText))
+            // The only accepted checksum is the one inside the signed manifest;
+            // there is no sidecar to fetch, so a swapped mirror file cannot pass.
+            if (!Sha256Matches(packagePath, update.Sha256, update.Size))
             {
-                throw new InvalidDataException("下载包的 SHA-256 校验失败。");
+                throw new InvalidDataException("下载包的 SHA-256 校验失败（与签名清单不符）。");
             }
 
             progress?.Report(new UpdateProgress(UpdateStage.Preparing));
@@ -274,25 +331,24 @@ public static class UpdateService
         => TryParseVersionTag(tagName, out var candidate)
            && candidate.CompareTo(NormalizeVersion(currentVersion)) > 0;
 
-    /// <summary>Verifies a sha256sum-style sidecar against a downloaded file.</summary>
-    public static bool ChecksumMatches(string filePath, string checksumText)
+    /// <summary>Verifies a downloaded file against the hex SHA-256 recorded in the
+    /// signed feed manifest (case-insensitive), and, when <paramref name="expectedSize"/>
+    /// is non-negative, the exact byte size.</summary>
+    public static bool Sha256Matches(string filePath, string sha256Hex, long expectedSize = -1)
     {
-        if (string.IsNullOrWhiteSpace(checksumText))
-        {
-            return false;
-        }
-
-        var token = checksumText
-            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault();
-        if (token is null || token.Length != 64)
+        if (string.IsNullOrWhiteSpace(sha256Hex) || sha256Hex.Length != 64)
         {
             return false;
         }
 
         try
         {
-            var expected = Convert.FromHexString(token);
+            var expected = Convert.FromHexString(sha256Hex);
+            if (expectedSize >= 0 && new FileInfo(filePath).Length != expectedSize)
+            {
+                return false;
+            }
+
             using var stream = File.OpenRead(filePath);
             var actual = SHA256.HashData(stream);
             return CryptographicOperations.FixedTimeEquals(expected, actual);
@@ -303,22 +359,163 @@ public static class UpdateService
         }
     }
 
+    /// <summary>
+    /// Parses and verifies a signed feed wrapper (the family
+    /// <c>update-manifest.json</c>: base64 payload + Ed25519 signature block).
+    /// Every gate must pass before the inner manifest is surfaced:
+    /// schema 1, the ed25519 algorithm, the pinned key-id, the signature over the
+    /// exact payload bytes, and payload fields (application id, channel, https
+    /// artifact URLs, well-formed hex digests). Any failure returns false.
+    /// </summary>
+    public static bool TryReadSignedFeed(
+        string wrapperJson,
+        ReadOnlySpan<byte> publicKey,
+        string expectedKeyId,
+        out SignedFeedManifest? manifest)
+    {
+        manifest = null;
+        try
+        {
+            var wrapper = JsonSerializer.Deserialize<SignedManifestWrapper>(wrapperJson);
+            if (wrapper?.Payload is not { } payloadBase64 || wrapper.Signature is not { } signature)
+            {
+                return false;
+            }
+
+            if (wrapper.Schema != FeedSchemaVersion)
+            {
+                return false;
+            }
+
+            if (!string.Equals(signature.Algorithm, "ed25519", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (!string.Equals(signature.KeyId, expectedKeyId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var payload = Convert.FromBase64String(payloadBase64);
+            var signatureBytes = Convert.FromBase64String(signature.Value);
+            if (signatureBytes.Length != Ed25519.SignatureSize || publicKey.Length != Ed25519.PublicKeySize)
+            {
+                return false;
+            }
+
+            if (!Ed25519.Verify(signatureBytes, publicKey, payload))
+            {
+                return false;
+            }
+
+            return TryReadManifestPayload(payload, out manifest);
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException or ArgumentException)
+        {
+            // Malformed JSON, bad base64, or an unusable key: reject, never throw.
+            return false;
+        }
+    }
+
+    /// <summary>Selects the feed artifact for one platform/architecture
+    /// (case-insensitive ordinal match), or null when the feed does not serve it.</summary>
+    public static SignedFeedArtifact? SelectArtifact(SignedFeedManifest manifest, string os, string architecture)
+        => manifest.Artifacts.FirstOrDefault(artifact =>
+            string.Equals(artifact.Platform, os, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(artifact.Architecture, architecture, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Three-part version text (the form the feed and release tags use).</summary>
+    private static string FormatVersion(Version version)
+        => $"{version.Major}.{version.Minor}.{version.Build}";
+
+    private static bool TryReadManifestPayload(byte[] payload, out SignedFeedManifest? manifest)
+    {
+        manifest = null;
+        var dto = JsonSerializer.Deserialize<ManifestPayload>(payload);
+        if (dto is null
+            || !string.Equals(dto.ApplicationId, FeedApplicationId, StringComparison.Ordinal)
+            || !string.Equals(dto.Channel, FeedChannel, StringComparison.Ordinal)
+            || !TryParseVersionTag(dto.Version, out var version)
+            || dto.Artifacts is null
+            || dto.Artifacts.Count == 0)
+        {
+            return false;
+        }
+
+        var artifacts = new List<SignedFeedArtifact>(dto.Artifacts.Count);
+        foreach (var artifact in dto.Artifacts)
+        {
+            if (artifact?.Platform is null
+                || artifact.Architecture is null
+                || artifact.Url is null
+                || artifact.Sha256 is null
+                || artifact.Size < 0)
+            {
+                return false;
+            }
+
+            // Artifact origins are pinned to https: a signature over an http URL
+            // would still let a network position swap the archive in transit.
+            if (!Uri.TryCreate(artifact.Url, UriKind.Absolute, out var url)
+                || url.Scheme != Uri.UriSchemeHttps)
+            {
+                return false;
+            }
+
+            if (artifact.Sha256.Length != 64 || !IsHex(artifact.Sha256))
+            {
+                return false;
+            }
+
+            artifacts.Add(new SignedFeedArtifact(
+                artifact.Platform,
+                artifact.Architecture,
+                url,
+                artifact.Sha256.ToLowerInvariant(),
+                artifact.Size,
+                artifact.Installer ?? string.Empty));
+        }
+
+        manifest = new SignedFeedManifest(
+            dto.ApplicationId,
+            version,
+            dto.Channel,
+            dto.MinimumVersion ?? "0.0.0",
+            artifacts);
+        return true;
+    }
+
+    private static bool IsHex(string text)
+    {
+        foreach (var c in text)
+        {
+            var isHex = c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+            if (!isHex)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        // The manifest is the only buffered read; artifact downloads stream with
+        // ResponseHeadersRead and are unaffected by this cap.
+        client.MaxResponseContentBufferSize = 8 * 1024 * 1024;
         client.DefaultRequestHeaders.TryAddWithoutValidation(
             "User-Agent",
             $"MoveBit/{CurrentVersionText} (+{ProductUrl})");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/vnd.github+json");
         return client;
     }
 
-    /// <summary>
-    /// The portable archive the update feed serves to one platform, expressed with the
+    /// <summary>The portable archive the update feed serves to one platform, expressed with the
     /// release pipeline's naming scheme: <c>movebit-&lt;version&gt;-&lt;os&gt;-&lt;arch&gt;&lt;extension&gt;</c>,
     /// always lowercase. Windows ARM64 is served the x64 archive (Windows on ARM runs it
-    /// through x64 emulation); Linux arm64 has no release artifact and stays unsupported.
-    /// </summary>
+    /// through x64 emulation); Linux arm64 has no release artifact and stays unsupported.</summary>
     private sealed record PlatformTarget(string Os, string Arch, string Extension)
     {
         /// <summary>Anchored pattern for the exact asset names the release publishes.</summary>
@@ -692,28 +889,70 @@ public static class UpdateService
         }
     }
 
-    private sealed class GitHubRelease
+    private sealed class SignedManifestWrapper
     {
-        [JsonPropertyName("tag_name")]
-        public string TagName { get; init; } = string.Empty;
+        [JsonPropertyName("payload")]
+        public string? Payload { get; init; }
 
-        [JsonPropertyName("html_url")]
-        public string? HtmlUrl { get; init; }
+        [JsonPropertyName("schema")]
+        public int Schema { get; init; }
 
-        [JsonPropertyName("body")]
-        public string? Body { get; init; }
-
-        [JsonPropertyName("assets")]
-        public List<GitHubAsset> Assets { get; init; } = [];
+        [JsonPropertyName("signature")]
+        public SignedManifestSignature? Signature { get; init; }
     }
 
-    private sealed class GitHubAsset
+    private sealed class SignedManifestSignature
     {
-        [JsonPropertyName("name")]
-        public string Name { get; init; } = string.Empty;
+        [JsonPropertyName("algorithm")]
+        public string? Algorithm { get; init; }
 
-        [JsonPropertyName("browser_download_url")]
-        public string? BrowserDownloadUrl { get; init; }
+        [JsonPropertyName("key_id")]
+        public string? KeyId { get; init; }
+
+        [JsonPropertyName("value")]
+        public string? Value { get; init; }
+    }
+
+    // Field names follow rivet/distribution's payload JSON exactly; unknown
+    // fields (build, rollout, published_at, arguments, ...) are ignored so the
+    // signer can evolve without breaking old verifiers.
+    private sealed class ManifestPayload
+    {
+        [JsonPropertyName("application_id")]
+        public string? ApplicationId { get; init; }
+
+        [JsonPropertyName("version")]
+        public string? Version { get; init; }
+
+        [JsonPropertyName("channel")]
+        public string? Channel { get; init; }
+
+        [JsonPropertyName("minimum_version")]
+        public string? MinimumVersion { get; init; }
+
+        [JsonPropertyName("artifacts")]
+        public List<ManifestArtifactDto>? Artifacts { get; init; }
+    }
+
+    private sealed class ManifestArtifactDto
+    {
+        [JsonPropertyName("platform")]
+        public string? Platform { get; init; }
+
+        [JsonPropertyName("architecture")]
+        public string? Architecture { get; init; }
+
+        [JsonPropertyName("url")]
+        public string? Url { get; init; }
+
+        [JsonPropertyName("sha256")]
+        public string? Sha256 { get; init; }
+
+        [JsonPropertyName("size")]
+        public long Size { get; init; }
+
+        [JsonPropertyName("installer")]
+        public string? Installer { get; init; }
     }
 
     private const string WindowsUpdaterScript = """

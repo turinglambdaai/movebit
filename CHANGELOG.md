@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.1] - 2026-10-10
+
+### Added
+
+- The in-app updater now consumes the signed update feed: it downloads the single `update-manifest.json` from `releases/latest/download`, verifies the Ed25519 signature over the exact payload bytes (BouncyCastle.Cryptography), and pins both the signature key-id (`movebit-2026-10`) and the embedded public key before trusting a manifest
+- Artifact selection happens inside the signed manifest (platform + architecture), and downloads are verified against the manifest's SHA-256 and byte size — the old GitHub-API + `.sha256`-sidecar discovery path is gone
+- `scripts/update-keys.sh` manages the signing keypair the family way (private key outside the repo, DER base64 for the `UPDATE_ED25519_PRIVATE_KEY_B64` secret, raw public key for embedding)
+
+### Security
+
+- Unsigned or wrongly-signed feeds are refused outright: bad schema, unknown algorithm, foreign key-id, tampered payload, non-https artifact URLs, and cross-application manifests all fail closed; no update ever falls back to the unsigned path
+- The feed signing key was rotated as this verifier landed — no shipped client verified signatures yet (1.6.0's updater trusts only checksums), so 1.6.1 is the first build pinning a key and there was no trust to migrate
+
 ## [1.6.0] - 2026-10-09
 
 ### Added

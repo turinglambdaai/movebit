@@ -11,9 +11,9 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- Kept in sync with the VERSION file by scripts/check-release-version.sh. -->
-    <Version>1.6.0</Version>
-    <AssemblyVersion>1.6.0.0</AssemblyVersion>
-    <FileVersion>1.6.0.0</FileVersion>
+    <Version>1.6.1</Version>
+    <AssemblyVersion>1.6.1.0</AssemblyVersion>
+    <FileVersion>1.6.1.0</FileVersion>
     <Authors>turinglambdaai</Authors>
     <Product>MoveBit</Product>
     <Description>A cross-platform tray app that watches your active work time and nudges you to move, stretch, and drink water.</Description>
@@ -37,6 +37,9 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
     <PackageReference Include="Avalonia.Diagnostics" Version="11.3.22" Condition="'$(Configuration)' == 'Debug'" />
+    <!-- Ed25519 verification of the signed update feed (pure managed, no native
+         per-RID assets). NSec was preferred but is not on the family NuGet mirror. -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
   </ItemGroup>
 
 </Project>

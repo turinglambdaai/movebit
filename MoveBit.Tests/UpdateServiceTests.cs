@@ -60,24 +60,31 @@ public sealed class UpdateServiceTests : IDisposable
     }
 
     [Fact]
-    public void ChecksumMatches_accepts_sha256sum_sidecar()
+    public void Sha256Matches_accepts_signed_manifest_digest()
     {
         var path = Path.Combine(_directory, "package.zip");
         File.WriteAllText(path, "movebit update payload");
         var digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
 
-        Assert.True(UpdateService.ChecksumMatches(path, $"{digest}  movebit-1.6.0-windows-x64.zip\n"));
+        Assert.True(UpdateService.Sha256Matches(path, digest, new FileInfo(path).Length));
+        Assert.True(UpdateService.Sha256Matches(path, digest.ToUpperInvariant()));
     }
 
     [Fact]
-    public void ChecksumMatches_rejects_tampering()
+    public void Sha256Matches_rejects_tampering_and_wrong_size()
     {
         var path = Path.Combine(_directory, "package.zip");
         File.WriteAllText(path, "original payload");
         var digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
         File.WriteAllText(path, "modified payload");
 
-        Assert.False(UpdateService.ChecksumMatches(path, $"{digest}  movebit-1.6.0-windows-x64.zip\n"));
-        Assert.False(UpdateService.ChecksumMatches(path, "not-a-checksum"));
+        Assert.False(UpdateService.Sha256Matches(path, digest));
+        Assert.False(UpdateService.Sha256Matches(path, "not-a-checksum"));
+        Assert.False(UpdateService.Sha256Matches(path, digest[..63] + "0"));
+
+        // Size gate: the signed manifest records the exact archive length.
+        File.WriteAllText(path, "original payload");
+        Assert.False(UpdateService.Sha256Matches(path, digest, expectedSize: new FileInfo(path).Length + 1));
+        Assert.True(UpdateService.Sha256Matches(path, digest, expectedSize: new FileInfo(path).Length));
     }
 }
