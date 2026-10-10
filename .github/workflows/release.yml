@@ -20,7 +20,7 @@ jobs:
     name: Validate release tag
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Version preflight (VERSION == rivet.rktd == csproj == tag)
@@ -45,7 +45,7 @@ jobs:
             runner: macos-15-intel
             racket-arch: x64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Checkout pinned Rivet
         run: |
           git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
@@ -89,7 +89,7 @@ jobs:
     needs: validate
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Checkout pinned Rivet
         run: |
           git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
@@ -200,7 +200,7 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Checkout pinned Rivet
         run: |
           git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
@@ -324,7 +324,7 @@ jobs:
     needs: [macos, windows, linux]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Checkout pinned Rivet
         run: |
           git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
