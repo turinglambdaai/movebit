@@ -181,10 +181,24 @@ jobs:
 
   # The Linux host needs an embeddable static libracketcs, which the standard
   # Racket installers do not ship; same recipe as ci.yml's host-linux job.
+  # Both family architectures build from source on their native runner
+  # (x64: ubuntu-24.04, arm64: ubuntu-24.04-arm); the cache key carries
+  # runner.arch so each arch keeps its own embeddable runtime. Each leg
+  # packages the tar.gz (the update-feed payload) plus the installer
+  # assets: a hand-rolled deb (both arches) and an AppImage (x64 required,
+  # arm64 best-effort — installer assets, never the update payload).
   linux:
-    name: Linux tar.gz
+    name: Linux ${{ matrix.arch }}
     needs: validate
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
       - name: Checkout pinned Rivet
@@ -219,10 +233,10 @@ jobs:
           "$source_root/src/configure" --prefix="$embed_prefix"
           make -j2
           make install
-      - name: Install GTK4 and a virtual display
+      - name: Install GTK4, a virtual display, and packaging tooling
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libgtk-4-dev xvfb
+          sudo apt-get install --yes libgtk-4-dev xvfb file desktop-file-utils squashfs-tools
       - name: Link Rivet + crypto package
         shell: bash
         run: |
@@ -230,7 +244,7 @@ jobs:
           export PATH="$RUNNER_TEMP/racket-embed/bin:$PATH"
           raco pkg install --auto --no-docs crypto
           raco pkg install --auto --no-docs --link "$GITHUB_WORKSPACE/rivet/rivet" "$GITHUB_WORKSPACE/rivet/rivet-cli"
-      - name: Package + tar.gz (rivet release, development signing)
+      - name: Package (rivet release, development signing)
         shell: bash
         env:
           RIVET_UPDATE_BASE_URL: https://github.com/turinglambdaai/movebit/releases/download/${{ github.ref_name }}
@@ -263,13 +277,45 @@ jobs:
           rm -f "$KEY_DER"
       - name: Collect tar.gz + checksum
         run: |
+          set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
           rm -f dist/update-*.json
-          mv dist/*.tar.gz "movebit-${VERSION}-linux-x64.tar.gz"
-          sha256sum "movebit-${VERSION}-linux-x64.tar.gz" > "movebit-${VERSION}-linux-x64.tar.gz.sha256"
+          # rivet names the tarball after the building machine's arch, which
+          # equals the matrix arch by construction of the runner matrix.
+          test -f "dist/movebit-${VERSION}-linux-${ARCH}.tar.gz"
+          mv "dist/movebit-${VERSION}-linux-${ARCH}.tar.gz" \
+            "movebit-${VERSION}-linux-${ARCH}.tar.gz"
+          sha256sum "movebit-${VERSION}-linux-${ARCH}.tar.gz" \
+            > "movebit-${VERSION}-linux-${ARCH}.tar.gz.sha256"
+      - name: deb (installer asset)
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          bash packaging/linux/build-deb.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
+      - name: AppImage (installer asset)
+        if: matrix.arch == 'x64'
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          bash packaging/linux/build-appimage.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
+      - name: AppImage (arm64, best effort — the aarch64 appimagetool path is young)
+        if: matrix.arch == 'arm64'
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          if ! bash packaging/linux/build-appimage.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"; then
+            echo "::warning::arm64 AppImage build failed — arm64 still ships tar.gz + deb; retry next release"
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: linux-${{ matrix.arch }}
           path: movebit-*
           if-no-files-found: error
 

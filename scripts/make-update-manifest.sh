@@ -10,6 +10,7 @@
 #                    movebit-<version>-macos-x64.zip
 #                    movebit-<version>-windows-x64.zip
 #                    movebit-<version>-linux-x64.tar.gz
+#                    movebit-<version>-linux-arm64.tar.gz
 #   <key-der-path> Ed25519 private key in DER (OneAsymmetricKey) form; the
 #                  CI secret stores it base64-encoded.
 #
@@ -36,7 +37,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 for artifact in "$DIST/movebit-$VERSION-macos-arm64.zip" \
                 "$DIST/movebit-$VERSION-macos-x64.zip" \
                 "$DIST/movebit-$VERSION-windows-x64.zip" \
-                "$DIST/movebit-$VERSION-linux-x64.tar.gz"; do
+                "$DIST/movebit-$VERSION-linux-x64.tar.gz" \
+                "$DIST/movebit-$VERSION-linux-arm64.tar.gz"; do
   [[ -f "$artifact" ]] || { echo "error: missing $artifact" >&2; exit 1; }
 done
 
@@ -94,8 +96,12 @@ cat > "$SCRIPT" <<RKT
                                    (format "movebit-~a-macos-x64.zip" version) 'zip)
                          (artifact 'windows 'x64
                                    (format "movebit-~a-windows-x64.zip" version) 'zip)
+                         ;; The update payload stays the tar.gz on Linux —
+                         ;; the deb/AppImage are installer assets, never fed.
                          (artifact 'linux 'x64
-                                   (format "movebit-~a-linux-x64.tar.gz" version) 'tar-gz))))
+                                   (format "movebit-~a-linux-x64.tar.gz" version) 'tar-gz)
+                         (artifact 'linux 'arm64
+                                   (format "movebit-~a-linux-arm64.tar.gz" version) 'tar-gz))))
 
 ;; write-signed-manifest validates the struct against the manifest schema
 ;; before signing, so a malformed manifest fails the release instead of
@@ -108,7 +114,7 @@ cat > "$SCRIPT" <<RKT
                            key-id
                            out)
     (newline out)))
-(printf "manifest: ~a (4 artifacts, key-id ~a)\\n"
+(printf "manifest: ~a (5 artifacts, key-id ~a)\\n"
         (build-path dist "update-manifest.json") key-id)
 RKT
 
