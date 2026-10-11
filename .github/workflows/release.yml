@@ -337,10 +337,12 @@ jobs:
           # The packaging scripts write into dist/; the artifact upload path
           # is the repository root, so the installer assets join the tar.gz
           # there (their .sha256 sidecars move along, hashes are unchanged).
+          # The rpm file name carries the native arch spelling.
+          case "$ARCH" in x64) RPM_ARCH=x86_64 ;; arm64) RPM_ARCH=aarch64 ;; esac
           for f in "dist/movebit-${VERSION}-linux-${ARCH}.deb" \
                    "dist/movebit-${VERSION}-linux-${ARCH}.deb.sha256" \
-                   "dist/movebit-${VERSION}-linux-${ARCH}.rpm" \
-                   "dist/movebit-${VERSION}-linux-${ARCH}.rpm.sha256" \
+                   "dist/movebit-${VERSION}-linux-${RPM_ARCH}.rpm" \
+                   "dist/movebit-${VERSION}-linux-${RPM_ARCH}.rpm.sha256" \
                    "dist/movebit-${VERSION}-linux-${ARCH}.AppImage" \
                    "dist/movebit-${VERSION}-linux-${ARCH}.AppImage.sha256"; do
             [[ -f "$f" ]] || continue

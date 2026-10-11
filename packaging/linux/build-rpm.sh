@@ -103,8 +103,10 @@ rpmbuild -bb --define="_topdir $topdir" \
 
 artifact="$dest/movebit-${version}-1.${rpm_arch}.rpm"
 [[ -f "$artifact" ]] || { echo "error: rpmbuild did not produce $artifact" >&2; exit 1; }
-mv "$artifact" "$dest/movebit-${version}-linux-${arch}.rpm"
-artifact="$dest/movebit-${version}-linux-${arch}.rpm"
+# The final name carries the native rpm arch spelling (x86_64/aarch64),
+# matching the family benchmark (taskly/brainfuel/payback rpms).
+mv "$artifact" "$dest/movebit-${version}-linux-${rpm_arch}.rpm"
+artifact="$dest/movebit-${version}-linux-${rpm_arch}.rpm"
 
 # Verify the package metadata and payload presence.
 rpm -qp --qf '%{NAME} %{VERSION} %{ARCH}\n' "$artifact" | grep -q "^movebit $version $rpm_arch$"
