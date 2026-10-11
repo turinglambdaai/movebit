@@ -64,7 +64,7 @@ Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releas
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` | `movebit-<version>-linux-x64.deb` · `movebit-<version>-linux-x64.AppImage` |
 | Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` | `movebit-<version>-linux-arm64.deb` |
 
-Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.2.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
+Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.3.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json` that forms the update feed.
 
 Platform notes:
 
@@ -140,16 +140,16 @@ Requires the .NET 10 SDK. Native package scripts live under `packaging/`:
 
 ```bash
 # macOS runner
-bash packaging/macos/build-native.sh 0.2.0
+bash packaging/macos/build-native.sh 0.3.0
 
 # Debian/Ubuntu runner — package rivet's staged dist/movebit-linux-<arch>/
-bash packaging/linux/build-deb.sh 0.2.0 dist/movebit-linux-x64 x64
-bash packaging/linux/build-appimage.sh 0.2.0 dist/movebit-linux-x64 x64
+bash packaging/linux/build-deb.sh 0.3.0 dist/movebit-linux-x64 x64
+bash packaging/linux/build-appimage.sh 0.3.0 dist/movebit-linux-x64 x64
 ```
 
 ## Release process
 
-1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `0.2.0` ↔ `v0.2.0`).
+1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd == MoveBit.csproj <Version>`, and the release tag must equal it too (for example `0.3.0` ↔ `v0.3.0`).
 2. Merge only with CI green (Racket tests plus the Windows/macOS/Linux host matrix; CI verifies the Windows host compile).
 3. Push the version tag.
 4. Release automation builds macOS DMG + portable ZIP (arm64 and x64), the Windows MSI + portable ZIP, the Linux tar.gz (x64 + arm64) plus deb (both arches) and AppImage installers, per-asset `.sha256` sidecars, the `SHA256SUMS` manifest, and the signed `update-manifest.json`; one GitHub Release is created only after every required package succeeds, with the release notes taken from the matching CHANGELOG section.

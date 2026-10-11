@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2026-10-11
+
+**Linux rpm and portable zips close the packaging benchmark gap.** The Linux set now matches the family benchmark (taskly) format-for-format: deb + rpm + AppImage + tar.gz + zip on both architectures.
+
+### Added
+
+- RPM packages for both Linux architectures (`movebit-<version>-<build>-linux-x86_64.rpm`, `movebit-<version>-<build>-linux-aarch64.rpm`), built by rivet's native rpmbuild path from the same staged payload as the hand-rolled deb and AppImage; each ships with a `.sha256` sidecar
+- Portable zips for both Linux architectures (`movebit-<version>-linux-x64.zip`, `movebit-<version>-linux-arm64.zip`), produced by rivet release with their own `.sha256` sidecars — the Windows duplicate rivet zip is dropped in the workflow since the update-feed zip is hand-built there
+- The download page lists the new rpm and zip assets
+
+### Changed
+
+- The rivet pin moves from `a5f6718` (v0.6.0-era, pre-rpm) to `410fc7c` — the family release pin (rivet 0.6.1, same as taskly/brainfuel/syncpilot/fulcrum) — in both CI and the release workflow; `rivet.rktd` pins `linux-formats` to `("rpm")` because deb and AppImage remain hand-rolled with their in-job self-verification
+
 ## [0.2.0] - 2026-10-10
 
 **Linux catches up to the family standard.** Where v0.1.0 shipped a single Linux portable archive, this release covers both Linux architectures and adds native installer formats, keeping the same embedded-Racket payload everywhere.

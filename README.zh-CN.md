@@ -64,7 +64,7 @@ MoveBit v1 把这些行为固定下来：
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` | `movebit-<version>-linux-x64.deb` · `movebit-<version>-linux-x64.AppImage` |
 | Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` | `movebit-<version>-linux-arm64.deb` |
 
-所有资产遵循同一套小写命名：`movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.2.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还带 `SHA256SUMS` 汇总清单和作为更新 feed 的 Ed25519 签名 `update-manifest.json`。
+所有资产遵循同一套小写命名：`movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.3.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还带 `SHA256SUMS` 汇总清单和作为更新 feed 的 Ed25519 签名 `update-manifest.json`。
 
 平台说明：
 
@@ -142,16 +142,16 @@ dotnet test MoveBit.Tests/MoveBit.Tests.csproj -c Release --no-build
 
 ```bash
 # 在 macOS runner 上
-bash packaging/macos/build-native.sh 0.2.0
+bash packaging/macos/build-native.sh 0.3.0
 
 # 在 Debian/Ubuntu runner 上 —— 打包 rivet 暂存的 dist/movebit-linux-<arch>/
-bash packaging/linux/build-deb.sh 0.2.0 dist/movebit-linux-x64 x64
-bash packaging/linux/build-appimage.sh 0.2.0 dist/movebit-linux-x64 x64
+bash packaging/linux/build-deb.sh 0.3.0 dist/movebit-linux-x64 x64
+bash packaging/linux/build-appimage.sh 0.3.0 dist/movebit-linux-x64 x64
 ```
 
 ## 发布流程
 
-1. 更新单源 `VERSION` 文件；`scripts/check-release-version.sh` 会校验 `VERSION == rivet.rktd == MoveBit.csproj <Version>`，发布 tag 也必须与之一致（例如 `0.2.0` ↔ `v0.2.0`）。
+1. 更新单源 `VERSION` 文件；`scripts/check-release-version.sh` 会校验 `VERSION == rivet.rktd == MoveBit.csproj <Version>`，发布 tag 也必须与之一致（例如 `0.3.0` ↔ `v0.3.0`）。
 2. CI 全绿后再合并（Racket 测试 + Windows/macOS/Linux 宿主矩阵；CI 会验证 Windows 宿主编译）。
 3. 推送版本 tag。
 4. Release workflow 生成 macOS DMG + 便携 ZIP（arm64 与 x64）、Windows MSI + 便携 ZIP、Linux tar.gz（x64 + arm64）与 deb（双架构）/ AppImage 安装器、每个资产的 `.sha256` sidecar、`SHA256SUMS` 汇总清单和签名的 `update-manifest.json`；所有必要包都成功后才创建 GitHub Release，发布说明取自 CHANGELOG 对应段落。
