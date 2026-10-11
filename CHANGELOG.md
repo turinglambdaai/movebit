@@ -6,13 +6,13 @@
 
 ### Added
 
-- RPM packages for both Linux architectures (`movebit-<version>-<build>-linux-x86_64.rpm`, `movebit-<version>-<build>-linux-aarch64.rpm`), built by rivet's native rpmbuild path from the same staged payload as the hand-rolled deb and AppImage; each ships with a `.sha256` sidecar
-- Portable zips for both Linux architectures (`movebit-<version>-linux-x64.zip`, `movebit-<version>-linux-arm64.zip`), produced by rivet release with their own `.sha256` sidecars — the Windows duplicate rivet zip is dropped in the workflow since the update-feed zip is hand-built there
+- RPM packages for both Linux architectures (`movebit-<version>-linux-x86_64.rpm`, `movebit-<version>-linux-aarch64.rpm`), hand-rolled with `rpmbuild` from a generated spec (`packaging/linux/build-rpm.sh`, the rpm twin of `build-deb.sh`: same `/opt/movebit` payload, `/usr/bin/movebit` symlink, desktop entry, pixmaps icon, and rivet's libtinfo exclusion for Fedora) — each ships with a `.sha256` sidecar
+- Portable zips for both Linux architectures (`movebit-<version>-linux-x64.zip`, `movebit-<version>-linux-arm64.zip`), the tar.gz twin built from the same staged payload, with `.sha256` sidecars
 - The download page lists the new rpm and zip assets
 
 ### Changed
 
-- The rivet pin moves from `a5f6718` (v0.6.0-era, pre-rpm) to `410fc7c` — the family release pin (rivet 0.6.1, same as taskly/brainfuel/syncpilot/fulcrum) — in both CI and the release workflow; `rivet.rktd` pins `linux-formats` to `("rpm")` because deb and AppImage remain hand-rolled with their in-job self-verification
+- The rivet pin stays at `a5f6718`: newer pins generate the RivetTypes-namespaced Swift schema this host has not migrated to yet (the pin bump was attempted and reverted — the host migration is its own project). rpm and zip are therefore hand-rolled beside the existing hand-rolled deb and AppImage, which keep their in-job self-verification
 
 ## [0.2.0] - 2026-10-10
 

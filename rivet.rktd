@@ -8,7 +8,6 @@
         (file-associations . ())
         (macos-min-version . "14.0")
         (windows-min-version . "10.0.19041.0")
-        (linux-formats . ("rpm"))
         (backend . "app/backend.rkt")
         (module . "backend")
         (entry . "start")

@@ -11,10 +11,11 @@ permissions:
 
 env:
   # Exact rivet pin (family policy, taskly-style): CI verifies what releases
-  # ship. 410fc7c = rivet 0.6.1 — the family release pin (taskly / brainfuel /
-  # syncpilot / fulcrum); brings rpm packaging and the portable zip with
-  # sidecars that this release depends on.
-  RIVET_COMMIT: 410fc7c6987cda5fcf4e4f795d1d4f7a90d4e0f6
+  # ship. a5f6718 = rivet#153 (redirect-following update fetch) — the same
+  # commit the v1.5.1 release pipeline was built and published with. Held
+  # back deliberately: newer pins generate the RivetTypes-namespaced Swift
+  # schema this host has not migrated to yet.
+  RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
 
 jobs:
   validate:
@@ -170,9 +171,6 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           rm -f dist/update-*.json
-          # The portable zip for the update feed is hand-built above; drop the
-          # duplicate one rivet release leaves in dist/ (same payload).
-          rm -f dist/movebit-*-windows-*.zip dist/movebit-*-windows-*.zip.sha256
           mv dist/*.msi "movebit-${VERSION}-windows-x64.msi"
           sha256sum "movebit-${VERSION}-windows-x64.msi" > "movebit-${VERSION}-windows-x64.msi.sha256"
         shell: bash
@@ -279,7 +277,7 @@ jobs:
           export RIVET_UPDATE_PRIVATE_KEY="$KEY_DER"
           xvfb-run -a raco rivet release --development
           rm -f "$KEY_DER"
-      - name: Collect rivet artifacts + checksums
+      - name: Collect tar.gz + checksum
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
@@ -292,29 +290,26 @@ jobs:
             "movebit-${VERSION}-linux-${ARCH}.tar.gz"
           sha256sum "movebit-${VERSION}-linux-${ARCH}.tar.gz" \
             > "movebit-${VERSION}-linux-${ARCH}.tar.gz.sha256"
-          # Portable zip comes out of rivet release with its own sidecar.
-          test -f "dist/movebit-${VERSION}-linux-${ARCH}.zip"
-          test -f "dist/movebit-${VERSION}-linux-${ARCH}.zip.sha256"
-          mv "dist/movebit-${VERSION}-linux-${ARCH}.zip" \
-             "dist/movebit-${VERSION}-linux-${ARCH}.zip.sha256" .
-          # rpm names embed the build number and use the native arch spelling.
-          case "$ARCH" in
-            x64) RPM_ARCH=x86_64 ;;
-            arm64) RPM_ARCH=aarch64 ;;
-          esac
-          set -- dist/movebit-"${VERSION}"-*"-linux-${RPM_ARCH}".rpm
-          if [[ $# -ne 1 || ! -f "$1" ]]; then
-            echo "expected exactly one linux-${RPM_ARCH} rpm, got: $*" >&2
-            exit 1
-          fi
-          mv "$1" .
-          sha256sum "$(basename "$1")" > "$(basename "$1").sha256"
       - name: deb (installer asset)
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           ARCH="${{ matrix.arch }}"
           bash packaging/linux/build-deb.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
+      - name: rpm (installer asset)
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          bash packaging/linux/build-rpm.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
+      - name: Portable zip (tar.gz twin, same staged payload)
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          ( cd dist && zip -qry "../movebit-${VERSION}-linux-${ARCH}.zip" "movebit-linux-${ARCH}" )
+          sha256sum "movebit-${VERSION}-linux-${ARCH}.zip" \
+            > "movebit-${VERSION}-linux-${ARCH}.zip.sha256"
       - name: AppImage (installer asset)
         if: matrix.arch == 'x64'
         env:
@@ -344,6 +339,8 @@ jobs:
           # there (their .sha256 sidecars move along, hashes are unchanged).
           for f in "dist/movebit-${VERSION}-linux-${ARCH}.deb" \
                    "dist/movebit-${VERSION}-linux-${ARCH}.deb.sha256" \
+                   "dist/movebit-${VERSION}-linux-${ARCH}.rpm" \
+                   "dist/movebit-${VERSION}-linux-${ARCH}.rpm.sha256" \
                    "dist/movebit-${VERSION}-linux-${ARCH}.AppImage" \
                    "dist/movebit-${VERSION}-linux-${ARCH}.AppImage.sha256"; do
             [[ -f "$f" ]] || continue
