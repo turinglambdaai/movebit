@@ -49,7 +49,15 @@ endif()
 add_executable(RivetHost
   src/main.cpp
   "${RIVET_ROOT}/platform/linux/runtime/backend.cpp"
+  "${RIVET_ROOT}/platform/linux/system/autostart.cpp"
+  "${RIVET_ROOT}/platform/linux/system/crash_shutdown.cpp"
+  "${RIVET_ROOT}/platform/linux/system/notifications.cpp"
+  "${RIVET_ROOT}/platform/linux/system/secure_storage.cpp"
+  "${RIVET_ROOT}/platform/linux/system/single_instance.cpp"
   "${RIVET_ROOT}/platform/linux/system/system_services.cpp"
+  "${RIVET_ROOT}/platform/linux/system/system_services_internal.cpp"
+  "${RIVET_ROOT}/platform/linux/system/tray.cpp"
+  "${RIVET_ROOT}/platform/linux/theme/theme.cpp"
   "${RIVET_ROOT}/runtime/src/protocol.cpp"
 )
 
@@ -61,6 +69,7 @@ target_include_directories(RivetHost PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}"
   "${RIVET_ROOT}/platform/linux/runtime"
   "${RIVET_ROOT}/platform/linux/system"
+  "${RIVET_ROOT}/platform/linux/theme"
   "${RIVET_ROOT}/runtime/include"
   "$ENV{RIVET_RACKET_INCLUDE}"
 )
