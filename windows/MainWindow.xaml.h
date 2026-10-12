@@ -112,7 +112,7 @@ struct MainWindow : MainWindowT<MainWindow> {
   ToastCard toast_;
   MicroCard micro_;
   OnboardingWizard onboarding_;
-  TrayController tray_;
+  TrayUi tray_;
   bool really_quitting_ = false;
   bool tray_hint_shown_ = false;
   // Update button state machine: idle | checking | available | downloading |
