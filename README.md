@@ -125,6 +125,8 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 - [ ] Tray icon with quick actions (open / pause / exit) on Windows
 - [ ] In-app update flow on the native hosts, consuming the signed `update-manifest.json` feed
 - [ ] Windows code signing and macOS signing/notarization
+- [ ] Mobile — matching the family's full-platform scope (starts once Rivet's mobile hosts land): iOS / iPadOS host (Rivet's portable Swift layer) + Android host (Rivet's Kotlin platform)
+- [ ] watchOS companion — stand & water nudges on the wrist, trailing the phone host
 
 ## License
 
