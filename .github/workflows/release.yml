@@ -10,11 +10,13 @@ permissions:
   attestations: write
 
 env:
-  # Exact rivet pin (family policy, taskly-style): CI verifies what releases
-  # ship. a5f6718 = rivet#153 (redirect-following update fetch) — the same
-  # commit the v1.5.1 release pipeline was built and published with. Held
-  # back deliberately: newer pins generate the RivetTypes-namespaced Swift
-  # schema this host has not migrated to yet.
+  # Exact rivet pin. a5f6718 = rivet#153 (redirect-following update fetch) —
+  # the same commit the v1.5.1 release pipeline was built and published with.
+  # Held back deliberately: newer pins generate the RivetTypes-namespaced
+  # Swift schema this host has not migrated to yet. Family policy: rivet is
+  # consumed as a package (this git-sha install), never as a linked source
+  # checkout — keeps local and release builds reproducible against one
+  # revision.
   RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
 
 jobs:
@@ -48,22 +50,15 @@ jobs:
             racket-arch: x64
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout pinned Rivet
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
-          git -C rivet checkout --quiet "$RIVET_COMMIT"
-        shell: bash
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.15
         with:
           architecture: ${{ matrix.racket-arch }}
           version: stable
           distribution: full
-      - name: Install crypto package (rivet/distribution dependency)
-        run: raco pkg install --auto --no-docs crypto
+      - name: Install pinned Rivet (git-sha package install)
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
         shell: bash
-      - name: Link Rivet
-        run: raco pkg install --auto --no-docs --link "$GITHUB_WORKSPACE/rivet/rivet" "$GITHUB_WORKSPACE/rivet/rivet-cli"
       - name: Package
         run: raco rivet package
       - name: Portable zip + checksum (update feed artifact)
@@ -92,22 +87,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout pinned Rivet
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
-          git -C rivet checkout --quiet "$RIVET_COMMIT"
-        shell: bash
       - name: Install Racket
         uses: Bogdanp/setup-racket@v1.15
         with:
           architecture: x64
           version: stable
           distribution: full
-      - name: Install crypto package (rivet/distribution dependency)
-        run: raco pkg install --auto --no-docs crypto
-        shell: bash
-      - name: Link Rivet
-        run: raco pkg install --auto --no-docs --link "$GITHUB_WORKSPACE/rivet/rivet" "$GITHUB_WORKSPACE/rivet/rivet-cli"
+      - name: Install pinned Rivet (git-sha package install)
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
         shell: bash
       - name: Install WiX (v5; v7 requires EULA acceptance, v5 runs the v4 schema)
         run: dotnet tool install --global wix --version 5.0.2
@@ -203,49 +190,18 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout pinned Rivet
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
-          git -C rivet checkout --quiet "$RIVET_COMMIT"
-        shell: bash
-      - name: Cache embeddable Racket CS
-        id: cache-racket-embed
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/work/_temp/racket-embed
-          key: racket-embed-9.3-${{ runner.os }}-${{ runner.arch }}-v1
-      - name: Build embeddable Racket CS 9.3 from pinned source
-        if: steps.cache-racket-embed.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive="$RUNNER_TEMP/racket-minimal-9.3-src-builtpkgs.tgz"
-          source_root="$RUNNER_TEMP/racket-9.3"
-          build_root="$RUNNER_TEMP/racket-embed-build"
-          embed_prefix="$RUNNER_TEMP/racket-embed"
-
-          curl --fail --location --retry 3 \
-            --output "$archive" \
-            https://download.racket-lang.org/releases/9.3/installers/racket-minimal-9.3-src-builtpkgs.tgz
-          echo "3a01324d559a15e3f1f58b0c57a92bb344dce534e72e564e0d8b75e3b9c65295  $archive" |
-            sha256sum --check
-          tar -xzf "$archive" -C "$RUNNER_TEMP"
-          mkdir -p "$build_root"
-          cd "$build_root"
-          "$source_root/src/configure" --prefix="$embed_prefix"
-          make -j2
-          make install
+      - name: Set up embeddable Racket CS
+        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@main
       - name: Install GTK4, a virtual display, and packaging tooling
         run: |
           sudo apt-get update
           sudo apt-get install --yes libgtk-4-dev xvfb file desktop-file-utils squashfs-tools rpm
-      - name: Link Rivet + crypto package
+      # Installed after the embeddable runtime so the dependency closure
+      # (cext-lib, crypto-lib, keel) resolves against the minimal build —
+      # it ships no packages of its own.
+      - name: Install pinned Rivet (git-sha package install)
         shell: bash
-        run: |
-          set -euo pipefail
-          export PATH="$RUNNER_TEMP/racket-embed/bin:$PATH"
-          raco pkg install --auto --no-docs crypto
-          raco pkg install --auto --no-docs --link "$GITHUB_WORKSPACE/rivet/rivet" "$GITHUB_WORKSPACE/rivet/rivet-cli"
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
       - name: Package (rivet release, development signing)
         shell: bash
         env:
@@ -254,24 +210,6 @@ jobs:
           RIVET_UPDATE_PRIVATE_KEY_B64: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY_B64 }}
         run: |
           set -euo pipefail
-          export PATH="$RUNNER_TEMP/racket-embed/bin:$PATH"
-          embed_prefix="$RUNNER_TEMP/racket-embed"
-
-          racket_include="$(dirname "$(find "$embed_prefix" -name chezscheme.h -print -quit)")"
-          petite_boot="$(find "$embed_prefix" -name petite.boot -print -quit)"
-          racket_library="$(find "$embed_prefix" -name 'libracketcs*.a' -print -quit)"
-          for artifact in "$racket_include" "$petite_boot" "$racket_library"; do
-            if [[ -z "$artifact" || "$artifact" = "." ]]; then
-              echo "Racket CS embedded artifact was not found under $embed_prefix" >&2
-              exit 1
-            fi
-          done
-
-          export RIVET_RACKET_INCLUDE="$racket_include"
-          export RIVET_RACKET_LIB_DIR="$(dirname "$racket_library")"
-          export RIVET_RACKET_LIBRARY="$racket_library"
-          export RIVET_RACKET_BOOT_DIR="$(dirname "$petite_boot")"
-
           KEY_DER="$(mktemp -d)/update-ed25519-private.der"
           printf '%s' "$RIVET_UPDATE_PRIVATE_KEY_B64" | base64 -d > "$KEY_DER"
           export RIVET_UPDATE_PRIVATE_KEY="$KEY_DER"
@@ -360,11 +298,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Checkout pinned Rivet
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git rivet
-          git -C rivet checkout --quiet "$RIVET_COMMIT"
-        shell: bash
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -374,11 +307,9 @@ jobs:
           architecture: arm64
           version: stable
           distribution: full
-      - name: Install crypto package (rivet/distribution dependency)
-        run: raco pkg install --auto --no-docs crypto
+      - name: Install pinned Rivet (git-sha package install)
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
         shell: bash
-      - name: Link Rivet
-        run: raco pkg install --auto --no-docs --link "$GITHUB_WORKSPACE/rivet/rivet" "$GITHUB_WORKSPACE/rivet/rivet-cli"
       - name: Flatten artifact dirs
         run: |
           find dist -mindepth 2 -maxdepth 2 -type f -exec mv {} dist/ \;

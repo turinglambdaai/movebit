@@ -4,11 +4,12 @@ on:
   pull_request:
 
 env:
-  # Exact rivet pin (family policy, taskly-style): CI verifies what releases
-  # ship — keep identical to RIVET_COMMIT in release.yml. a5f6718 = rivet#153
-  # (redirect-following update fetch), the commit the v1.5.1 release shipped.
-  # Held back deliberately: newer pins generate the RivetTypes-namespaced
-  # Swift schema this host has not migrated to yet.
+  # Exact rivet pin. a5f6718 = rivet#153 (redirect-following update fetch),
+  # the commit the v1.5.1 release shipped. Held back deliberately: newer
+  # pins generate the RivetTypes-namespaced Swift schema this host has not
+  # migrated to yet. Family policy: rivet is consumed as a package (this
+  # git-sha install), never as a linked source checkout — keeps local and
+  # CI builds reproducible against one revision.
   RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
 
 jobs:
@@ -26,13 +27,9 @@ jobs:
       - name: Version preflight (VERSION == rivet.rktd)
         shell: bash
         run: bash scripts/check-release-version.sh
-      - name: Install pinned Rivet
+      - name: Install pinned Rivet (git-sha package install)
         shell: bash
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
-          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
-          raco pkg install --auto --no-docs crypto
-          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
       - name: Windows registry autostart probe
         if: runner.os == 'Windows'
         shell: pwsh
@@ -41,74 +38,28 @@ jobs:
       - name: Domain core tests
         run: raco test racket/
   # The Linux host needs an embeddable static libracketcs, which the standard
-  # Racket installers do not ship; build the minimal distribution from the
-  # pinned 9.3 source archive once and cache it (recipe from rivet's own CI).
+  # Racket installers do not ship; rivet's own composite action builds and
+  # caches it (docs/ci.md — product workflows should not copy the recipe).
   host-linux:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache embeddable Racket CS
-        id: cache-racket-embed
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/work/_temp/racket-embed
-          key: racket-embed-9.3-${{ runner.os }}-${{ runner.arch }}-v1
-      - name: Build embeddable Racket CS 9.3 from pinned source
-        if: steps.cache-racket-embed.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive="$RUNNER_TEMP/racket-minimal-9.3-src-builtpkgs.tgz"
-          source_root="$RUNNER_TEMP/racket-9.3"
-          build_root="$RUNNER_TEMP/racket-embed-build"
-          embed_prefix="$RUNNER_TEMP/racket-embed"
-
-          curl --fail --location --retry 3 \
-            --output "$archive" \
-            https://download.racket-lang.org/releases/9.3/installers/racket-minimal-9.3-src-builtpkgs.tgz
-          echo "3a01324d559a15e3f1f58b0c57a92bb344dce534e72e564e0d8b75e3b9c65295  $archive" |
-            sha256sum --check
-          tar -xzf "$archive" -C "$RUNNER_TEMP"
-          mkdir -p "$build_root"
-          cd "$build_root"
-          "$source_root/src/configure" --prefix="$embed_prefix"
-          make -j2
-          make install
+      - name: Set up embeddable Racket CS
+        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@main
       - name: Install GTK4 and a virtual display
         run: |
           sudo apt-get update
           sudo apt-get install --yes libgtk-4-dev xvfb
-      - name: Install pinned Rivet
+      # Installed after the embeddable runtime so the dependency closure
+      # (cext-lib, crypto-lib, keel) resolves against the minimal build —
+      # it ships no packages of its own.
+      - name: Install pinned Rivet (git-sha package install)
         shell: bash
-        run: |
-          set -euo pipefail
-          export PATH="$RUNNER_TEMP/racket-embed/bin:$PATH"
-          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
-          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
-          raco pkg install --auto --no-docs crypto
-          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
       - name: Build, package, and launch-smoke the GTK4 host
         shell: bash
         run: |
           set -euo pipefail
-          export PATH="$RUNNER_TEMP/racket-embed/bin:$PATH"
-          embed_prefix="$RUNNER_TEMP/racket-embed"
-
-          racket_include="$(dirname "$(find "$embed_prefix" -name chezscheme.h -print -quit)")"
-          petite_boot="$(find "$embed_prefix" -name petite.boot -print -quit)"
-          racket_library="$(find "$embed_prefix" -name 'libracketcs*.a' -print -quit)"
-          for artifact in "$racket_include" "$petite_boot" "$racket_library"; do
-            if [[ -z "$artifact" || "$artifact" = "." ]]; then
-              echo "Racket CS embedded artifact was not found under $embed_prefix" >&2
-              exit 1
-            fi
-          done
-
-          export RIVET_RACKET_INCLUDE="$racket_include"
-          export RIVET_RACKET_LIB_DIR="$(dirname "$racket_library")"
-          export RIVET_RACKET_LIBRARY="$racket_library"
-          export RIVET_RACKET_BOOT_DIR="$(dirname "$petite_boot")"
-
           raco rivet doctor
           xvfb-run -a raco rivet package
 
@@ -135,13 +86,9 @@ jobs:
           distribution: full
           variant: CS
           version: '9.3'
-      - name: Install pinned Rivet
+      - name: Install pinned Rivet (git-sha package install)
         shell: bash
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
-          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
-          raco pkg install --auto --no-docs crypto
-          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
       - name: Build the SwiftUI host
         run: |
           raco rivet doctor
@@ -163,13 +110,9 @@ jobs:
           distribution: full
           variant: CS
           version: '9.3'
-      - name: Install pinned Rivet
+      - name: Install pinned Rivet (git-sha package install)
         shell: bash
-        run: |
-          git clone --quiet https://github.com/turinglambdaai/rivet.git "$RUNNER_TEMP/rivet"
-          git -C "$RUNNER_TEMP/rivet" checkout --quiet "$RIVET_COMMIT"
-          raco pkg install --auto --no-docs crypto
-          raco pkg install --auto --no-docs --link "$RUNNER_TEMP/rivet/rivet" "$RUNNER_TEMP/rivet/rivet-cli"
+        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
       - name: Build the WinUI host
         shell: pwsh
         run: |
