@@ -21,7 +21,7 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Bogdanp/setup-racket@v1.15
         with:
           version: stable
@@ -44,7 +44,7 @@ jobs:
   host-linux:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up embeddable Racket CS
         uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@main
       - name: Install GTK4 and a virtual display
@@ -80,7 +80,7 @@ jobs:
   host-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Bogdanp/setup-racket@v1.15
         with:
           architecture: arm64
@@ -104,7 +104,7 @@ jobs:
   host-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Bogdanp/setup-racket@v1.15
         with:
           architecture: x64
