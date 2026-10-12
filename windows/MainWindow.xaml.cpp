@@ -139,7 +139,7 @@ MainWindow::MainWindow() {
       });
   Closed([this](IInspectable const&, WindowEventArgs const&) {
     // Best-effort flush with a 1 s budget (port of FlushToday-on-exit).
-    tray_.Remove();
+    tray_.Detach();
     if (api_ != nullptr) {
       auto future = api_->flush_now();
       (void)future.wait_for(std::chrono::seconds(1));
@@ -1033,15 +1033,14 @@ void MainWindow::InitTray() {
     really_quitting_ = true;
     Close();
   };
-  tray_.Show(L"MoveBit");
+  tray_.Attach(*this);
 }
 
 void MainWindow::HideToTray() {
   AppWindow().Hide();
   if (!tray_hint_shown_) {
     tray_hint_shown_ = true;
-    tray_.ShowInfo(winrt::to_hstring(l10n::t("TrayHideHintTitle")).c_str(),
-                   winrt::to_hstring(l10n::t("TrayHideHintBody")).c_str());
+    tray_.ShowInfo(l10n::t("TrayHideHintTitle"), l10n::t("TrayHideHintBody"));
   }
 }
 

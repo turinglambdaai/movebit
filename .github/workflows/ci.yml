@@ -4,13 +4,14 @@ on:
   pull_request:
 
 env:
-  # Exact rivet pin. a5f6718 = rivet#153 (redirect-following update fetch),
-  # the commit the v1.5.1 release shipped. Held back deliberately: newer
-  # pins generate the RivetTypes-namespaced Swift schema this host has not
-  # migrated to yet. Family policy: rivet is consumed as a package (this
-  # git-sha install), never as a linked source checkout — keeps local and
-  # CI builds reproducible against one revision.
-  RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
+  # Exact rivet pin. b777acd = rivet#212 (TrayIcon SetTooltip +
+  # TaskbarCreated Readd), which the Windows tray build requires; it
+  # regenerates the host clients byte-identically, so the RivetTypes
+  # Swift-schema hold from the a5f6718 era is resolved. Family policy:
+  # rivet is consumed as a package (this git-sha install), never as a
+  # linked source checkout — keeps local and CI builds reproducible
+  # against one revision.
+  RIVET_COMMIT: b777acd611084a5d73157ebcc42111336e8845ff
 
 jobs:
   racket-tests:

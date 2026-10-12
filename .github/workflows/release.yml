@@ -17,7 +17,7 @@ env:
   # consumed as a package (this git-sha install), never as a linked source
   # checkout — keeps local and release builds reproducible against one
   # revision.
-  RIVET_COMMIT: a5f671845594246bb2a189c8cb14c87b8201e43e
+  RIVET_COMMIT: b777acd611084a5d73157ebcc42111336e8845ff
 
 jobs:
   validate:
