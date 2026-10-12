@@ -159,11 +159,11 @@ final class MoveBitModel: ObservableObject {
                     let api = RivetAPI(client: backend.client)
                     // initialize seeds states and starts the 30 s backend tick.
                     try await api.initialize()
-                    async let config = api.getActive_config()
-                    async let today = api.getToday()
-                    async let paused = api.getPaused()
-                    async let loops = api.getLoops()
-                    async let breakActive = api.getBreak_active()
+                    async let config = api.get_active_config()
+                    async let today = api.get_today()
+                    async let paused = api.get_paused()
+                    async let loops = api.get_loops()
+                    async let breakActive = api.get_break_active()
                     let (c, t, p, l, b) = try await (config, today, paused, loops, breakActive)
                     await relay.ready(config: c, today: t, paused: p, loops: l, breakActive: b)
                 } catch {
@@ -202,9 +202,9 @@ final class MoveBitModel: ObservableObject {
             // The tick thread also republishes loops/paused/break-active states.
             Task {
                 if let api = api() {
-                    if let l = try? await api.getLoops() { loops = l }
-                    if let p = try? await api.getPaused() { paused = p }
-                    if let b = try? await api.getBreak_active() { breakActive = b }
+                    if let l = try? await api.get_loops() { loops = l }
+                    if let p = try? await api.get_paused() { paused = p }
+                    if let b = try? await api.get_break_active() { breakActive = b }
                 }
             }
         case .reminders_due(let due):
@@ -327,7 +327,7 @@ final class MoveBitModel: ObservableObject {
             for kind in kinds {
                 try? await api.snooze(kind: kind)
             }
-            if let l = try? await api.getLoops() { loops = l }
+            if let l = try? await api.get_loops() { loops = l }
         }
     }
 
@@ -339,7 +339,7 @@ final class MoveBitModel: ObservableObject {
             } else {
                 try? await api.pause_1h()
             }
-            if let p = try? await api.getPaused() { paused = p }
+            if let p = try? await api.get_paused() { paused = p }
             onConfigChanged?()
         }
     }
