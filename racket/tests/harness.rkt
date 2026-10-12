@@ -1,7 +1,7 @@
 #lang racket/base
 
 ;; Test harness: drives the scheduler with a virtual clock and a fake idle
-;; source — the port of the C# MoveBit.Tests Harness. The virtual clock starts
+;; source. The virtual clock starts
 ;; at "today 09:00 local" on 2026-01-01, expressed as epoch ms via the system
 ;; timezone, exactly like TimeZoneInfo.ConvertTimeToUtc(...Unspecified).
 
@@ -96,13 +96,13 @@
 
 (define (h-fired-count h) (length (h-fired h)))
 
-;; Kinds of the reminders that fired, in order (the C# tests assert Kind).
+;; Kinds of the reminders that fired, in order.
 (define (h-fired-kinds h)
   (map car (h-fired h)))
 
 (define (h-config h) (scheduler-config (harness-scheduler h)))
 
-;; Live-mutate one config field, like the C# tests assigning Config properties.
+;; Live-mutate one config field.
 (define (h-patch-config! h #:sit [sit #f]
                              #:water [water #f]
                              #:micro-enabled [micro-enabled #f]

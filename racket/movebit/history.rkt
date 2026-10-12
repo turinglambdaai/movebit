@@ -120,7 +120,7 @@
 (define (persist! store)
   (with-handlers ([exn:fail? (lambda (_) #f)])
     (define path (history-store-path store))
-    ;; Mirror the C# write path: <file>.tmp in the same directory.
+    ;; Write to <file>.tmp in the same directory, then replace.
     (define tmp (string->path (string-append (path->string path) ".tmp")))
     (make-directory* (path-only path))
     (call-with-output-file tmp

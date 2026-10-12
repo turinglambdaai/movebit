@@ -48,8 +48,7 @@
            (if (= 1 (get-last-input-info block))
                (let ()
                  ;; Both operands are GetTickCount-style uint tick counts; the
-                 ;; modulo subtraction handles the ~49.7-day wraparound exactly
-                 ;; like the C# unchecked cast.
+                 ;; modulo subtraction handles the ~49.7-day wraparound.
                  (define last (ptr-ref block _uint32 1))
                  (define now (get-tick-count))
                  (/ (modulo (- now last) uint32-modulus) 1000.0))

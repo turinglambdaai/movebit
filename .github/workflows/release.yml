@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Version preflight (VERSION == rivet.rktd == csproj == tag)
+      - name: Version preflight (VERSION == rivet.rktd == tag)
         run: bash scripts/check-release-version.sh "${{ github.ref_name }}"
       - name: Check CHANGELOG has a section for this version
         run: |

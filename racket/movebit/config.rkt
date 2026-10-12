@@ -87,8 +87,7 @@
           'Language (reminder-config-language clamped)))
 
 ;; Tolerant reader: missing keys keep defaults, wrong-typed values keep
-;; defaults, numerics are clamped. Matches how System.Text.Json deserialized
-;; into C# property defaults for absent members.
+;; defaults, numerics are clamped.
 (define (jsexpr->config js)
   (cond
     [(hash? js)

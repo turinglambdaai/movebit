@@ -39,10 +39,9 @@
          max-tick-delta-ms)
 
 ;; Raise on the away -> active transition (user just sat back down).
-;; Callbacks mirror the C# events; all are optional and invoked synchronously
-;; inside the tick, exactly like EventHandler invocation in ReminderScheduler.
+;; Callbacks are optional and invoked synchronously inside the tick.
 (struct movebit-scheduler
-  (config-box           ; box of reminder-config (live-mutable like C# properties)
+  (config-box           ; box of reminder-config, live-mutable
    now                  ; (-> integer-ms)
    idle                 ; (-> (or/c real? #f)) idle seconds or #f
    last-tick-ms
@@ -123,7 +122,7 @@
 (define (scheduler-paused-until-ms s)
   (and (scheduler-paused? s) (movebit-scheduler-paused-until-ms s)))
 
-;; Kept for API symmetry with the C# surface (reserved for future use).
+;; Reserved for future use.
 (define (scheduler-is-break-owned? s) #f)
 
 ;; Fire a reminder callback if one is installed.
@@ -167,8 +166,7 @@
     [(water) (day-stats-water-reminders stats)]
     [(micro) (day-stats-micro-breaks stats)]))
 
-;; Archive hook before the daily reset (day-completed fires first, exactly
-;; like RollDayIfNeeded in the C# scheduler).
+;; Archive hook before the daily reset (day-completed fires first).
 (define (roll-day-if-needed! s now)
   (define today (ms->date-key now))
   (unless (string=? (day-stats-date-key (movebit-scheduler-stats s)) today)
@@ -279,7 +277,7 @@
 ;; "Remind me later": NOT a timer delay — push the cycle accumulator to
 ;; (interval - snooze) so the reminder re-fires after `snooze` more minutes of
 ;; ACTIVE time. The accumulator may go negative when snooze exceeds the
-;; interval; accessors clamp to zero exactly like MaxOfZero in the C# code.
+;; interval; accessors clamp it back to zero.
 (define (scheduler-snooze! s kind)
   (define snooze-ms (interval-ms (reminder-config-snooze-minutes (scheduler-config s))))
   (case kind

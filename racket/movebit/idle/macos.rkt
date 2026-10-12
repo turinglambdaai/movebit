@@ -38,7 +38,7 @@
     (and (procedure? lookup)
          (with-handlers ([exn:fail? (lambda (_) #f)])
            (define seconds (lookup hid-system-state any-input-event))
-           ;; Mirror the C# guard: non-finite or negative results mean the
+           ;; Non-finite or negative results mean the
            ;; platform refused to answer, not "zero idle".
            (if (and (real? seconds)
                     (not (nan? seconds))

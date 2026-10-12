@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="MoveBit.csproj" />
-  <Project Path="MoveBit.Tests/MoveBit.Tests.csproj" />
-</Solution>

@@ -41,8 +41,8 @@
            (remove* en-keys zh-keys)
            (remove* zh-keys en-keys)))
 
-;; Contract: 148 keys = the 147 UI strings from Assets/Strings.{zh,en}.axaml
-;; plus one structured `copy` section holding the BreakCopy pools verbatim.
+;; Contract: 148 keys = the 147 UI strings plus one structured `copy` section
+;; holding the BreakCopy pools verbatim.
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
 (unless (= (length ui-keys) 147)

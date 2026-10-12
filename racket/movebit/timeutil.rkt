@@ -79,9 +79,8 @@
   (define db (date-key->civil-day b))
   (and da db (- db da)))
 
-;; UTC epoch milliseconds for a local wall-clock Y/M/D (test harness helper,
-;; mirrors the old C# tests' TimeZoneInfo.ConvertTimeToUtc of an Unspecified
-;; DateTime). Raises when the local time does not exist (DST gap).
+;; UTC epoch milliseconds for a local wall-clock Y/M/D (test harness helper).
+;; Raises when the local time does not exist (DST gap).
 (define (local-ymd->ms y m d [hh 0] [mm 0] [ss 0])
   (* 1000 (find-seconds ss mm hh d m y)))
 

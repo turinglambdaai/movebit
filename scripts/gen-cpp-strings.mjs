@@ -14,8 +14,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 const zh = JSON.parse(readFileSync("shared/i18n/zh.json", "utf8"));
 const en = JSON.parse(readFileSync("shared/i18n/en.json", "utf8"));
 
-// The JSON carries XML-escaped ampersands over from the old Avalonia string
-// table; undo the basic entities for plain display (parity with the Swift gen).
+// The JSON keeps a few XML-escaped entities; undo the basic ones for plain
+// display (parity with the Swift gen).
 const unescapeXml = (s) =>
   s
     .replace(/&lt;/g, "<")

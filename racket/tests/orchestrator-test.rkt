@@ -1,9 +1,8 @@
 #lang racket/base
 
-;; Tests for the app-level orchestration ported from the old App.axaml.cs:
-;; the same-tick merge rule and the forced-break lifecycle. These rules had no
-;; C# unit tests (they lived in the UI layer); here they are pinned so every
-;; host shell gets identical interruption behavior.
+;; Tests for the app-level orchestration: the same-tick merge rule and the
+;; forced-break lifecycle, pinned so every host shell gets identical
+;; interruption behavior.
 
 (require rackunit
          "harness.rkt"

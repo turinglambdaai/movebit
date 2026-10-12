@@ -56,8 +56,8 @@
             1000.0)))
 
 ;; First standalone unsigned number in a D-Bus payload. A number embedded in a
-;; larger alphanumeric token ("uint64 nope") must NOT match, mirroring the C#
-;; regex (?<![A-Za-z0-9])\d+(?![A-Za-z0-9]).
+;; larger alphanumeric token ("uint64 nope") must NOT match: the pattern is
+;; (?<![A-Za-z0-9])\d+(?![A-Za-z0-9]).
 (define (parse-first-unsigned output)
   (and (string? output)
        (not (string=? output ""))

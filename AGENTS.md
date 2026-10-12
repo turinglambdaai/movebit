@@ -1,21 +1,18 @@
 # AGENTS.md
 
-指引给 AI agent（及开发者）：如何理解、构建、运行、改动 MoveBit（Rivet 重建线）。
-
-> 本分支（`experiment/movebit-rivet`）是 MoveBit 的 Rivet 重建主线。main 是旧栈实现（Avalonia / .NET 10），
-> 仅作为行为与文案参照保留；不要往 main 加功能。旧栈代码在本分支上暂时保留，
-> 待对等交付后统一清理。
+指引给 AI agent（及开发者）：如何理解、构建、运行、改动 MoveBit。
 
 ## 这是什么
 
-MoveBit 正在以 Rivet（github.com/turinglambdaai/rivet）重建：一份 Racket 领域核心，
+MoveBit 以 Rivet（github.com/turinglambdaai/rivet）构建：一份 Racket 领域核心，
 通过 Rivet 类型化 RPC（RVT1 协议）驱动各平台第一方原生 UI 薄壳。
+Avalonia/.NET 旧栈已彻底移除，仓库从 rivet 时代（0.1.0 起）起算。
 
 | 平台宿主 | 技术栈 | 目录 | 状态 |
 |---|---|---|---|
 | macOS | SwiftUI 宿主 + 生成客户端 | `macos-host/` | 待建 |
-| Windows | C++/WinRT 宿主 + 生成客户端 | `windows/` | 待建 |
-| Linux | GTK4 宿主 + 生成客户端 | `linux/` | 待建 |
+| Windows | C++/WinRT 宿主 + 生成客户端 | `windows/` | 可用 |
+| Linux | GTK4 宿主 + 生成客户端 | `linux/` | 可用 |
 | agent CLI | — | — | 不适用 |
 
 ## 快速命令

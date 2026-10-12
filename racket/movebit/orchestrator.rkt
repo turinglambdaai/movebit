@@ -1,8 +1,7 @@
 #lang racket/base
 
 ;; App-level orchestration around the scheduler: the same-tick merge rule and
-;; the forced-break lifecycle, ported from the old Avalonia App.axaml.cs
-;; (OnTimerTick / FlushTickReminders / StartForcedBreak / FinishBreakInternal).
+;; the forced-break lifecycle.
 ;; The orchestrator is pure domain logic — no UI, no rivet — so the same rules
 ;; run identically on every host shell.
 ;;

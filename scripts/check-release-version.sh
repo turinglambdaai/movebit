@@ -4,8 +4,8 @@
 #
 #   scripts/check-release-version.sh [tag]
 #
-# Checks VERSION == rivet.rktd version == MoveBit.csproj <Version>, and,
-# when a tag argument is given, that the tag (v-prefixed or bare) matches too.
+# Checks VERSION == rivet.rktd version, and, when a tag argument is given,
+# that the tag (v-prefixed or bare) matches too.
 # Runs in CI and in the release pipeline's validate job.
 set -euo pipefail
 
@@ -33,10 +33,4 @@ RIVET_RKTD_VERSION="$(grep -o '"[0-9]*\.[0-9]*\.[0-9]*"' "$ROOT/rivet.rktd" | he
 [[ "$RIVET_RKTD_VERSION" == "$VERSION" ]] || \
   fail "rivet.rktd version '$RIVET_RKTD_VERSION' does not match VERSION '$VERSION'"
 
-# The archived C# host reads the assembly version for its update checks, so
-# the csproj must carry the release version too.
-CSPROJ_VERSION="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$ROOT/MoveBit.csproj" | head -n1 | tr -d '[:space:]')"
-[[ "$CSPROJ_VERSION" == "$VERSION" ]] || \
-  fail "MoveBit.csproj Version '$CSPROJ_VERSION' does not match VERSION '$VERSION'"
-
-echo "release preflight: version $VERSION is aligned (VERSION == rivet.rktd == csproj)"
+echo "release preflight: version $VERSION is aligned (VERSION == rivet.rktd)"

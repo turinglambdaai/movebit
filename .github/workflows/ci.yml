@@ -23,7 +23,7 @@ jobs:
       - uses: Bogdanp/setup-racket@v1.15
         with:
           version: stable
-      - name: Version preflight (VERSION == rivet.rktd == csproj)
+      - name: Version preflight (VERSION == rivet.rktd)
         shell: bash
         run: bash scripts/check-release-version.sh
       - name: Install pinned Rivet
@@ -124,20 +124,6 @@ jobs:
           fi
           test -x "$dir/RivetHost"
           test -f "$dir/res/core.zo"
-
-  # The archived C# host still ships in releases and owns the in-app updater;
-  # its build and tests (including the signed-feed verifier) run on every push.
-  host-dotnet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-      - name: dotnet build
-        run: dotnet build MoveBit.csproj
-      - name: dotnet test
-        run: dotnet test MoveBit.Tests
 
   host-macos:
     runs-on: macos-latest
