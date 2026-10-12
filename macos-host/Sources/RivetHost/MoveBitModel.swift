@@ -214,7 +214,7 @@ final class MoveBitModel: ObservableObject {
             // state; if the state read races ahead of the publish, fall back
             // to the event payload so the lock is never silently skipped.
             Task {
-                var state = try? await api()?.getBreak_active()
+                var state = try? await api()?.get_break_active()
                 if state == nil {
                     let now = Int64(Date().timeIntervalSince1970 * 1000)
                     state = BreakState(ends_at_ms: now + started.duration_ms,
