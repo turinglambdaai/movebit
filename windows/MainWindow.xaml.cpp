@@ -476,7 +476,6 @@ void MainWindow::RefreshStatesAfterTick() {
           try {
             w->model_.paused = r.get();
             w->RefreshTodayCard();
-            w->RefreshPauseButton();
           } catch (std::exception const&) {
           }
         }
@@ -670,17 +669,8 @@ void MainWindow::ApplyTexts() {
       winrt::box_value(winrt::to_hstring(l10n::t("AboutChangeDataFolder"))));
   LanguageDrop().Items().GetAt(0).as<Controls::ComboBoxItem>().Content(
       winrt::box_value(winrt::to_hstring(l10n::t("LangAuto"))));
-  PauseButton().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("TrayPause"))));
-  QuitButton().Content(winrt::box_value(winrt::to_hstring(l10n::t("TrayExit"))));
   RefreshStatusMarker();
   RefreshFooter();
-}
-
-void MainWindow::RefreshPauseButton() {
-  PauseButton().Content(winrt::box_value(
-      winrt::to_hstring(l10n::t(model_.is_paused() ? "TrayResume"
-                                                   : "TrayPause"))));
 }
 
 void MainWindow::RefreshTodayCard() {
@@ -698,10 +688,15 @@ void MainWindow::RefreshTodayCard() {
   } else {
     status = winrt::to_hstring(l10n::t("TplRunning"));
   }
+  auto const status_hex = status_color.R == 0xEA ? "#EA580C" : "#16A34A";
   TodayStatus().Text(status);
-  TodayStatus().Foreground(
-      brush_from(status_color.R == 0xEA ? "#EA580C"
-                                                        : "#16A34A"));
+  TodayStatus().Foreground(brush_from(status_hex));
+  StatusDot().Background(brush_from(status_hex));
+  // The indicator is the control; the tooltip spells out the action.
+  Controls::ToolTipService::SetToolTip(
+      StatusButton(),
+      winrt::box_value(winrt::to_hstring(l10n::t(
+          m.is_paused() ? "TodayResumeHint" : "TodayPauseHint"))));
 
   double fraction = 0;
   if (!m.is_paused() && m.config.sit_reminder_minutes > 0) {
@@ -874,11 +869,10 @@ void MainWindow::RefreshSettingsWidgets() {
   HistRange().SelectedIndex(model_.history_days >= 30 ? 1 : 0);
   updating_settings_ = false;
   RefreshStatusMarker();
-  RefreshPauseButton();
 }
 
 void MainWindow::RefreshFooter() {
-  FooterPath().Text(winrt::to_hstring(
+  FooterText().Text(winrt::to_hstring(
       model_.data_dir.empty()
           ? L""
           : winrt::to_hstring(
@@ -986,19 +980,14 @@ void MainWindow::ShowOnboarding() {
 
 // ---- click handlers -------------------------------------------------------------------
 
-void MainWindow::Pause_Click(winrt::Windows::Foundation::IInspectable const&,
-                             Microsoft::UI::Xaml::RoutedEventArgs const&) {
+void MainWindow::Status_Click(winrt::Windows::Foundation::IInspectable const&,
+                              Microsoft::UI::Xaml::RoutedEventArgs const&) {
   if (api_ == nullptr) return;
   if (model_.is_paused()) {
     (void)api_->resume_async([](rivet_app::Result<void>) {});
   } else {
     (void)api_->pause_1h_async([](rivet_app::Result<void>) {});
   }
-}
-
-void MainWindow::Quit_Click(winrt::Windows::Foundation::IInspectable const&,
-                            Microsoft::UI::Xaml::RoutedEventArgs const&) {
-  Close();
 }
 
 void MainWindow::HistRange_SelectionChanged(

@@ -5,12 +5,7 @@
 
     <!-- Fixed warm-light palette (parity with the old Avalonia app and the
          GTK host; dark mode is a documented v1 gap on Windows/Linux). -->
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <ScrollViewer Grid.Row="0" Background="#F5F2EB">
+    <ScrollViewer Background="#F5F2EB">
             <StackPanel Orientation="Vertical">
                 <Grid Padding="20,14,20,0" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
@@ -46,11 +41,26 @@
                                            Text="Today"
                                            FontSize="13"
                                            Foreground="#6E6A5E" />
-                                <TextBlock Grid.Column="1"
-                                           x:Name="TodayStatus"
-                                           Text="—"
-                                           FontSize="12.5"
-                                           Foreground="#16A34A" />
+                                <!-- The running/paused indicator is the
+                                     control: click to pause 1 h, click the
+                                     paused state to resume (tray parity
+                                     until the tray exists). -->
+                                <Button Grid.Column="1" x:Name="StatusButton"
+                                        Click="Status_Click"
+                                        Background="Transparent"
+                                        BorderThickness="0" Padding="8,3,8,3">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border x:Name="StatusDot"
+                                                Width="8" Height="8"
+                                                CornerRadius="4,4,4,4"
+                                                Background="#16A34A"
+                                                VerticalAlignment="Center" />
+                                        <TextBlock x:Name="TodayStatus"
+                                                   Text="—"
+                                                   FontSize="12.5"
+                                                   Foreground="#16A34A" />
+                                    </StackPanel>
+                                </Button>
                             </Grid>
                             <TextBlock x:Name="TodayDuration" Text="0m"
                                        FontSize="44" FontWeight="Bold"
@@ -477,27 +487,11 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+
+                    <TextBlock x:Name="FooterText" Text="" FontSize="11"
+                               Foreground="#A39B8D" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
             </StackPanel>
         </ScrollViewer>
-        <!-- Window footer: config path on the left, lifecycle actions on the
-             right. Quit lives at the bottom (a tray-app habit; the top edge
-             of a health app is no place for an exit button). -->
-        <Grid Grid.Row="1" Background="#F5F2EB" Padding="20,10,20,14"
-              ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" x:Name="FooterPath" Text=""
-                       FontSize="11" Foreground="#A39B8D"
-                       VerticalAlignment="Center" TextWrapping="Wrap" />
-            <Button Grid.Column="1" x:Name="PauseButton"
-                    Click="Pause_Click" />
-            <Button Grid.Column="2" x:Name="QuitButton"
-                    Click="Quit_Click" />
-        </Grid>
-    </Grid>
 </Window>

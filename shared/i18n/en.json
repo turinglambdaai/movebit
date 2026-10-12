@@ -4,7 +4,9 @@
     "sitCycle": "Sit cycle",
     "sit": "Sit reminders",
     "water": "Water",
-    "micro": "Micro breaks"
+    "micro": "Micro breaks",
+    "pauseHint": "Pause reminders for 1 hour",
+    "resumeHint": "Resume reminders"
   },
   "hist": {
     "toggle7": "7 days",

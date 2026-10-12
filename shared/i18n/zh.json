@@ -4,7 +4,9 @@
     "sitCycle": "本轮久坐进度",
     "sit": "久坐提醒",
     "water": "喝水提醒",
-    "micro": "微休息"
+    "micro": "微休息",
+    "pauseHint": "暂停提醒 1 小时",
+    "resumeHint": "恢复提醒"
   },
   "hist": {
     "toggle7": "7 天",

@@ -15,10 +15,8 @@ struct MainWindow : MainWindowT<MainWindow> {
   MainWindow();
 
   // XAML event handlers.
-  void Pause_Click(winrt::Windows::Foundation::IInspectable const& sender,
-                   Microsoft::UI::Xaml::RoutedEventArgs const& args);
-  void Quit_Click(winrt::Windows::Foundation::IInspectable const& sender,
-                  Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void Status_Click(winrt::Windows::Foundation::IInspectable const& sender,
+                    Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void HistRange_SelectionChanged(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
@@ -85,7 +83,6 @@ struct MainWindow : MainWindowT<MainWindow> {
   void RefreshInsightCard();
   void RefreshSettingsWidgets();
   void RefreshStatusMarker();
-  void RefreshPauseButton();
   void RefreshFooter();
   void ShowHistoryBars();
   void ShowOnboarding();
