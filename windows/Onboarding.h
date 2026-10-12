@@ -7,6 +7,7 @@
 
 #include "pch.h"
 #include "MoveBitModel.h"
+#include "Overlays.h"
 
 #include <functional>
 #include <string>
@@ -50,6 +51,7 @@ struct OnboardingWizard {
     }
     window = Window{};
     window.Title(winrt::to_hstring(l10n::t("ObTitle")));
+    apply_window_icon(window);
     window.AppWindow().Resize({500, 640});
 
     Controls::ScrollViewer scroll;

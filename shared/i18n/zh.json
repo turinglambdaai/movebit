@@ -55,7 +55,9 @@
   },
   "about": {
     "autoUpdate": "自动检查更新",
-    "autoUpdateHint": "启动后检查，此后约每 6 小时检查一次；不会静默安装。"
+    "autoUpdateHint": "启动后检查，此后约每 6 小时检查一次；不会静默安装。",
+    "checkUpdates": "检查更新",
+    "checkUpdatesHint": "在 GitHub Releases 页面查看新版本"
   },
   "upd": {
     "currentVersion": "当前版本 v{0}",

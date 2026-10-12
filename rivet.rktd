@@ -8,6 +8,7 @@
         (file-associations . ())
         (macos-min-version . "14.0")
         (windows-min-version . "10.0.19041.0")
+        (windows-icon . "Assets/icon.ico")
         (backend . "app/backend.rkt")
         (module . "backend")
         (entry . "start")

@@ -10,6 +10,7 @@
 #include <stdexcept>
 
 #pragma comment(lib, "dbghelp.lib")
+#pragma comment(lib, "shell32.lib")
 
 namespace {
 
@@ -71,6 +72,27 @@ std::string utf8(std::filesystem::path const& path) {
   return result;
 }
 
+// A GUI process launched from Explorer has NULL standard handles, and the
+// embedded Racket runtime (rktio) responds to that by allocating a console
+// window on the first stderr write — every start started with a stray black
+// terminal showing rivet's diagnostic JSONL. Point the handles at NUL before
+// the backend boots so rktio never needs to create a console.
+void QuietStdHandles() noexcept {
+  for (DWORD const which : {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+                            STD_ERROR_HANDLE}) {
+    HANDLE const current = ::GetStdHandle(which);
+    if (current != nullptr && current != INVALID_HANDLE_VALUE) {
+      continue;
+    }
+    HANDLE nul = ::CreateFileW(L"NUL", GENERIC_READ | GENERIC_WRITE,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                               OPEN_EXISTING, 0, nullptr);
+    if (nul != INVALID_HANDLE_VALUE) {
+      ::SetStdHandle(which, nul);
+    }
+  }
+}
+
 rivet::windows::RacketRuntimeConfig runtime_config() {
   auto const exe = executable_path();
   auto const root = exe.parent_path();
@@ -85,6 +107,13 @@ rivet::windows::RacketRuntimeConfig runtime_config() {
   config.module_name = rivet_app::kModuleName;
   config.entry_symbol = rivet_app::kEntryName;
   config.dll_dir = runtime.wstring();
+  // Replace the stderr JSONL sink with the debugger channel so lifecycle
+  // diagnostics stay observable without any console window.
+  config.diagnostic_sink = [](rivet::DiagnosticRecord const& record) {
+    ::OutputDebugStringW(winrt::to_hstring(
+                             "movebit " + diagnostic_json_line(record) + "\n")
+                             .c_str());
+  };
   return config;
 }
 
@@ -93,10 +122,12 @@ rivet::windows::RacketRuntimeConfig runtime_config() {
 using namespace winrt::Microsoft::UI::Xaml;
 
 MainWindow::MainWindow() {
+  QuietStdHandles();
   ::SetUnhandledExceptionFilter(&WriteCrashDumpAndContinue);
   InitializeComponent();
   dispatcher_ = DispatcherQueue();
   Title(L"MoveBit");
+  SetWindowIconFromResources();
   Closed([this](IInspectable const&, WindowEventArgs const&) {
     // Best-effort flush with a 1 s budget (port of FlushToday-on-exit).
     if (api_ != nullptr) {
@@ -513,12 +544,29 @@ void MainWindow::RefreshStatusMarker() {
 // ---- refresh ---------------------------------------------------------------------
 
 void MainWindow::SetStatus(std::string const& message) {
+  // The bar is startup/error feedback only: informational while booting, red
+  // on failure, closed once everything is fine (an open Success-severity bar
+  // read as a permanent green strip the user could not explain away).
   StatusBar().Message(winrt::to_hstring(message));
   StatusBar().Severity(
       message.empty()
-          ? Microsoft::UI::Xaml::Controls::InfoBarSeverity::Success
+          ? Microsoft::UI::Xaml::Controls::InfoBarSeverity::Informational
           : Microsoft::UI::Xaml::Controls::InfoBarSeverity::Error);
-  StatusBar().IsOpen(!message.empty() || true);
+  StatusBar().IsOpen(!message.empty());
+}
+
+void MainWindow::SetWindowIconFromResources() {
+  apply_window_icon(*this);
+}
+
+void MainWindow::UpdateCheck_Click(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::RoutedEventArgs const&) {
+  // The rivet-line host has no in-app updater yet; the honest manual check is
+  // the releases page, same place the update feed publishes its artifacts.
+  ::ShellExecuteW(nullptr, L"open",
+                  L"https://github.com/turinglambdaai/movebit/releases/latest",
+                  nullptr, nullptr, SW_SHOWNORMAL);
 }
 
 void MainWindow::ApplyTexts() {
@@ -552,6 +600,10 @@ void MainWindow::ApplyTexts() {
   SetLanguageLabel().Text(winrt::to_hstring(l10n::t("SetLanguage")));
   AboutUpdateLabel().Text(winrt::to_hstring(l10n::t("AboutAutoUpdate")));
   AboutUpdateHint().Text(winrt::to_hstring(l10n::t("AboutAutoUpdateHint")));
+  AboutCheckLabel().Text(winrt::to_hstring(l10n::t("AboutCheckUpdates")));
+  AboutCheckHint().Text(winrt::to_hstring(l10n::t("AboutCheckUpdatesHint")));
+  UpdateCheckButton().Content(
+      winrt::box_value(winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
   LanguageDrop().Items().GetAt(0).as<Controls::ComboBoxItem>().Content(
       winrt::box_value(winrt::to_hstring(l10n::t("LangAuto"))));
   PauseButton().Content(

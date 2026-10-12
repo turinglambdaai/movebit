@@ -60,6 +60,9 @@ struct MainWindow : MainWindowT<MainWindow> {
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void Updates_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
                        Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void UpdateCheck_Click(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::RoutedEventArgs const& args);
 
  private:
   winrt::fire_and_forget InitializeBackendAsync();
@@ -84,6 +87,7 @@ struct MainWindow : MainWindowT<MainWindow> {
   void ShowHistoryBars();
   void ShowOnboarding();
   void SetStatus(std::string const& message);
+  void SetWindowIconFromResources();
 
   template <typename F>
   void MutateConfig(F mutate);

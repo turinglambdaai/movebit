@@ -440,6 +440,24 @@
                                               OnContent="" OffContent=""
                                               Toggled="Updates_Toggled" />
                             </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock x:Name="AboutCheckLabel"
+                                               Text="Check for updates" FontSize="13"
+                                               Foreground="#26241F" />
+                                    <TextBlock x:Name="AboutCheckHint"
+                                               Text="" FontSize="11"
+                                               Foreground="#A39B8D"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1" x:Name="UpdateCheckButton"
+                                        VerticalAlignment="Center"
+                                        Click="UpdateCheck_Click" />
+                            </Grid>
                         </StackPanel>
                     </Border>
 

@@ -89,8 +89,22 @@ inline std::string resolve_language(std::string const& configured) {
   char lang[128] = {};
   size_t size = 0;
   getenv_s(&size, lang, sizeof(lang), "LANG");
-  std::string value = size > 0 ? lang : "en";
-  return value.rfind("zh", 0) == 0 ? "zh" : "en";
+  if (size == 0) {
+    // LANG is the Unix convention and a Windows GUI process rarely has it;
+    // ask for the user's UI language instead (parity with the old Avalonia
+    // host's CultureInfo.CurrentUICulture). zh stays the default.
+    wchar_t name[16] = {};
+    if (::GetLocaleInfoW(::GetUserDefaultUILanguage(), LOCALE_SISO639LANGNAME,
+                         name, 16) > 0) {
+      char narrow[16] = {};
+      if (::WideCharToMultiByte(CP_UTF8, 0, name, -1, narrow, sizeof(narrow),
+                                nullptr, nullptr) > 0) {
+        return std::string(narrow).rfind("zh", 0) == 0 ? "zh" : "en";
+      }
+    }
+    return "zh";
+  }
+  return std::string(lang).rfind("zh", 0) == 0 ? "zh" : "en";
 }
 
 struct DaySlice {

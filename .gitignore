@@ -15,3 +15,6 @@ TestResults/
 build/
 dist/
 compiled/
+# MSBuild intermediate dirs (WinUI host)
+windows/Generated Files/
+windows/RivetHost/

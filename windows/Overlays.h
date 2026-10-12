@@ -128,6 +128,28 @@ inline void strip_chrome(Window const& window) {
   }
 }
 
+// WinUI desktop windows render a placeholder glyph in the title bar/taskbar
+// until SetIcon is called; the icon resource compiled into the exe (rivet's
+// windows-icon) does not flow through automatically. The resource carries the
+// string name the generated .rc assigns; try ordinal 1 as a fallback.
+inline void apply_window_icon(Window const& window) {
+  try {
+    auto const size = ::GetSystemMetrics(SM_CXICON);
+    HANDLE icon = ::LoadImageW(::GetModuleHandleW(nullptr),
+                               L"IDI_RIVET_APP_ICON", IMAGE_ICON, size, size,
+                               LR_DEFAULTCOLOR);
+    if (!icon) {
+      icon = ::LoadImageW(::GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1),
+                          IMAGE_ICON, size, size, LR_DEFAULTCOLOR);
+    }
+    if (icon) {
+      window.AppWindow().SetIcon(winrt::Microsoft::UI::IconId{
+          static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(icon))});
+    }
+  } catch (...) {
+  }
+}
+
 }  // namespace
 
 // ---- forced break overlay ----------------------------------------------------

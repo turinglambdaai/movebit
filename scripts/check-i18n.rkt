@@ -41,13 +41,13 @@
            (remove* en-keys zh-keys)
            (remove* zh-keys en-keys)))
 
-;; Contract: 146 keys = the 145 UI strings from Assets/Strings.{zh,en}.axaml
+;; Contract: 148 keys = the 147 UI strings from Assets/Strings.{zh,en}.axaml
 ;; plus one structured `copy` section holding the BreakCopy pools verbatim.
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
-(unless (= (length ui-keys) 145)
+(unless (= (length ui-keys) 147)
   (set! failed? #t)
-  (eprintf "expected 145 UI keys, got ~a~n" (length ui-keys)))
+  (eprintf "expected 147 UI keys, got ~a~n" (length ui-keys)))
 (unless (and (>= (length copy-keys) 7)
              (hash-has-key? (hash-ref zh 'copy) 'celebrateAt))
   (set! failed? #t)
@@ -75,4 +75,4 @@
     (eprintf "copy.celebrateAt must be [3, 5, 8]~n")))
 
 (when failed? (exit 1))
-(printf "i18n OK: 146 contract keys (145 UI + copy), pools verbatim, zh/en parity~n")
+(printf "i18n OK: 148 contract keys (147 UI + copy), pools verbatim, zh/en parity~n")

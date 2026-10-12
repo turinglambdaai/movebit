@@ -55,7 +55,9 @@
   },
   "about": {
     "autoUpdate": "Check updates automatically",
-    "autoUpdateHint": "Checks at startup, then every ~6 hours; never installs silently."
+    "autoUpdateHint": "Checks at startup, then every ~6 hours; never installs silently.",
+    "checkUpdates": "Check for updates",
+    "checkUpdatesHint": "Opens the GitHub Releases page"
   },
   "upd": {
     "currentVersion": "Current version v{0}",
