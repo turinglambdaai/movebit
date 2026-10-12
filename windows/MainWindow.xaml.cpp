@@ -878,7 +878,7 @@ void MainWindow::RefreshSettingsWidgets() {
 }
 
 void MainWindow::RefreshFooter() {
-  FooterText().Text(winrt::to_hstring(
+  FooterPath().Text(winrt::to_hstring(
       model_.data_dir.empty()
           ? L""
           : winrt::to_hstring(
@@ -971,6 +971,14 @@ void MainWindow::ShowOnboarding() {
       self->toast_.Show(l10n::t("ObSettled"), {l10n::t("ObSettledBody")},
                         rivet_app::ReminderKind::water, {},
                         self->model_.config.snooze_minutes);
+    }
+  };
+  // Title-bar close without finishing still counts as seen (old-app parity:
+  // the wizard must not nag on every launch); whatever was selected is kept.
+  onboarding_.on_cancel = [weak] {
+    if (auto self = weak.get()) {
+      self->MutateConfig(
+          [&](rivet_app::ReminderConfig& d) { d.welcome_shown = true; });
     }
   };
   onboarding_.Show();

@@ -5,29 +5,24 @@
 
     <!-- Fixed warm-light palette (parity with the old Avalonia app and the
          GTK host; dark mode is a documented v1 gap on Windows/Linux). -->
-    <ScrollViewer Background="#F5F2EB">
-        <StackPanel Orientation="Vertical">
-            <Grid Padding="20,14,20,0" ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <InfoBar Grid.Column="0"
-                         x:Name="StatusBar"
-                         IsOpen="True"
-                         IsClosable="False"
-                         Severity="Informational"
-                         Message="Starting embedded Racket CS…" />
-                <Button Grid.Column="1"
-                        x:Name="PauseButton"
-                        Content="Pause"
-                        Click="Pause_Click" />
-                <Button Grid.Column="2"
-                        x:Name="QuitButton"
-                        Content="Quit"
-                        Click="Quit_Click" />
-            </Grid>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="0" Background="#F5F2EB">
+            <StackPanel Orientation="Vertical">
+                <Grid Padding="20,14,20,0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <InfoBar Grid.Column="0"
+                             x:Name="StatusBar"
+                             IsOpen="True"
+                             IsClosable="False"
+                             Severity="Informational"
+                             Message="Starting embedded Racket CS…" />
+                </Grid>
 
             <Grid Padding="20" ColumnSpacing="14">
                 <Grid.ColumnDefinitions>
@@ -482,11 +477,27 @@
                             </Grid>
                         </StackPanel>
                     </Border>
-
-                    <TextBlock x:Name="FooterText" Text="" FontSize="11"
-                               Foreground="#A39B8D" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
-        </StackPanel>
-    </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Window footer: config path on the left, lifecycle actions on the
+             right. Quit lives at the bottom (a tray-app habit; the top edge
+             of a health app is no place for an exit button). -->
+        <Grid Grid.Row="1" Background="#F5F2EB" Padding="20,10,20,14"
+              ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" x:Name="FooterPath" Text=""
+                       FontSize="11" Foreground="#A39B8D"
+                       VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Grid.Column="1" x:Name="PauseButton"
+                    Click="Pause_Click" />
+            <Button Grid.Column="2" x:Name="QuitButton"
+                    Click="Quit_Click" />
+        </Grid>
+    </Grid>
 </Window>

@@ -41,6 +41,10 @@ struct OnboardingWizard {
   Controls::Button water60{nullptr};
   std::function<void(std::string const& mode, std::int64_t water, bool sound)>
       on_finish;
+  // Fired when the window closes any other way (title-bar X): closing counts
+  // as seen, so the wizard cannot nag on every launch (old-app parity).
+  std::function<void()> on_cancel;
+  bool finished_ = false;
 
   constexpr static int kLastPage = 3;
 
@@ -53,6 +57,17 @@ struct OnboardingWizard {
     window.Title(winrt::to_hstring(l10n::t("ObTitle")));
     apply_window_icon(window);
     window.AppWindow().Resize({500, 640});
+    // Center in the display's work area (old app used CenterScreen; a
+    // first-run wizard pinned to a corner reads as an error dialog).
+    try {
+      auto const area = Microsoft::UI::Windowing::DisplayArea::GetFromWindowId(
+          window.AppWindow().Id(),
+          Microsoft::UI::Windowing::DisplayAreaFallback::Nearest);
+      auto const wa = area.WorkArea();
+      window.AppWindow().Move({wa.X + std::max(0, (wa.Width - 500) / 2),
+                               wa.Y + std::max(0, (wa.Height - 640) / 3)});
+    } catch (...) {
+    }
 
     Controls::ScrollViewer scroll;
     Controls::StackPanel root;
@@ -97,8 +112,8 @@ struct OnboardingWizard {
     scroll.IsVerticalScrollChainingEnabled(false);
     window.Content(scroll);
     window.Closed([this](IInspectable const&, WindowEventArgs const&) {
-      // Closing midway counts as seen; MainWindow persists through on_finish.
       window = {nullptr};
+      if (!finished_ && on_cancel) on_cancel();
     });
     window.Activate();
   }
@@ -278,6 +293,7 @@ struct OnboardingWizard {
 
   void GoNext() {
     if (page >= kLastPage) {
+      finished_ = true;
       if (on_finish) on_finish(mode, water, sound);
       Close();
       return;
@@ -319,6 +335,7 @@ struct OnboardingWizard {
     mode = "standard";
     water = 30;
     sound = true;
+    finished_ = true;
     if (on_finish) on_finish(mode, water, sound);
     Close();
   }
