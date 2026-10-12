@@ -62,6 +62,11 @@ struct MainWindow : MainWindowT<MainWindow> {
   void UpdateCheck_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void HandleUpdateCheck(
+      rivet_app::Result<rivet_app::UpdateCheck> const& result);
+  void StartUpdateDownload();
+  void PollUpdateProgress();
+  void ApplyStagedUpdate();
   void ChangeDataDir_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
@@ -110,6 +115,10 @@ struct MainWindow : MainWindowT<MainWindow> {
   TrayController tray_;
   bool really_quitting_ = false;
   bool tray_hint_shown_ = false;
+  // Update button state machine: idle | checking | available | downloading |
+  // ready | applying | error | up-to-date.
+  std::string update_phase_ = "idle";
+  Microsoft::UI::Dispatching::DispatcherQueueTimer update_progress_timer_{nullptr};
 
   void InitTray();
   void HideToTray();

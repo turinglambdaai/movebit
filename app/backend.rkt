@@ -28,7 +28,8 @@
          "../racket/movebit/orchestrator.rkt"
          "../racket/movebit/paths.rkt"
          "../racket/movebit/scheduler.rkt"
-         "../racket/movebit/timeutil.rkt")
+         "../racket/movebit/timeutil.rkt"
+         "../racket/movebit/update.rkt")
 
 (provide start
          ;; test seams: parameters inherited by the tick thread when the host
@@ -37,6 +38,9 @@
          current-now-ms
          current-idle-provider
          current-data-dir
+         ;; RPC handlers, exported for the server-level tests
+         initialize
+         check-updates
          backend-version)
 
 (define backend-version "1.4.0-rivet.1")
@@ -110,6 +114,21 @@
    [device-id : String]
    [devices-today : (List String)]))
 
+(define-record UpdateCheck
+  ([status : String]
+   [current-version : String]
+   [available-version : (Optional String)]
+   [build : (Optional Int64)]
+   [size-bytes : (Optional Int64)]
+   [error : (Optional String)]))
+
+(define-record UpdateState
+  ([phase : String]
+   [percent : Int64]
+   [message : (Optional String)]
+   [available-version : (Optional String)]
+   [downloaded-path : (Optional String)]))
+
 ;; --- Runtime wiring -------------------------------------------------------
 
 (struct runtime (scheduler orchestrator history data-dir device-id idle-provider)
@@ -119,6 +138,8 @@
 (define runtime-box (box #f))
 ;; (box (or/c #f thread?)) — the lazy 30 s tick thread, started by `init`.
 (define tick-thread-box (box #f))
+;; (box (or/c #f thread?)) — the auto-update-check thread, started by `init`.
+(define auto-check-thread-box (box #f))
 
 (define (require-runtime)
   (or (unbox runtime-box)
@@ -362,7 +383,9 @@
     (publish-break! rt)
     (unless (unbox tick-thread-box)
       (set-box! tick-thread-box
-                (thread (lambda () (tick-loop rt))))))
+                (thread (lambda () (tick-loop rt)))))
+    (unless (unbox auto-check-thread-box)
+      (set-box! auto-check-thread-box (thread auto-check-loop))))
   (void))
 
 ;; --- Tick thread ----------------------------------------------------------
@@ -468,6 +491,74 @@
   (save-bootstrap
    (hash-set (load-bootstrap) 'data-dir (and custom? trimmed)))
   (void))
+
+;; --- Online updates --------------------------------------------------------
+;; The backend verifies the signed feed and downloads the artifact; the host
+;; owns the install gesture (quit-and-install). Unpackaged dev builds carry
+;; no key, so every update path degrades to an honest "unavailable".
+
+(define (hasheq->update-check h)
+  (UpdateCheck
+   (hash-ref h 'status "error")
+   (or (hash-ref h 'currentVersion #f) "")
+   (hash-ref h 'availableVersion (void))
+   (hash-ref h 'build (void))
+   (hash-ref h 'sizeBytes (void))
+   (hash-ref h 'message (void))))
+
+(define-rpc (check-updates : UpdateCheck)
+  (hasheq->update-check (perform-check! default-update-base-url)))
+
+(define-rpc (start-update-download : Void)
+  (start-download! (runtime-data-dir (require-runtime)))
+  (void))
+
+(define-rpc (get-update-state : UpdateState)
+  (define snapshot (update-state-snapshot))
+  (UpdateState
+   (hash-ref snapshot 'phase "idle")
+   (hash-ref snapshot 'percent 0)
+   (hash-ref snapshot 'message (void))
+   (hash-ref snapshot 'availableVersion (void))
+   (hash-ref snapshot 'downloadedPath (void))))
+
+(define-rpc (set-install-dir [path : String] : Void)
+  (current-install-dir (simple-form-path (string-trim path)))
+  (void))
+
+(define-rpc (prepare-update-install : String)
+  ;; Extraction runs on the request worker (a few seconds). The host then
+  ;; exits; the helper waits for THIS process to disappear before swapping.
+  (define helper
+    (prepare-install! (runtime-data-dir (require-runtime))))
+  ;; Spawn the helper detached from here — it must outlive both the host
+  ;; process and the backend thread that started it.
+  (subprocess #f #f #f (find-executable-path "cmd.exe") "/c" helper)
+  helper)
+
+(define-rpc (quit-and-install : String)
+  ;; Prepare the staged payload, spawn the detached apply helper, and tell
+  ;; the host the path it was launched with (for diagnostics). The host
+  ;; exits on this response; the helper does the rest.
+  (define rt (require-runtime))
+  (define helper
+    (prepare-install! (runtime-data-dir rt)))
+  (subprocess #f #f #f (find-executable-path "cmd.exe") "/c" helper)
+  helper)
+
+(define (auto-check-loop)
+  ;; Startup check shortly after init, then every six hours, honoring the
+  ;; user's auto-check preference at each round.
+  (let loop ()
+    (sleep 3)
+    (define rt (unbox runtime-box))
+    (when (and rt
+               (reminder-config-auto-check-updates
+                (scheduler-config (runtime-scheduler rt))))
+      (with-handlers ([exn:fail? void])
+        (perform-check! default-update-base-url)))
+    (sleep (* 6 60 60))
+    (loop)))
 
 ;; --- Autostart (domain-owned; port of Services/AutoStart.cs) ---------------
 

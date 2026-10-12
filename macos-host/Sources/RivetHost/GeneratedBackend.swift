@@ -137,14 +137,50 @@ public enum RivetTypes {
         }
     }
 
+    public struct UpdateCheck: Sendable {
+        public let status: String
+        public let current_version: String
+        public let available_version: String?
+        public let build: Int64?
+        public let size_bytes: Int64?
+        public let error: String?
+        public init(status: String, current_version: String, available_version: String?, build: Int64?, size_bytes: Int64?, error: String?) {
+            self.status = status
+            self.current_version = current_version
+            self.available_version = available_version
+            self.build = build
+            self.size_bytes = size_bytes
+            self.error = error
+        }
+    }
+
+    public struct UpdateState: Sendable {
+        public let phase: String
+        public let percent: Int64
+        public let message: String?
+        public let available_version: String?
+        public let downloaded_path: String?
+        public init(phase: String, percent: Int64, message: String?, available_version: String?, downloaded_path: String?) {
+            self.phase = phase
+            self.percent = percent
+            self.message = message
+            self.available_version = available_version
+            self.downloaded_path = downloaded_path
+        }
+    }
+
 }
 
+private func encode_String(_ v: String) -> RivetValue { .string(v) }
+private func encode__Optional_String_(_ v: String?) -> RivetValue { v.map(encode_String) ?? .null }
+private func encode_Int64(_ v: Int64) -> RivetValue { .int64(v) }
+private func encode__Optional_Int64_(_ v: Int64?) -> RivetValue { v.map(encode_Int64) ?? .null }
+private func encode_UpdateCheck(_ v: RivetTypes.UpdateCheck) -> RivetValue { .list([encode_String(v.status), encode_String(v.current_version), encode__Optional_String_(v.available_version), encode__Optional_Int64_(v.build), encode__Optional_Int64_(v.size_bytes), encode__Optional_String_(v.error)]) }
 private func encode_Void(_ v: Void) -> RivetValue { .null }
 private func encode_Bool(_ v: Bool) -> RivetValue { .bool(v) }
-private func encode_String(_ v: String) -> RivetValue { .string(v) }
-private func encode_Int64(_ v: Int64) -> RivetValue { .int64(v) }
 private func encode_DayStats(_ v: RivetTypes.DayStats) -> RivetValue { .list([encode_String(v.date), encode_Int64(v.active_mins), encode_Int64(v.sit_breaks), encode_Int64(v.water_reminders), encode_Int64(v.micro_breaks), encode_Int64(v.longest_session_mins)]) }
 private func encode__List_DayStats_(_ v: [RivetTypes.DayStats]) -> RivetValue { .list(v.map(encode_DayStats)) }
+private func encode_UpdateState(_ v: RivetTypes.UpdateState) -> RivetValue { .list([encode_String(v.phase), encode_Int64(v.percent), encode__Optional_String_(v.message), encode__Optional_String_(v.available_version), encode__Optional_String_(v.downloaded_path)]) }
 private func encode_ReminderConfig(_ v: RivetTypes.ReminderConfig) -> RivetValue { .list([encode_Int64(v.sit_reminder_minutes), encode_Int64(v.water_reminder_minutes), encode_Int64(v.away_reset_minutes), encode_Bool(v.force_break_enabled), encode_Int64(v.break_duration_minutes), encode_Int64(v.skip_after_seconds), encode_Int64(v.snooze_minutes), encode_Bool(v.micro_break_enabled), encode_Int64(v.micro_break_interval_minutes), encode_Int64(v.micro_break_duration_seconds), encode_Bool(v.sound_enabled), encode_Bool(v.auto_check_updates), encode_Bool(v.welcome_shown), encode_String(v.language)]) }
 private func encode_ReminderKind(_ v: RivetTypes.ReminderKind) -> RivetValue { .string(v.rawValue) }
 private func encode_BreakEnded(_ v: RivetTypes.BreakEnded) -> RivetValue { .list([encode_Bool(v.completed)]) }
@@ -153,19 +189,22 @@ private func encode__List_ReminderKind_(_ v: [RivetTypes.ReminderKind]) -> Rivet
 private func encode_RemindersDue(_ v: RivetTypes.RemindersDue) -> RivetValue { .list([encode__List_ReminderKind_(v.kinds), encode_Bool(v.merged)]) }
 private func encode_BreakState(_ v: RivetTypes.BreakState) -> RivetValue { .list([encode_Int64(v.ends_at_ms), encode_Int64(v.skip_after_ms), encode_Int64(v.started_at_ms)]) }
 private func encode__Optional_BreakState_(_ v: RivetTypes.BreakState?) -> RivetValue { v.map(encode_BreakState) ?? .null }
-private func encode__Optional_Int64_(_ v: Int64?) -> RivetValue { v.map(encode_Int64) ?? .null }
 private func encode_LoopInfo(_ v: RivetTypes.LoopInfo) -> RivetValue { .list([encode_ReminderKind(v.kind), encode__Optional_Int64_(v.due_in_active_mins), encode_Int64(v.accumulated_mins)]) }
 private func encode__List_LoopInfo_(_ v: [RivetTypes.LoopInfo]) -> RivetValue { .list(v.map(encode_LoopInfo)) }
 private func encode_PauseState(_ v: RivetTypes.PauseState) -> RivetValue { .list([encode_Bool(v.paused), encode__Optional_Int64_(v.until_ms)]) }
 private func encode__List_String_(_ v: [String]) -> RivetValue { .list(v.map(encode_String)) }
 private func encode_RuntimeInfo(_ v: RivetTypes.RuntimeInfo) -> RivetValue { .list([encode_String(v.data_dir), encode_String(v.device_id), encode__List_String_(v.devices_today)]) }
 
+private func decode_String(_ v: RivetValue) throws -> String { guard case .string(let x) = v else { throw RivetGeneratedError.typeMismatch("String") }; return x }
+private func decode__Optional_String_(_ v: RivetValue) throws -> String? { if case .null = v { return nil }; return try decode_String(v) }
+private func decode_Int64(_ v: RivetValue) throws -> Int64 { guard case .int64(let x) = v else { throw RivetGeneratedError.typeMismatch("Int64") }; return x }
+private func decode__Optional_Int64_(_ v: RivetValue) throws -> Int64? { if case .null = v { return nil }; return try decode_Int64(v) }
+private func decode_UpdateCheck(_ v: RivetValue) throws -> RivetTypes.UpdateCheck { guard case .list(let xs) = v, xs.count == 6 else { throw RivetGeneratedError.typeMismatch("UpdateCheck") }; return RivetTypes.UpdateCheck(status: try decode_String(xs[0]), current_version: try decode_String(xs[1]), available_version: try decode__Optional_String_(xs[2]), build: try decode__Optional_Int64_(xs[3]), size_bytes: try decode__Optional_Int64_(xs[4]), error: try decode__Optional_String_(xs[5])) }
 private func decode_Void(_ v: RivetValue) throws -> Void { guard case .null = v else { throw RivetGeneratedError.typeMismatch("Void") } }
 private func decode_Bool(_ v: RivetValue) throws -> Bool { guard case .bool(let x) = v else { throw RivetGeneratedError.typeMismatch("Bool") }; return x }
-private func decode_String(_ v: RivetValue) throws -> String { guard case .string(let x) = v else { throw RivetGeneratedError.typeMismatch("String") }; return x }
-private func decode_Int64(_ v: RivetValue) throws -> Int64 { guard case .int64(let x) = v else { throw RivetGeneratedError.typeMismatch("Int64") }; return x }
 private func decode_DayStats(_ v: RivetValue) throws -> RivetTypes.DayStats { guard case .list(let xs) = v, xs.count == 6 else { throw RivetGeneratedError.typeMismatch("DayStats") }; return RivetTypes.DayStats(date: try decode_String(xs[0]), active_mins: try decode_Int64(xs[1]), sit_breaks: try decode_Int64(xs[2]), water_reminders: try decode_Int64(xs[3]), micro_breaks: try decode_Int64(xs[4]), longest_session_mins: try decode_Int64(xs[5])) }
 private func decode__List_DayStats_(_ v: RivetValue) throws -> [RivetTypes.DayStats] { guard case .list(let xs) = v else { throw RivetGeneratedError.typeMismatch("(List DayStats)") }; return try xs.map(decode_DayStats) }
+private func decode_UpdateState(_ v: RivetValue) throws -> RivetTypes.UpdateState { guard case .list(let xs) = v, xs.count == 5 else { throw RivetGeneratedError.typeMismatch("UpdateState") }; return RivetTypes.UpdateState(phase: try decode_String(xs[0]), percent: try decode_Int64(xs[1]), message: try decode__Optional_String_(xs[2]), available_version: try decode__Optional_String_(xs[3]), downloaded_path: try decode__Optional_String_(xs[4])) }
 private func decode_ReminderConfig(_ v: RivetValue) throws -> RivetTypes.ReminderConfig { guard case .list(let xs) = v, xs.count == 14 else { throw RivetGeneratedError.typeMismatch("ReminderConfig") }; return RivetTypes.ReminderConfig(sit_reminder_minutes: try decode_Int64(xs[0]), water_reminder_minutes: try decode_Int64(xs[1]), away_reset_minutes: try decode_Int64(xs[2]), force_break_enabled: try decode_Bool(xs[3]), break_duration_minutes: try decode_Int64(xs[4]), skip_after_seconds: try decode_Int64(xs[5]), snooze_minutes: try decode_Int64(xs[6]), micro_break_enabled: try decode_Bool(xs[7]), micro_break_interval_minutes: try decode_Int64(xs[8]), micro_break_duration_seconds: try decode_Int64(xs[9]), sound_enabled: try decode_Bool(xs[10]), auto_check_updates: try decode_Bool(xs[11]), welcome_shown: try decode_Bool(xs[12]), language: try decode_String(xs[13])) }
 private func decode_ReminderKind(_ v: RivetValue) throws -> RivetTypes.ReminderKind { guard case .string(let x) = v, let result = RivetTypes.ReminderKind(rawValue: x) else { throw RivetGeneratedError.typeMismatch("ReminderKind") }; return result }
 private func decode_BreakEnded(_ v: RivetValue) throws -> RivetTypes.BreakEnded { guard case .list(let xs) = v, xs.count == 1 else { throw RivetGeneratedError.typeMismatch("BreakEnded") }; return RivetTypes.BreakEnded(completed: try decode_Bool(xs[0])) }
@@ -174,7 +213,6 @@ private func decode__List_ReminderKind_(_ v: RivetValue) throws -> [RivetTypes.R
 private func decode_RemindersDue(_ v: RivetValue) throws -> RivetTypes.RemindersDue { guard case .list(let xs) = v, xs.count == 2 else { throw RivetGeneratedError.typeMismatch("RemindersDue") }; return RivetTypes.RemindersDue(kinds: try decode__List_ReminderKind_(xs[0]), merged: try decode_Bool(xs[1])) }
 private func decode_BreakState(_ v: RivetValue) throws -> RivetTypes.BreakState { guard case .list(let xs) = v, xs.count == 3 else { throw RivetGeneratedError.typeMismatch("BreakState") }; return RivetTypes.BreakState(ends_at_ms: try decode_Int64(xs[0]), skip_after_ms: try decode_Int64(xs[1]), started_at_ms: try decode_Int64(xs[2])) }
 private func decode__Optional_BreakState_(_ v: RivetValue) throws -> RivetTypes.BreakState? { if case .null = v { return nil }; return try decode_BreakState(v) }
-private func decode__Optional_Int64_(_ v: RivetValue) throws -> Int64? { if case .null = v { return nil }; return try decode_Int64(v) }
 private func decode_LoopInfo(_ v: RivetValue) throws -> RivetTypes.LoopInfo { guard case .list(let xs) = v, xs.count == 3 else { throw RivetGeneratedError.typeMismatch("LoopInfo") }; return RivetTypes.LoopInfo(kind: try decode_ReminderKind(xs[0]), due_in_active_mins: try decode__Optional_Int64_(xs[1]), accumulated_mins: try decode_Int64(xs[2])) }
 private func decode__List_LoopInfo_(_ v: RivetValue) throws -> [RivetTypes.LoopInfo] { guard case .list(let xs) = v else { throw RivetGeneratedError.typeMismatch("(List LoopInfo)") }; return try xs.map(decode_LoopInfo) }
 private func decode_PauseState(_ v: RivetValue) throws -> RivetTypes.PauseState { guard case .list(let xs) = v, xs.count == 2 else { throw RivetGeneratedError.typeMismatch("PauseState") }; return RivetTypes.PauseState(paused: try decode_Bool(xs[0]), until_ms: try decode__Optional_Int64_(xs[1])) }
@@ -206,6 +244,10 @@ public struct RivetAPI: Sendable {
     public let client: RivetClient
     public init(client: RivetClient) { self.client = client }
 
+    public func check_updates() async throws -> RivetTypes.UpdateCheck {
+        let result = try await client.call("check-updates", arguments: [])
+        return try decode_UpdateCheck(result)
+    }
     public func complete_break() async throws -> Void {
         let result = try await client.call("complete-break", arguments: [])
         return try decode_Void(result)
@@ -230,6 +272,10 @@ public struct RivetAPI: Sendable {
         let result = try await client.call("get-history", arguments: [encode_Int64(days)])
         return try decode__List_DayStats_(result)
     }
+    public func get_update_state() async throws -> RivetTypes.UpdateState {
+        let result = try await client.call("get-update-state", arguments: [])
+        return try decode_UpdateState(result)
+    }
     public func initialize() async throws -> Void {
         let result = try await client.call("initialize", arguments: [])
         return try decode_Void(result)
@@ -237,6 +283,14 @@ public struct RivetAPI: Sendable {
     public func pause_1h() async throws -> Void {
         let result = try await client.call("pause-1h", arguments: [])
         return try decode_Void(result)
+    }
+    public func prepare_update_install() async throws -> String {
+        let result = try await client.call("prepare-update-install", arguments: [])
+        return try decode_String(result)
+    }
+    public func quit_and_install() async throws -> String {
+        let result = try await client.call("quit-and-install", arguments: [])
+        return try decode_String(result)
     }
     public func resume() async throws -> Void {
         let result = try await client.call("resume", arguments: [])
@@ -254,12 +308,20 @@ public struct RivetAPI: Sendable {
         let result = try await client.call("set-data-dir", arguments: [encode_String(path)])
         return try decode_Void(result)
     }
+    public func set_install_dir(path: String) async throws -> Void {
+        let result = try await client.call("set-install-dir", arguments: [encode_String(path)])
+        return try decode_Void(result)
+    }
     public func skip_break() async throws -> Void {
         let result = try await client.call("skip-break", arguments: [])
         return try decode_Void(result)
     }
     public func snooze(kind: RivetTypes.ReminderKind) async throws -> Void {
         let result = try await client.call("snooze", arguments: [encode_ReminderKind(kind)])
+        return try decode_Void(result)
+    }
+    public func start_update_download() async throws -> Void {
+        let result = try await client.call("start-update-download", arguments: [])
         return try decode_Void(result)
     }
 

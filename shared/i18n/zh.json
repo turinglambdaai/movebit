@@ -88,7 +88,8 @@
     "cancelled": "更新已取消，当前版本保持不变。",
     "actionUpdate": "更新并重启",
     "actionRetry": "重试",
-    "actionUpdating": "更新中…"
+    "actionUpdating": "更新中…",
+  "actionRestartInstall": "重启并安装"
   },
   "main": {
     "configPath": "配置文件：{0}"

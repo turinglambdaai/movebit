@@ -182,6 +182,13 @@ winrt::fire_and_forget MainWindow::InitializeBackendAsync() {
                                 if (auto w = weak.get()) {
                                   try {
                                     w->model_.config = c.get();
+                                    // The updater needs the install root to
+                                    // stage a payload it can swap.
+                                    (void)w->api_->set_install_dir_async(
+                                        winrt::to_string(
+                                            executable_path().parent_path()
+                                                .wstring()),
+                                        [](rivet_app::Result<void>) {});
                                     w->Bootstrap();
                                   } catch (std::exception const& e) {
                                     w->SetStatus(e.what());
@@ -585,11 +592,210 @@ void MainWindow::SetWindowIconFromResources() {
 void MainWindow::UpdateCheck_Click(
     winrt::Windows::Foundation::IInspectable const&,
     Microsoft::UI::Xaml::RoutedEventArgs const&) {
-  // The rivet-line host has no in-app updater yet; the honest manual check is
-  // the releases page, same place the update feed publishes its artifacts.
-  ::ShellExecuteW(nullptr, L"open",
+  if (api_ == nullptr) return;
+  // The button is the state machine: check -> download -> restart-install.
+  if (update_phase_ == "available") {
+    StartUpdateDownload();
+    return;
+  }
+  if (update_phase_ == "ready") {
+    ApplyStagedUpdate();
+    return;
+  }
+  update_phase_ = "checking";
+  UpdateCheckButton().IsEnabled(false);
+  UpdateCheckButton().Content(
+      winrt::box_value(winrt::to_hstring(l10n::t("UpdCheckingShort"))));
+  AboutCheckHint().Text(winrt::to_hstring(l10n::t("UpdChecking")));
+  auto const weak = get_weak();
+  (void)api_->check_updates_async(
+      [weak](rivet_app::Result<rivet_app::UpdateCheck> r) {
+        if (auto w = weak.get()) {
+          w->dispatcher_.TryEnqueue([weak, r] {
+            if (auto self = weak.get()) self->HandleUpdateCheck(r);
+          });
+        }
+      });
+}
+
+void MainWindow::HandleUpdateCheck(
+    rivet_app::Result<rivet_app::UpdateCheck> const& r) {
+  UpdateCheckButton().IsEnabled(true);
+  try {
+    auto const check = r.get();
+    if (check.status == "available") {
+      update_phase_ = "available";
+      UpdateCheckButton().Content(winrt::box_value(
+          winrt::to_hstring(l10n::t("UpdActionUpdate"))));
+      AboutCheckHint().Text(winrt::to_hstring(l10n::t(
+          "UpdFound", {l10n::A(check.available_version.value_or(""))})));
+      return;
+    }
+    if (check.status == "up-to-date") {
+      update_phase_ = "up-to-date";
+      UpdateCheckButton().Content(winrt::box_value(
+          winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
+      AboutCheckHint().Text(winrt::to_hstring(l10n::t(
+          "UpdCurrentUpToDate", {l10n::A(check.current_version)})));
+      return;
+    }
+    update_phase_ = "error";
+    UpdateCheckButton().Content(winrt::box_value(
+        winrt::to_hstring(l10n::t("UpdActionRetry"))));
+    // Show the real reason: check failures are network/signing conditions,
+    // not user mistakes, and "try again later" alone hides which one.
+    AboutCheckHint().Text(winrt::to_hstring(
+        check.error.value_or(l10n::t("UpdCheckFailed"))));
+  } catch (std::exception const& e) {
+    update_phase_ = "error";
+    UpdateCheckButton().Content(winrt::box_value(
+        winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
+    AboutCheckHint().Text(winrt::to_hstring(l10n::t("UpdCheckFailed")));
+    SetStatus(e.what());
+  }
+}
+
+void MainWindow::StartUpdateDownload() {
+  update_phase_ = "downloading";
+  UpdateCheckButton().IsEnabled(false);
+  UpdateCheckButton().Content(winrt::box_value(
+      winrt::to_hstring(l10n::t("UpdActionUpdating"))));
+  AboutCheckHint().Text(
+      winrt::to_hstring(l10n::t("UpdDownloading", {l10n::A("")})));
+  auto const weak = get_weak();
+  (void)api_->start_update_download_async([weak](rivet_app::Result<void> r) {
+    if (auto outer = weak.get()) {
+      outer->dispatcher_.TryEnqueue([weak, r] {
+        if (auto w = weak.get()) {
+          if (r.succeeded()) {
+            // Progress arrives through the state snapshot; poll it.
+            w->update_progress_timer_ = make_timer(
+                std::chrono::milliseconds(700), true, [weak] {
+              if (auto window = weak.get()) window->PollUpdateProgress();
+            });
+            w->update_progress_timer_.Start();
+          } else {
+            try {
+              std::rethrow_exception(r.error);
+            } catch (std::exception const& e) {
+              w->AboutCheckHint().Text(winrt::to_hstring(
+                  std::string("start failed: ") + e.what()));
+              w->SetStatus(e.what());
+            }
+            w->update_phase_ = "error";
+            w->UpdateCheckButton().IsEnabled(true);
+            w->UpdateCheckButton().Content(winrt::box_value(
+                winrt::to_hstring(l10n::t("UpdActionRetry"))));
+          }
+        }
+      });
+    }
+  });
+}
+
+void MainWindow::PollUpdateProgress() {
+  if (api_ == nullptr || update_phase_ != "downloading") return;
+  auto const weak = get_weak();
+  (void)api_->get_update_state_async(
+      [weak](rivet_app::Result<rivet_app::UpdateState> r) {
+        if (auto outer = weak.get()) {
+          outer->dispatcher_.TryEnqueue([weak, r] {
+            if (auto w = weak.get()) {
+              // A throwing completion here would take the whole XAML thread
+              // down (0xc000027b); every failure becomes a Retry state.
+              try {
+                if (w->update_phase_ != "downloading") return;
+                auto const state = r.get();
+                auto const percent = state.percent;
+                w->AboutCheckHint().Text(winrt::to_hstring(
+                    l10n::t("UpdDownloadingPct",
+                            {l10n::A(state.available_version.value_or("")),
+                             l10n::A(percent)})));
+                if (state.phase == "downloaded" || state.phase == "error") {
+                  if (w->update_progress_timer_)
+                    w->update_progress_timer_.Stop();
+                  if (state.phase == "error") {
+                    w->AboutCheckHint().Text(winrt::to_hstring(
+                        state.message.value_or(
+                            l10n::t("UpdCheckFailed"))));
+                  }
+                  if (state.phase == "downloaded") {
+                    w->update_phase_ = "ready";
+                    w->UpdateCheckButton().IsEnabled(true);
+                    w->UpdateCheckButton().Content(winrt::box_value(
+                        winrt::to_hstring(
+                            l10n::t("UpdActionRestartInstall"))));
+                    w->AboutCheckHint().Text(winrt::to_hstring(
+                        l10n::t("UpdRestartPrep",
+                                {l10n::A(
+                                    state.available_version.value_or(""))})));
+                  } else {
+                    w->update_phase_ = "error";
+                    w->UpdateCheckButton().IsEnabled(true);
+                    w->UpdateCheckButton().Content(winrt::box_value(
+                        winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                  }
+                }
+              } catch (std::exception const& e) {
+                if (w->update_progress_timer_)
+                  w->update_progress_timer_.Stop();
+                w->update_phase_ = "error";
+                w->UpdateCheckButton().IsEnabled(true);
+                w->UpdateCheckButton().Content(winrt::box_value(
+                    winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                w->AboutCheckHint().Text(winrt::to_hstring(
+                    std::string("poll: ") + e.what()));
+                w->SetStatus(e.what());
+              } catch (...) {
+                if (w->update_progress_timer_)
+                  w->update_progress_timer_.Stop();
+                w->update_phase_ = "error";
+                w->UpdateCheckButton().IsEnabled(true);
+                w->UpdateCheckButton().Content(winrt::box_value(
+                    winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                w->AboutCheckHint().Text(winrt::to_hstring(
+                    L"poll: non-standard exception"));
+              }
+            }
+          });
+        }
+      });
+}
+void MainWindow::ApplyStagedUpdate() {
+  update_phase_ = "applying";
+  UpdateCheckButton().IsEnabled(false);
+  AboutCheckHint().Text(
+      winrt::to_hstring(l10n::t("UpdRestarting")));
+  auto const weak = get_weak();
+  (void)api_->prepare_update_install_async(
+      [weak](rivet_app::Result<std::string> r) {
+        if (auto outer = weak.get()) {
+          outer->dispatcher_.TryEnqueue([weak, r] {
+            if (auto w = weak.get()) {
+            try {
+              // The backend extracted the staged payload AND spawned the
+              // detached helper (it waits for this process to exit, swaps,
+              // relaunches). Our only job: quit cleanly so the flush runs.
+              (void)r.get();
+              w->really_quitting_ = true;
+              w->Close();
+            } catch (std::exception const& e) {
+              // Most common cause: the install directory is not writable
+              // (MSI into Program Files) — point at the releases page.
+              w->update_phase_ = "error";
+              w->UpdateCheckButton().IsEnabled(true);
+              w->UpdateCheckButton().Content(winrt::box_value(
+                  winrt::to_hstring(l10n::t("UpdActionRetry"))));
+              w->SetStatus(e.what());
+              ::ShellExecuteW(
+                  nullptr, L"open",
                   L"https://github.com/turinglambdaai/movebit/releases/latest",
                   nullptr, nullptr, SW_SHOWNORMAL);
+            }
+            }
+          });
+        }
+      });
 }
 
 void MainWindow::ChangeDataDir_Click(
