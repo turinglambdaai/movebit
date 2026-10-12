@@ -1014,10 +1014,16 @@ void MainWindow::Status_Click(winrt::Windows::Foundation::IInspectable const&,
 
 void MainWindow::TogglePause() {
   if (api_ == nullptr) return;
+  // The backend publishes the paused state, but hosts only re-read states on
+  // the 30 s tick; re-pull immediately so the status control flips now.
+  auto const weak = get_weak();
+  auto const pull = [weak](rivet_app::Result<void>) {
+    if (auto self = weak.get()) self->RefreshStatesAfterTick();
+  };
   if (model_.is_paused()) {
-    (void)api_->resume_async([](rivet_app::Result<void>) {});
+    (void)api_->resume_async(pull);
   } else {
-    (void)api_->pause_1h_async([](rivet_app::Result<void>) {});
+    (void)api_->pause_1h_async(pull);
   }
 }
 
