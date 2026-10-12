@@ -128,13 +128,24 @@ MainWindow::MainWindow() {
   dispatcher_ = DispatcherQueue();
   Title(L"MoveBit");
   SetWindowIconFromResources();
+  // Tray-app behavior: closing the window parks MoveBit in the tray; real
+  // quit goes through the tray menu (really_quitting_).
+  AppWindow().Closing(
+      [this](Microsoft::UI::Windowing::AppWindow const&,
+             Microsoft::UI::Windowing::AppWindowClosingEventArgs const& args) {
+        if (really_quitting_) return;
+        args.Cancel(true);
+        HideToTray();
+      });
   Closed([this](IInspectable const&, WindowEventArgs const&) {
     // Best-effort flush with a 1 s budget (port of FlushToday-on-exit).
+    tray_.Remove();
     if (api_ != nullptr) {
       auto future = api_->flush_now();
       (void)future.wait_for(std::chrono::seconds(1));
     }
   });
+  InitTray();
   ApplyTexts();
   InitializeBackendAsync();
 }
@@ -396,6 +407,10 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
 }
 
 void MainWindow::HandleRemindersDue(rivet_app::RemindersDue const& due) {
+  // System notification chime, best-effort (old ReminderSound parity).
+  if (model_.config.sound_enabled) {
+    ::MessageBeep(MB_ICONASTERISK);
+  }
   if (due.kinds.size() == 1 &&
       due.kinds[0] == rivet_app::ReminderKind::micro) {
     micro_.Show(model_.config.micro_break_duration_seconds,
@@ -697,6 +712,18 @@ void MainWindow::RefreshTodayCard() {
       StatusButton(),
       winrt::box_value(winrt::to_hstring(l10n::t(
           m.is_paused() ? "TodayResumeHint" : "TodayPauseHint"))));
+  tray_.SetPaused(m.is_paused());
+  tray_.SetTooltip(winrt::to_hstring(
+      m.is_paused()
+          ? l10n::t("TrayPaused",
+                    {l10n::A(""), l10n::T(m.paused.until_ms.value_or(
+                         movebit::now_ms()))})
+          : l10n::t("TrayRunning",
+                    {l10n::A(""),
+                     l10n::A(movebit::format_duration(m.today.active_mins)),
+                     l10n::A(m.current_session_mins()),
+                     l10n::A(m.config.sit_reminder_minutes)}))
+      .c_str());
 
   double fraction = 0;
   if (!m.is_paused() && m.config.sit_reminder_minutes > 0) {
@@ -982,11 +1009,50 @@ void MainWindow::ShowOnboarding() {
 
 void MainWindow::Status_Click(winrt::Windows::Foundation::IInspectable const&,
                               Microsoft::UI::Xaml::RoutedEventArgs const&) {
+  TogglePause();
+}
+
+void MainWindow::TogglePause() {
   if (api_ == nullptr) return;
   if (model_.is_paused()) {
     (void)api_->resume_async([](rivet_app::Result<void>) {});
   } else {
     (void)api_->pause_1h_async([](rivet_app::Result<void>) {});
+  }
+}
+
+void MainWindow::InitTray() {
+  tray_.on_open = [this]() { BringToForeground(); };
+  tray_.on_pause_toggle = [this]() { TogglePause(); };
+  tray_.on_check_updates = [this]() {
+    ::ShellExecuteW(nullptr, L"open",
+                    L"https://github.com/turinglambdaai/movebit/releases/latest",
+                    nullptr, nullptr, SW_SHOWNORMAL);
+  };
+  tray_.on_exit = [this]() {
+    really_quitting_ = true;
+    Close();
+  };
+  tray_.Show(L"MoveBit");
+}
+
+void MainWindow::HideToTray() {
+  AppWindow().Hide();
+  if (!tray_hint_shown_) {
+    tray_hint_shown_ = true;
+    tray_.ShowInfo(winrt::to_hstring(l10n::t("TrayHideHintTitle")).c_str(),
+                   winrt::to_hstring(l10n::t("TrayHideHintBody")).c_str());
+  }
+}
+
+void MainWindow::BringToForeground() {
+  AppWindow().Show();
+  if (auto window_native = try_as<::IWindowNative>()) {
+    HWND hwnd = nullptr;
+    if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd) {
+      // Show() restores the window; foreground raises it over the current app.
+      ::SetForegroundWindow(hwnd);
+    }
   }
 }
 

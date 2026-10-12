@@ -41,13 +41,13 @@
            (remove* en-keys zh-keys)
            (remove* zh-keys en-keys)))
 
-;; Contract: 154 keys = the 153 UI strings plus one structured `copy` section
+;; Contract: 156 keys = the 155 UI strings plus one structured `copy` section
 ;; holding the BreakCopy pools verbatim.
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
-(unless (= (length ui-keys) 153)
+(unless (= (length ui-keys) 155)
   (set! failed? #t)
-  (eprintf "expected 153 UI keys, got ~a~n" (length ui-keys)))
+  (eprintf "expected 155 UI keys, got ~a~n" (length ui-keys)))
 (unless (and (>= (length copy-keys) 7)
              (hash-has-key? (hash-ref zh 'copy) 'celebrateAt))
   (set! failed? #t)
@@ -75,4 +75,4 @@
     (eprintf "copy.celebrateAt must be [3, 5, 8]~n")))
 
 (when failed? (exit 1))
-(printf "i18n OK: 154 contract keys (153 UI + copy), pools verbatim, zh/en parity~n")
+(printf "i18n OK: 156 contract keys (155 UI + copy), pools verbatim, zh/en parity~n")

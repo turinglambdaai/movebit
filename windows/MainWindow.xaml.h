@@ -5,6 +5,7 @@
 #include "MoveBitModel.h"
 #include "Overlays.h"
 #include "Onboarding.h"
+#include "TrayIcon.h"
 
 #include <map>
 #include <optional>
@@ -106,6 +107,14 @@ struct MainWindow : MainWindowT<MainWindow> {
   ToastCard toast_;
   MicroCard micro_;
   OnboardingWizard onboarding_;
+  TrayIcon tray_;
+  bool really_quitting_ = false;
+  bool tray_hint_shown_ = false;
+
+  void InitTray();
+  void HideToTray();
+  void BringToForeground();
+  void TogglePause();
 };
 
 }  // namespace winrt::RivetHost::implementation

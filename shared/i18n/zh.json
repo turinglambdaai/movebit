@@ -103,6 +103,8 @@
     "checkUpdate": "检查更新",
     "updateTo": "更新并重启 {0}",
     "exit": "退出 MoveBit",
+    "hideHintTitle": "MoveBit 还在运行",
+    "hideHintBody": "已最小化到托盘，点击托盘的水滴图标可随时打开。",
     "running": "MoveBit · {0}今日活跃 {1} · 久坐 {2}/{3} 分钟",
     "paused": "MoveBit · {0}已暂停至 {1:HH:mm}",
     "updatePrefix": "有更新 {0} · "
