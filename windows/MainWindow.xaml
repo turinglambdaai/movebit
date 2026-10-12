@@ -301,6 +301,7 @@
                                            Text="Force break" FontSize="13"
                                            Foreground="#26241F" />
                                 <ToggleSwitch Grid.Column="1" x:Name="ForceSwitch"
+                                              MinWidth="0" HorizontalAlignment="Right"
                                               OnContent="" OffContent=""
                                               Toggled="Force_Toggled" />
                             </Grid>
@@ -355,6 +356,7 @@
                                            Text="Micro breaks" FontSize="13"
                                            Foreground="#26241F" />
                                 <ToggleSwitch Grid.Column="1" x:Name="MicroSwitch"
+                                              MinWidth="0" HorizontalAlignment="Right"
                                               OnContent="" OffContent=""
                                               Toggled="Micro_Toggled" />
                             </Grid>
@@ -387,6 +389,7 @@
                                            Text="Sound" FontSize="13"
                                            Foreground="#26241F" />
                                 <ToggleSwitch Grid.Column="1" x:Name="SoundSwitch"
+                                              MinWidth="0" HorizontalAlignment="Right"
                                               OnContent="" OffContent=""
                                               Toggled="Sound_Toggled" />
                             </Grid>
@@ -399,6 +402,7 @@
                                            Text="Launch at login" FontSize="13"
                                            Foreground="#26241F" />
                                 <ToggleSwitch Grid.Column="1" x:Name="AutostartSwitch"
+                                              MinWidth="0" HorizontalAlignment="Right"
                                               OnContent="" OffContent=""
                                               Toggled="Autostart_Toggled" />
                             </Grid>
@@ -411,7 +415,7 @@
                                            Text="Language" FontSize="13"
                                            Foreground="#26241F" />
                                 <ComboBox Grid.Column="1" x:Name="LanguageDrop"
-                                          Width="132"
+                                          Width="132" HorizontalAlignment="Right"
                                           SelectionChanged="Language_SelectionChanged">
                                     <ComboBoxItem Content="Auto" />
                                     <ComboBoxItem Content="中文" />
@@ -442,6 +446,7 @@
                                                Foreground="#A39B8D" />
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" x:Name="UpdatesSwitch"
+                                              MinWidth="0" HorizontalAlignment="Right"
                                               OnContent="" OffContent=""
                                               Toggled="Updates_Toggled" />
                             </Grid>
