@@ -63,6 +63,9 @@ struct MainWindow : MainWindowT<MainWindow> {
   void UpdateCheck_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void ChangeDataDir_Click(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::RoutedEventArgs const& args);
 
  private:
   winrt::fire_and_forget InitializeBackendAsync();
@@ -88,6 +91,7 @@ struct MainWindow : MainWindowT<MainWindow> {
   void ShowOnboarding();
   void SetStatus(std::string const& message);
   void SetWindowIconFromResources();
+  winrt::fire_and_forget PickDataFolderAsync();
 
   template <typename F>
   void MutateConfig(F mutate);

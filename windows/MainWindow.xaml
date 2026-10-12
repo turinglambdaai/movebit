@@ -458,6 +458,28 @@
                                         VerticalAlignment="Center"
                                         Click="UpdateCheck_Click" />
                             </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock x:Name="DataFolderLabel"
+                                               Text="Data folder" FontSize="13"
+                                               Foreground="#26241F" />
+                                    <TextBlock x:Name="DataFolderValue"
+                                               Text="" FontSize="11"
+                                               Foreground="#A39B8D"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock x:Name="DataFolderHint"
+                                               Text="" FontSize="11"
+                                               Foreground="#A39B8D"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1" x:Name="DataFolderButton"
+                                        VerticalAlignment="Center"
+                                        Click="ChangeDataDir_Click" />
+                            </Grid>
                         </StackPanel>
                     </Border>
 

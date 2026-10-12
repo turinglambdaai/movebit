@@ -57,7 +57,11 @@
     "autoUpdate": "自动检查更新",
     "autoUpdateHint": "启动后检查，此后约每 6 小时检查一次；不会静默安装。",
     "checkUpdates": "检查更新",
-    "checkUpdatesHint": "在 GitHub Releases 页面查看新版本"
+    "checkUpdatesHint": "在 GitHub Releases 页面查看新版本",
+    "dataFolder": "数据目录",
+    "dataFolderHint": "指向 Resilio / Syncthing 等同步文件夹后，多设备的活跃时间会自动合并累计；更改在重启后生效。",
+    "changeDataFolder": "更改…",
+    "dataFolderApplied": "已保存，重启 MoveBit 后生效"
   },
   "upd": {
     "currentVersion": "当前版本 v{0}",

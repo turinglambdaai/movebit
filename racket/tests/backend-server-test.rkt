@@ -27,6 +27,8 @@
 ;; --- temp data dir with a fast config --------------------------------------
 
 (define tmp-dir (make-temporary-file "movebit-server-test-~a" 'directory))
+;; Keep the device-id bootstrap out of the developer's real appdata.
+(putenv "MOVEBIT_BOOTSTRAP_DIR" (path->string tmp-dir))
 (call-with-output-file (build-path tmp-dir "config.json")
   (lambda (out)
     (write-json
@@ -225,8 +227,14 @@
 
 (define-values (flush-result flush-ev) (call "flush-now"))
 (check-true (void? flush-result))
-(check-true (file-exists? (build-path tmp-dir "history.json"))
-            "flush-now must persist today's stats to history.json")
+;; flush-now persists this device's day shard under history/<date>/.
+(check-true
+ (for/or ([day-dir (in-list (directory-list (build-path tmp-dir "history")
+                                            #:build? #t))]
+          #:when (directory-exists? day-dir)
+          [f (in-list (directory-list day-dir))])
+   (string-suffix? (path->string f) ".json"))
+ "flush-now must persist today's stats to a day shard")
 
 ;; The persisted config is the clamped one (immediate auto-save on set-config).
 (define persisted-config

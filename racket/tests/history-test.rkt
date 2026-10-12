@@ -1,7 +1,9 @@
 #lang racket/base
 
-;; Port of MoveBit.Tests/HistoryStoreTests.cs plus the legacy-format cases
-;; from WorkPatternTests.cs (all history-side behavior lives here).
+;; History store v2: per-device per-day shards under history/<date>/, read-time
+;; aggregation with Apple Screen Time semantics (additive counters sum across
+;; devices, longest session maxes), legacy history.json migration, sync-conflict
+;; copy skipping, and retention pruning of whole day directories.
 
 (require rackunit
          racket/file
@@ -19,10 +21,10 @@
 ;; SaveDay_roundtrips_through_disk
 (let* ([dir (make-temp-dir "hist")]
        [yesterday (date-key+days today-key -1)]
-       [store (make-history-store dir)])
+       [store (make-history-store dir "aaaaaaaa")])
   (history-load! store)
   (history-save-day! store yesterday (day-record 123 2 4 6 0))
-  (define reloaded (history-load! (make-history-store dir)))
+  (define reloaded (history-load! (make-history-store dir "aaaaaaaa")))
   (define entry (findf (lambda (e) (string=? (car e) yesterday))
                        (history-get-recent reloaded 3 today-key)))
   (check-true (pair? entry))
@@ -34,7 +36,7 @@
 
 ;; GetRecent_fills_holes_with_zero_days_oldest_first
 (let* ([dir (make-temp-dir "holes")]
-       [store (make-history-store dir)])
+       [store (make-history-store dir "aaaaaaaa")])
   (history-load! store)
   (history-save-day! store today-key (day-record 90 1 2 3 0))
   (define week (history-get-recent store 7 today-key))
@@ -47,9 +49,9 @@
     (check-equal? (day-record-sit-breaks (cdr day)) 0))
   (delete-directory/files dir))
 
-;; SaveDay_overwrites_same_day
+;; SaveDay_overwrites_same_day_device_shard
 (let* ([dir (make-temp-dir "over")]
-       [store (make-history-store dir)])
+       [store (make-history-store dir "aaaaaaaa")])
   (history-load! store)
   (history-save-day! store today-key (day-record 10 0 0 0 0))
   (history-save-day! store today-key (day-record 42 1 1 1 0))
@@ -59,66 +61,153 @@
   (check-equal? (day-record-active-minutes (cdr (car single))) 42)
   (delete-directory/files dir))
 
-;; SaveDay_prunes_entries_outside_retention_window
+;; TwoDevices_sum_additive_counters_and_max_longest (Screen Time semantics)
+(let* ([dir (make-temp-dir "multi")]
+       [desktop (make-history-store dir "aaaaaaaa")]
+       [laptop (make-history-store dir "bbbbbbbb")])
+  (history-load! desktop)
+  (history-load! laptop)
+  (history-save-day! desktop today-key (day-record 120 2 3 4 45))
+  (history-save-day! laptop today-key (day-record 60 1 1 2 70))
+  ;; The second store picks the first one's shard up through the folder scan.
+  (history-refresh! laptop)
+  (define totals (history-get-recent laptop 1 today-key))
+  (define r (cdr (car totals)))
+  (check-equal? (day-record-active-minutes r) 180)
+  (check-equal? (day-record-sit-breaks r) 3)
+  (check-equal? (day-record-water-reminders r) 4)
+  (check-equal? (day-record-micro-breaks r) 6)
+  ;; Longest session is a per-device property: max, never a sum.
+  (check-equal? (day-record-longest-session-minutes r) 70)
+  (check-equal? (history-device-ids laptop today-key) '("aaaaaaaa" "bbbbbbbb"))
+  (delete-directory/files dir))
+
+;; DeviceRecord_returns_this_devices_shard_never_the_aggregate
+(let* ([dir (make-temp-dir "ownrec")]
+       [desktop (make-history-store dir "aaaaaaaa")]
+       [laptop (make-history-store dir "bbbbbbbb")])
+  (history-load! desktop)
+  (history-save-day! desktop today-key (day-record 120 2 3 4 45))
+  (history-load! laptop)
+  (history-save-day! laptop today-key (day-record 60 1 1 2 70))
+  (history-refresh! laptop)
+  (check-equal? (day-record-active-minutes (history-device-record laptop today-key))
+                60)
+  (delete-directory/files dir))
+
+;; Migrates_legacy_single_history_json_into_this_devices_shards
+(let* ([dir (make-temp-dir "migr")]
+       [yesterday (date-key+days today-key -1)]
+       [legacy (build-path dir "history.json")])
+  (call-with-output-file legacy
+    (lambda (out)
+      (write-json
+       (hasheq (string->symbol today-key)
+               (hasheq 'ActiveMinutes 120 'SitBreaks 2 'WaterReminders 3
+                       'MicroBreaks 4 'LongestSessionMinutes 15)
+               (string->symbol yesterday)
+               (hasheq 'ActiveMinutes 30 'SitBreaks 1 'WaterReminders 1
+                       'MicroBreaks 1 'LongestSessionMinutes 5))
+       out)))
+  (define store (make-history-store dir "aaaaaaaa"))
+  (history-load! store)
+  ;; The legacy file is renamed away — a re-import cannot resurrect pruned days.
+  (check-false (file-exists? legacy))
+  (check-true (file-exists? (build-path dir "history.json.migrated")))
+  (check-equal? (day-record-active-minutes (history-device-record store today-key))
+                120)
+  (define week (history-get-recent store 2 today-key))
+  (check-equal? (day-record-active-minutes (cdr (car week))) 30)
+  (delete-directory/files dir))
+
+;; Migration_skipped_when_shards_already_exist
+(let* ([dir (make-temp-dir "migskip")]
+       [legacy (build-path dir "history.json")]
+       [store (make-history-store dir "aaaaaaaa")])
+  (history-load! store)
+  (history-save-day! store today-key (day-record 5 0 0 0 0))
+  (call-with-output-file legacy
+    (lambda (out) (write-json (hasheq 'junk (hasheq 'ActiveMinutes 999)) out)))
+  (define reloaded (make-history-store dir "aaaaaaaa"))
+  (history-load! reloaded)
+  (check-true (file-exists? legacy))
+  (check-equal? (day-record-active-minutes
+                 (history-device-record reloaded today-key))
+                5)
+  (delete-directory/files dir))
+
+;; Sync_conflict_copies_are_ignored
+(let* ([dir (make-temp-dir "conf")]
+       [store (make-history-store dir "aaaaaaaa")]
+       [day-dir (build-path dir "history" today-key)])
+  (history-load! store)
+  (history-save-day! store today-key (day-record 42 1 1 1 0))
+  ;; What Resilio/Syncthing leave behind on a true content conflict.
+  (copy-file (build-path day-dir "aaaaaaaa.json")
+             (build-path day-dir "bbbbbbbb.json.sync-conflict-20261012-123456.json"))
+  (define reloaded (make-history-store dir "aaaaaaaa"))
+  (history-load! reloaded)
+  (define r (cdr (car (history-get-recent reloaded 1 today-key))))
+  (check-equal? (day-record-active-minutes r) 42)
+  (delete-directory/files dir))
+
+;; Refresh_picks_up_shards_synced_in_after_load
+(let* ([dir (make-temp-dir "late")]
+       [store (make-history-store dir "aaaaaaaa")])
+  (history-load! store)
+  ;; Another device's shard lands in the synced folder after this store
+  ;; already loaded.
+  (define day-dir (build-path dir "history" today-key))
+  (make-directory* day-dir)
+  (call-with-output-file (build-path day-dir "bbbbbbbb.json")
+    (lambda (out)
+      (write-json
+       (day-record->jsexpr (day-record 25 1 2 3 25))
+       out)))
+  (history-refresh! store)
+  (define r (cdr (car (history-get-recent store 1 today-key))))
+  (check-equal? (day-record-active-minutes r) 25)
+  (check-equal? (history-device-ids store today-key) '("bbbbbbbb"))
+  (delete-directory/files dir))
+
+;; SaveDay_prunes_day_directories_outside_retention_window
 (let* ([dir (make-temp-dir "prune")]
-       [store (make-history-store dir)]
+       [store (make-history-store dir "aaaaaaaa")]
        [expired (date-key+days today-key (- retention-days))]
-       [oldest-kept (date-key+days today-key (- retention-days 1))]
-       [path (build-path dir "history.json")])
+       [oldest-kept (date-key+days today-key (- retention-days 1))])
   (history-load! store)
   (history-save-day! store expired (day-record 10 1 1 1 0) today-key)
   (history-save-day! store oldest-kept (day-record 20 2 2 2 0) today-key)
   (history-save-day! store today-key (day-record 30 3 3 3 0) today-key)
-  (define json (file->string path))
-  (check-false (string-contains? json expired))
-  (check-true (string-contains? json oldest-kept))
-  (check-true (string-contains? json today-key))
+  (check-false (directory-exists? (build-path dir "history" expired)))
+  (check-true (directory-exists? (build-path dir "history" oldest-kept)))
+  (check-true (directory-exists? (build-path dir "history" today-key)))
   (delete-directory/files dir))
 
-;; Old_history_json_without_insight_field_still_loads (from WorkPatternTests)
-(let* ([dir (make-temp-dir "legacy")]
-       [path (build-path dir "history.json")]
-       [store (make-history-store dir)])
-  (call-with-output-file path
-    (lambda (out)
-      (write-json
-       (hasheq (string->symbol today-key)
-               (hasheq 'ActiveMinutes 120 'SitBreaks 2 'WaterReminders 3 'MicroBreaks 4))
-       out)))
-  (history-load! store)
-  (define entry (car (history-get-recent store 1 today-key)))
-  (check-equal? (day-record-active-minutes (cdr entry)) 120)
-  (check-equal? (day-record-longest-session-minutes (cdr entry)) 0)
-  (delete-directory/files dir))
-
-;; Live_longest_session_survives_existing_four_field_flush (from WorkPatternTests)
-(let* ([dir (make-temp-dir "merge")]
-       [store (make-history-store dir)])
-  (history-load! store)
-  (history-observe-longest-session! store today-key 47)
-  (history-save-day! store today-key (day-record 90 1 2 3 0))
-  (define reloaded (history-load! (make-history-store dir)))
-  (define entry (car (history-get-recent reloaded 1 today-key)))
-  (check-equal? (day-record-longest-session-minutes (cdr entry)) 47)
-  (delete-directory/files dir))
-
-;; ObserveLongestSession_ignores_zero_and_negative_peaks
-(let* ([dir (make-temp-dir "obs")]
-       [store (make-history-store dir)])
-  (history-load! store)
-  (history-observe-longest-session! store today-key 0)
-  (history-observe-longest-session! store today-key -5)
-  (define entry (car (history-get-recent store 1 today-key)))
-  (check-equal? (day-record-longest-session-minutes (cdr entry)) 0))
-
-;; Corrupt_history_starts_empty
+;; Corrupt_shards_start_empty
 (let* ([dir (make-temp-dir "badhist")]
-       [store (make-history-store dir)])
-  (make-directory* dir)
-  (display-to-file "not json at all" (build-path dir "history.json"))
+       [store (make-history-store dir "aaaaaaaa")]
+       [day-dir (build-path dir "history" today-key)])
+  (make-directory* day-dir)
+  (display-to-file "not json at all" (build-path day-dir "aaaaaaaa.json"))
   (history-load! store)
   (check-equal? (history-get-recent store 3 today-key)
                 (list (cons (date-key+days today-key -2) (default-day-record))
                       (cons (date-key+days today-key -1) (default-day-record))
                       (cons today-key (default-day-record))))
+  (delete-directory/files dir))
+
+;; ObserveLongestSession_keeps_this_devices_peak
+(let* ([dir (make-temp-dir "obs")]
+       [store (make-history-store dir "aaaaaaaa")])
+  (history-load! store)
+  (history-observe-longest-session! store today-key 0)
+  (history-observe-longest-session! store today-key -5)
+  (check-equal? (day-record-longest-session-minutes
+                 (history-device-record store today-key))
+                0)
+  (history-observe-longest-session! store today-key 47)
+  (check-equal? (day-record-longest-session-minutes
+                 (history-device-record store today-key))
+                47)
   (delete-directory/files dir))

@@ -17,7 +17,9 @@
 ;; float); durations are Int64 milliseconds and stats are Int64 minutes.
 
 (require rivet/backend
+         racket/file
          racket/format
+         racket/path
          racket/string
          "../racket/movebit/autostart.rkt"
          "../racket/movebit/config.rkt"
@@ -103,9 +105,14 @@
 (define-record BreakEnded
   ([completed : Bool]))
 
+(define-record RuntimeInfo
+  ([data-dir : String]
+   [device-id : String]
+   [devices-today : (List String)]))
+
 ;; --- Runtime wiring -------------------------------------------------------
 
-(struct runtime (scheduler orchestrator history data-dir idle-provider)
+(struct runtime (scheduler orchestrator history data-dir device-id idle-provider)
   #:transparent)
 
 ;; (box (or/c #f runtime?))
@@ -172,6 +179,14 @@
               (day-stats-micro-breaks stats)
               (ms->mins (day-stats-longest-session-ms stats))))
 
+(define (record->dto date-key r)
+  (DayStats date-key
+            (day-record-active-minutes r)
+            (day-record-sit-breaks r)
+            (day-record-water-reminders r)
+            (day-record-micro-breaks r)
+            (day-record-longest-session-minutes r)))
+
 (define (kind->symbol kind) (enum-case kind))
 (define (symbol->kind k) (ReminderKind k))
 
@@ -225,10 +240,43 @@
 
 (define (publish-stats! rt)
   (define scheduler (runtime-scheduler rt))
-  (define dto (stats->dto (scheduler-stats scheduler)))
+  (define dto (record->dto (day-stats-date-key (scheduler-stats scheduler))
+                           (aggregate-current! rt)))
   (state-set! today dto)
   (state-set! loops (loops->dto rt))
   (tick-stats dto))
+
+;; The cross-device "today": every other device's synced shard plus this
+;; machine's live in-memory counters (its own shard may lag by up to one
+;; flush, so the in-memory stats always stand in for this device's entry).
+;; Apple Screen Time semantics — additive counters sum, longest session maxes.
+;; The refresh first picks up shards that arrived through the folder sync, so
+;; another machine's minutes land in the totals within one 30 s tick.
+(define (aggregate-current! rt)
+  (define history (runtime-history rt))
+  (define scheduler (runtime-scheduler rt))
+  (define stats (scheduler-stats scheduler))
+  (define date-key (day-stats-date-key stats))
+  (history-refresh! history)
+  (define per-device
+    (hash-ref (history-store-days history) date-key #f))
+  (define local-id (history-store-device-id history))
+  (define others
+    (for/list ([(device r) (in-hash (or per-device (hasheq)))]
+               #:unless (string=? device local-id))
+      r))
+  (define local (stats->record stats))
+  (define base (aggregate-day-records others))
+  (day-record (+ (day-record-active-minutes base)
+                 (day-record-active-minutes local))
+              (+ (day-record-sit-breaks base)
+                 (day-record-sit-breaks local))
+              (+ (day-record-water-reminders base)
+                 (day-record-water-reminders local))
+              (+ (day-record-micro-breaks base)
+                 (day-record-micro-breaks local))
+              (max (day-record-longest-session-minutes base)
+                   (day-record-longest-session-minutes local))))
 
 (define (publish-paused! rt)
   (define until (scheduler-paused-until-ms (runtime-scheduler rt)))
@@ -261,9 +309,10 @@
 (define-rpc (initialize : Void)
   (unless (unbox runtime-box)
     (define data-dir (current-data-dir))
+    (define device-id (ensure-device-id))
     (define loaded-config (load-config data-dir))
     (define idle ((current-idle-provider)))
-    (define history (make-history-store data-dir))
+    (define history (make-history-store data-dir device-id))
     (history-load! history)
     (define scheduler
       (make-scheduler loaded-config
@@ -271,12 +320,16 @@
                        (idle-provider-get-idle-seconds idle)
                        #:on-day-completed
                        (lambda (closing)
-                         ;; Archive the closing day BEFORE the reset.
+                         ;; Archive the closing day BEFORE the reset, then
+                         ;; publish the cross-device aggregate for it.
                          (history-save-day! history
                                             (day-stats-date-key closing)
                                             (stats->record closing)
                                             (day-stats-date-key closing))
-                         (day-completed (stats->dto closing)))))
+                         (day-completed
+                          (record->dto
+                           (day-stats-date-key closing)
+                           (aggregate-current! rt))))))
     (define o
       (make-orchestrator scheduler
                          (current-now-ms)
@@ -291,14 +344,16 @@
                             (RemindersDue (map symbol->kind kinds) merged?)))
                          #:on-flush
                          (lambda () (flush-today! rt))))
-    (define rt (runtime scheduler o history data-dir idle))
+    (define rt (runtime scheduler o history data-dir device-id idle))
     (set-box! runtime-box rt)
     ;; A mid-day restart keeps the morning's activity: seed the persisted
-    ;; same-day record into the fresh session before any flush can clobber it.
+    ;; same-day record into the fresh session before any flush can clobber
+    ;; it. Deliberately THIS device's shard, never the cross-device aggregate
+    ;; — synced minutes from other machines must not enter the local
+    ;; accumulator, or the next flush would write them into this device's
+    ;; shard and double-count everywhere.
     (define today-key (day-stats-date-key (scheduler-stats scheduler)))
-    (define recent (history-get-recent history 1 today-key))
-    (when (and (pair? recent) (string=? (car (car recent)) today-key))
-      (orchestrator-restore-today! o (cdr (car recent))))
+    (orchestrator-restore-today! o (history-device-record history today-key))
     ;; Publish initial state and start the lazy tick thread (inherits the
     ;; event emitter + injection parameters from this request thread).
     (state-set! active-config (config->dto loaded-config))
@@ -379,19 +434,40 @@
 (define-rpc (get-history [days : Int64] : (List DayStats))
   (define rt (require-runtime))
   (define scheduler (runtime-scheduler rt))
+  ;; Pick up shards that arrived through the folder sync before aggregating.
+  (history-refresh! (runtime-history rt))
   ;; Retention caps meaningful history at 370 days; keep huge requests sane.
   (define recent
     (history-get-recent (runtime-history rt)
                         (min 370 (inexact->exact days))
                         (day-stats-date-key (scheduler-stats scheduler))))
   (for/list ([entry (in-list recent)])
-    (define r (cdr entry))
-    (DayStats (car entry)
-              (day-record-active-minutes r)
-              (day-record-sit-breaks r)
-              (day-record-water-reminders r)
-              (day-record-micro-breaks r)
-              (day-record-longest-session-minutes r))))
+    (record->dto (car entry) (cdr entry))))
+
+;; --- Data directory (bring-your-own-sync) ---------------------------------
+;; Point data-dir at a Resilio/Syncthing folder and every device in that
+;; folder contributes to the shared totals. The pointer lives in the
+;; bootstrap file OUTSIDE the synced data (each machine keeps its own) and
+;; takes effect on the next launch.
+
+(define-rpc (get-data-dir : String)
+  (path->string (runtime-data-dir (require-runtime))))
+
+(define-rpc (set-data-dir [path : String] : Void)
+  (define trimmed (string-trim path))
+  (define custom?
+    (not (string=? trimmed "")))
+  (when custom?
+    ;; Create it and actually write into it — a pointer to an unwritable
+    ;; folder would only surface as a broken app after the restart.
+    (define target (simple-form-path trimmed))
+    (make-directory* target)
+    (define probe (build-path target ".movebit-write-probe"))
+    (call-with-output-file probe (lambda (out) (display "ok" out)) #:exists 'replace)
+    (delete-file probe))
+  (save-bootstrap
+   (hash-set (load-bootstrap) 'data-dir (and custom? trimmed)))
+  (void))
 
 ;; --- Autostart (domain-owned; port of Services/AutoStart.cs) ---------------
 
@@ -409,11 +485,15 @@
   (define scheduler (runtime-scheduler rt))
   (define c (scheduler-config scheduler))
   (define stats (scheduler-stats scheduler))
+  (define date-key (day-stats-date-key stats))
   (string-join
    (list
     (~a "movebit " backend-version)
     (~a "platform: " (system-type) " / " (system-type 'machine))
     (~a "data-dir: " (runtime-data-dir rt))
+    (~a "device-id: " (runtime-device-id rt)
+        " · devices today: "
+        (string-join (history-device-ids (runtime-history rt) date-key) ", "))
     (~a "idle-provider: " (idle-provider-name (runtime-idle-provider rt)))
     (~a "today: " (day-stats-date-key stats)
         " active " (ms->mins (day-stats-active-ms stats)) "m"

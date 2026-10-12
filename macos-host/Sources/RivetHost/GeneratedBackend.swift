@@ -126,6 +126,17 @@ public enum RivetTypes {
         }
     }
 
+    public struct RuntimeInfo: Sendable {
+        public let data_dir: String
+        public let device_id: String
+        public let devices_today: [String]
+        public init(data_dir: String, device_id: String, devices_today: [String]) {
+            self.data_dir = data_dir
+            self.device_id = device_id
+            self.devices_today = devices_today
+        }
+    }
+
 }
 
 private func encode_Void(_ v: Void) -> RivetValue { .null }
@@ -146,6 +157,8 @@ private func encode__Optional_Int64_(_ v: Int64?) -> RivetValue { v.map(encode_I
 private func encode_LoopInfo(_ v: RivetTypes.LoopInfo) -> RivetValue { .list([encode_ReminderKind(v.kind), encode__Optional_Int64_(v.due_in_active_mins), encode_Int64(v.accumulated_mins)]) }
 private func encode__List_LoopInfo_(_ v: [RivetTypes.LoopInfo]) -> RivetValue { .list(v.map(encode_LoopInfo)) }
 private func encode_PauseState(_ v: RivetTypes.PauseState) -> RivetValue { .list([encode_Bool(v.paused), encode__Optional_Int64_(v.until_ms)]) }
+private func encode__List_String_(_ v: [String]) -> RivetValue { .list(v.map(encode_String)) }
+private func encode_RuntimeInfo(_ v: RivetTypes.RuntimeInfo) -> RivetValue { .list([encode_String(v.data_dir), encode_String(v.device_id), encode__List_String_(v.devices_today)]) }
 
 private func decode_Void(_ v: RivetValue) throws -> Void { guard case .null = v else { throw RivetGeneratedError.typeMismatch("Void") } }
 private func decode_Bool(_ v: RivetValue) throws -> Bool { guard case .bool(let x) = v else { throw RivetGeneratedError.typeMismatch("Bool") }; return x }
@@ -165,6 +178,8 @@ private func decode__Optional_Int64_(_ v: RivetValue) throws -> Int64? { if case
 private func decode_LoopInfo(_ v: RivetValue) throws -> RivetTypes.LoopInfo { guard case .list(let xs) = v, xs.count == 3 else { throw RivetGeneratedError.typeMismatch("LoopInfo") }; return RivetTypes.LoopInfo(kind: try decode_ReminderKind(xs[0]), due_in_active_mins: try decode__Optional_Int64_(xs[1]), accumulated_mins: try decode_Int64(xs[2])) }
 private func decode__List_LoopInfo_(_ v: RivetValue) throws -> [RivetTypes.LoopInfo] { guard case .list(let xs) = v else { throw RivetGeneratedError.typeMismatch("(List LoopInfo)") }; return try xs.map(decode_LoopInfo) }
 private func decode_PauseState(_ v: RivetValue) throws -> RivetTypes.PauseState { guard case .list(let xs) = v, xs.count == 2 else { throw RivetGeneratedError.typeMismatch("PauseState") }; return RivetTypes.PauseState(paused: try decode_Bool(xs[0]), until_ms: try decode__Optional_Int64_(xs[1])) }
+private func decode__List_String_(_ v: RivetValue) throws -> [String] { guard case .list(let xs) = v else { throw RivetGeneratedError.typeMismatch("(List String)") }; return try xs.map(decode_String) }
+private func decode_RuntimeInfo(_ v: RivetValue) throws -> RivetTypes.RuntimeInfo { guard case .list(let xs) = v, xs.count == 3 else { throw RivetGeneratedError.typeMismatch("RuntimeInfo") }; return RivetTypes.RuntimeInfo(data_dir: try decode_String(xs[0]), device_id: try decode_String(xs[1]), devices_today: try decode__List_String_(xs[2])) }
 
 public enum RivetEvent: Sendable {
     case break_ended(RivetTypes.BreakEnded)
@@ -203,6 +218,10 @@ public struct RivetAPI: Sendable {
         let result = try await client.call("get-autostart", arguments: [])
         return try decode_Bool(result)
     }
+    public func get_data_dir() async throws -> String {
+        let result = try await client.call("get-data-dir", arguments: [])
+        return try decode_String(result)
+    }
     public func get_diagnostics() async throws -> String {
         let result = try await client.call("get-diagnostics", arguments: [])
         return try decode_String(result)
@@ -229,6 +248,10 @@ public struct RivetAPI: Sendable {
     }
     public func set_config(value: RivetTypes.ReminderConfig) async throws -> Void {
         let result = try await client.call("set-config", arguments: [encode_ReminderConfig(value)])
+        return try decode_Void(result)
+    }
+    public func set_data_dir(path: String) async throws -> Void {
+        let result = try await client.call("set-data-dir", arguments: [encode_String(path)])
         return try decode_Void(result)
     }
     public func skip_break() async throws -> Void {

@@ -311,10 +311,19 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
         [&](auto const& e) {
           using T = std::decay_t<decltype(e)>;
           if constexpr (std::is_same_v<T, rivet_app::Tick_statsEvent>) {
+            // Synced-in shards from other devices move the aggregate without
+            // any local activity; when the totals move, pick the history
+            // chart up on the same tick instead of waiting for a restart.
+            bool const history_dirty =
+                model_.today.active_mins != e.value.active_mins ||
+                model_.today.sit_breaks != e.value.sit_breaks ||
+                model_.today.water_reminders != e.value.water_reminders ||
+                model_.today.micro_breaks != e.value.micro_breaks;
             model_.today = e.value;
             RefreshTodayCard();
             RefreshInsightCard();
             RefreshStatesAfterTick();
+            if (history_dirty) ReloadHistory();
           } else if constexpr (std::is_same_v<T, rivet_app::Reminders_dueEvent>) {
             HandleRemindersDue(e.value);
           } else if constexpr (std::is_same_v<T, rivet_app::Break_startedEvent>) {
@@ -569,6 +578,57 @@ void MainWindow::UpdateCheck_Click(
                   nullptr, nullptr, SW_SHOWNORMAL);
 }
 
+void MainWindow::ChangeDataDir_Click(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::RoutedEventArgs const&) {
+  PickDataFolderAsync();
+}
+
+// Folder picker -> backend set-data-dir (validated + persisted into the
+// bootstrap file outside the synced data) -> applied on next launch.
+winrt::fire_and_forget MainWindow::PickDataFolderAsync() {
+  if (api_ == nullptr) co_return;
+
+  Windows::Storage::Pickers::FolderPicker picker;
+  picker.FileTypeFilter().Append(L"*");
+  // Unpackaged WinUI needs the picker bound to a real HWND.
+  auto window_native = try_as<::IWindowNative>();
+  if (window_native) {
+    HWND hwnd = nullptr;
+    if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd) {
+      if (auto init = picker.try_as<::IInitializeWithWindow>()) {
+        init->Initialize(hwnd);
+      }
+    }
+  }
+
+  auto folder = co_await picker.PickSingleFolderAsync();
+  if (!folder || api_ == nullptr) co_return;
+
+  auto const path = winrt::to_string(folder.Path());
+  auto const weak = get_weak();
+  auto const dispatcher = dispatcher_;
+  (void)api_->set_data_dir_async(
+      path, [weak, dispatcher, path](rivet_app::Result<void> result) {
+        dispatcher.TryEnqueue([weak, result, path] {
+          if (auto window = weak.get()) {
+            if (result.succeeded()) {
+              window->model_.config_status =
+                  l10n::t("AboutDataFolderApplied");
+              window->RefreshStatusMarker();
+              window->DataFolderValue().Text(winrt::to_hstring(path));
+            } else {
+              try {
+                std::rethrow_exception(result.error);
+              } catch (std::exception const& e) {
+                window->SetStatus(e.what());
+              }
+            }
+          }
+        });
+      });
+}
+
 void MainWindow::ApplyTexts() {
   TodayTitle().Text(winrt::to_hstring(l10n::t("TodayTitle")));
   SitCycleCaption().Text(winrt::to_hstring(l10n::t("TodaySitCycle")));
@@ -604,6 +664,10 @@ void MainWindow::ApplyTexts() {
   AboutCheckHint().Text(winrt::to_hstring(l10n::t("AboutCheckUpdatesHint")));
   UpdateCheckButton().Content(
       winrt::box_value(winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
+  DataFolderLabel().Text(winrt::to_hstring(l10n::t("AboutDataFolder")));
+  DataFolderHint().Text(winrt::to_hstring(l10n::t("AboutDataFolderHint")));
+  DataFolderButton().Content(
+      winrt::box_value(winrt::to_hstring(l10n::t("AboutChangeDataFolder"))));
   LanguageDrop().Items().GetAt(0).as<Controls::ComboBoxItem>().Content(
       winrt::box_value(winrt::to_hstring(l10n::t("LangAuto"))));
   PauseButton().Content(
@@ -870,22 +934,14 @@ void MainWindow::ReloadAutostart() {
 void MainWindow::ReloadDataDir() {
   if (api_ == nullptr) return;
   auto const weak = get_weak();
-  (void)api_->get_diagnostics_async([weak](rivet_app::Result<std::string> r) {
+  (void)api_->get_data_dir_async([weak](rivet_app::Result<std::string> r) {
     if (auto self = weak.get()) {
       self->dispatcher_.TryEnqueue([weak, r] {
         if (auto w = weak.get()) {
           try {
-            auto const text = r.get();
-            static std::string const prefix = "data-dir: ";
-            auto pos = text.find(prefix);
-            if (pos != std::string::npos) {
-              auto const end = text.find('\n', pos);
-              w->model_.data_dir = text.substr(
-                  pos + prefix.size(),
-                  end == std::string::npos ? std::string::npos
-                                           : end - pos - prefix.size());
-              w->RefreshFooter();
-            }
+            w->model_.data_dir = r.get();
+            w->RefreshFooter();
+            w->DataFolderValue().Text(winrt::to_hstring(w->model_.data_dir));
           } catch (std::exception const&) {
           }
         }
