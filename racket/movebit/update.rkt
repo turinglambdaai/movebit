@@ -26,9 +26,7 @@
 ;;     tarball/package installs stay manual, so `prepare-install!` refuses
 ;;     and the host hands off the downloaded file or shows guidance.
 
-(require json
-         net/base64
-         net/url
+(require net/url
          rivet/app-info
          rivet/distribution
          racket/file
@@ -143,6 +141,9 @@
                   update-key-id
                   ;; Rollout 0 always matches a manifest rolling out to 100;
                   ;; MoveBit ships to everyone today (bucket 0..99 < 100).
+                  ;; When a sticky rollout ships, replace this with the
+                  ;; persisted real bucket (threadly's updater-state.json
+                  ;; one-key whitelist pattern).
                   0
                   maximum-bytes))
 
@@ -156,8 +157,7 @@
                'percent 0
                'message #f
                'availableVersion #f
-               'downloadedPath #f
-               'stagedPath #f)))
+               'downloadedPath #f)))
 
 (define candidate-box (box #f))
 (define worker-thread-box (box #f))
@@ -175,8 +175,7 @@
                     'percent 0
                     'message #f
                     'availableVersion #f
-                    'downloadedPath #f
-                    'stagedPath #f)))
+                    'downloadedPath #f)))
 
 (define (set-update-error! message)
   (state-set! 'phase "error")
@@ -531,7 +530,7 @@
 ;;     <data-dir>/updates/staged/ and write apply-update.cmd: the helper
 ;;     waits for the running app to exit, robocopys the staged payload over
 ;;     the install directory, relaunches, and removes itself. Extract runs
-;;     on the caller's thread (the quit-and-install RPC worker).
+;;     on the caller's thread (the prepare-update-install RPC worker).
 ;;   macOS — the zip carries movebit.app. Extract the same way (bsdtar reads
 ;;     zip on macOS too), then apply-update.sh copies the staged bundle onto
 ;;     the install volume and swaps it with a backup + rollback rename
@@ -682,9 +681,9 @@
     #:exists 'replace)
   (delete-file probe))
 
-;; Called from the quit-and-install RPC on its worker: extract the verified
-;; zip, write the helper, and hand back the command to spawn. The host then
-;; exits and the helper finishes the swap.
+;; Called from the prepare-update-install RPC on its worker: extract the
+;; verified zip, write the helper, and hand back the command to spawn. The
+;; host then exits and the detached helper finishes the swap.
 (define (prepare-install! data-dir)
   (case (system-type 'os)
     [(linux)
@@ -706,7 +705,6 @@
          [(macosx) (write-apply-helper-mac! data-dir (getpid))]
          [else (write-apply-helper! data-dir (getpid))]))
      (state-set! 'phase "ready-to-apply")
-     (state-set! 'stagedPath (path->string staged))
      (path->string helper)]))
 
 ;; The apply helper waits on the precise PID of the exiting app, so a stray

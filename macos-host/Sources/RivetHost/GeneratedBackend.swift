@@ -288,10 +288,6 @@ public struct RivetAPI: Sendable {
         let rivetResult = try await client.call("prepare-update-install", arguments: [])
         return try decode_String(rivetResult)
     }
-    public func quit_and_install() async throws -> String {
-        let rivetResult = try await client.call("quit-and-install", arguments: [])
-        return try decode_String(rivetResult)
-    }
     public func resume() async throws -> Void {
         let rivetResult = try await client.call("resume", arguments: [])
         return try decode_Void(rivetResult)

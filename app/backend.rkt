@@ -491,8 +491,9 @@
 
 ;; --- Online updates --------------------------------------------------------
 ;; The backend verifies the signed feed and downloads the artifact; the host
-;; owns the install gesture (quit-and-install). Unpackaged dev builds carry
-;; no key, so every update path degrades to an honest "unavailable".
+;; owns the install gesture (prepare-update-install writes the detached apply
+;; helper the host spawns before exiting). Unpackaged dev builds carry no
+;; key, so every update path degrades to an honest "unavailable".
 
 (define (hasheq->update-check h)
   (UpdateCheck
@@ -538,16 +539,6 @@
   ;; exits; the helper waits for THIS process to disappear before swapping.
   (define helper
     (prepare-install! (runtime-data-dir (require-runtime))))
-  (spawn-apply-helper! helper)
-  helper)
-
-(define-rpc (quit-and-install : String)
-  ;; Prepare the staged payload, spawn the detached apply helper, and tell
-  ;; the host the path it was launched with (for diagnostics). The host
-  ;; exits on this response; the helper does the rest.
-  (define rt (require-runtime))
-  (define helper
-    (prepare-install! (runtime-data-dir rt)))
   (spawn-apply-helper! helper)
   helper)
 
