@@ -49,6 +49,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onRemindersDue = { [weak self] due in self?.handleRemindersDue(due) }
         model.onBreakStarted = { [weak self] in self?.handleBreakStarted() }
         model.onBreakEnded = { [weak self] completed in self?.handleBreakEnded(completed: completed) }
+        // Restart-install handoff: the backend staged the update and spawned
+        // the apply helper; quitting lets it swap the bundle and relaunch.
+        model.onQuitRequested = { [weak self] in self?.quit() }
 
         installOverlayControllers(model: model)
         rebuildMenuBar()

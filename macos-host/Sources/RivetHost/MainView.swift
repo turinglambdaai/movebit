@@ -713,6 +713,35 @@ private struct AboutCard: View {
             Text(L10n.t("UpdCurrentVersion", RivetGeneratedConfig.version))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(Palette.inkPrimary)
+            // The button IS the update state machine (parity with the
+            // Windows host): check → download with progress → restart-install.
+            HStack(spacing: 12) {
+                Button(action: model.handleUpdateButton) {
+                    Text(updateButtonLabel)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .disabled(!updateButtonEnabled)
+                if model.updatePhase == .downloading {
+                    ProgressView(value: Double(model.updatePercent), total: 100)
+                        .frame(maxWidth: 140)
+                    Text("\(model.updatePercent)%")
+                        .font(.system(size: 11))
+                        .foregroundColor(Palette.inkSecondary)
+                }
+                Spacer()
+            }
+            if !updateHint.isEmpty {
+                Text(updateHint)
+                    .font(.system(size: 11))
+                    .foregroundColor(model.updatePhase == .failed
+                                        ? Palette.pausedOrange
+                                        : Palette.inkMuted)
+                    .multilineTextAlignment(.leading)
+                    // Failure text must leave the screen with the user —
+                    // selectable, so it can be copied into a bug report.
+                    .textSelection(.enabled)
+            }
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.t("AboutAutoUpdate"))
@@ -743,5 +772,47 @@ private struct AboutCard: View {
                 .foregroundColor(Palette.inkMuted)
         }
         .modifier(CardBackground())
+    }
+
+    private var updateButtonLabel: String {
+        switch model.updatePhase {
+        case .checking: return L10n.t("UpdCheckingShort")
+        case .available: return L10n.t("UpdActionUpdate")
+        case .downloading: return L10n.t("UpdActionUpdating")
+        case .ready: return L10n.t("UpdActionRestartInstall")
+        case .applying: return L10n.t("UpdActionUpdating")
+        case .failed: return L10n.t("UpdActionRetry")
+        case .idle, .upToDate: return L10n.t("AboutCheckUpdates")
+        }
+    }
+
+    private var updateButtonEnabled: Bool {
+        switch model.updatePhase {
+        case .checking, .downloading, .applying: return false
+        default: return true
+        }
+    }
+
+    private var updateHint: String {
+        switch model.updatePhase {
+        case .checking:
+            return L10n.t("UpdChecking")
+        case .available:
+            return L10n.t("UpdFound", model.updateAvailableVersion ?? "")
+        case .downloading:
+            return L10n.t("UpdDownloadingPct",
+                          model.updateAvailableVersion ?? "",
+                          "\(model.updatePercent)")
+        case .ready:
+            return L10n.t("UpdRestartPrep", model.updateAvailableVersion ?? "")
+        case .applying:
+            return L10n.t("UpdRestarting")
+        case .failed:
+            return model.updateErrorText ?? L10n.t("UpdCheckFailed")
+        case .upToDate:
+            return L10n.t("UpdCurrentUpToDate", RivetGeneratedConfig.version)
+        case .idle:
+            return ""
+        }
     }
 }

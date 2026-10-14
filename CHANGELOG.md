@@ -4,12 +4,33 @@
 
 ### Added
 
+- The macOS and Linux hosts are wired to the updater's full state machine
+  (the backend already checked silently at startup and every 6 hours, but
+  no host ever called `check-updates` / `get-update-state`): a 检查更新 /
+  Check for updates entry in the About card now walks 检查中 → 发现新版本
+  (consent dialog) → download with live progress → 重启并安装, with
+  up-to-date and retry states inline; failure text is selectable/copyable
+  on both hosts.
+- Linux install shapes after a download (parity with the family's taskly
+  flow): AppImage copies get the sibling `.AppImage` release asset
+  downloaded, sidecar-checksummed, and swapped over the running image —
+  the dialog only offers the re-exec; deb/rpm copies get package-manager
+  guidance and never download; portable tarball copies get the verified
+  archive plus an extract-over hint and an Open Folder button.
+- macOS auto-install: after the verified zip downloads, the backend stages
+  the bundle and spawns a POSIX apply helper (wait for exit → backup →
+  same-volume swap with rollback → relaunch via `open`), mirroring the
+  Windows `.cmd` helper; `prepare-update-install` / `quit-and-install`
+  spawn the right helper per platform.
 - GitHub issue templates (bug report, feature request, contact links)
   pointing at the site manual and asking for the diagnostics line and the
   copyable update error text.
 
 ### Changed
 
+- The update state snapshot keeps a stable key set in every phase
+  (`downloadedPath`/`stagedPath` are `#f` instead of absent until used) —
+  the hosts' poll contract no longer depends on which transitions ran.
 - The About card on every host (settings & stats window) now carries the
   family About rows alongside version and the auto-update toggle: links
   to the website (<https://movebit.jrtx.site>) and the issue tracker

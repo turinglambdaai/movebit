@@ -93,7 +93,17 @@
     "actionRetry": "重试",
     "actionUpdating": "更新中…",
     "copyError": "复制错误信息",
-  "actionRestartInstall": "重启并安装"
+    "actionRestartInstall": "重启并安装",
+    "availableTitle": "发现新版本",
+    "downloadedTitle": "更新已下载",
+    "appImageHint": "更新已就位，重启 MoveBit 即可切换到新版本。",
+    "installHint": "安装方法：解压下载的压缩包并替换当前 MoveBit 目录。",
+    "openFolder": "打开文件夹",
+    "usePackageManager": "此副本由系统包管理器安装，请用系统包管理器升级 MoveBit。"
+  },
+  "dialog": {
+    "cancel": "取消",
+    "close": "关闭"
   },
   "main": {
     "configPath": "配置文件：{0}"

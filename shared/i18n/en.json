@@ -93,7 +93,17 @@
     "actionRetry": "Retry",
     "actionUpdating": "Updating…",
     "copyError": "Copy error",
-  "actionRestartInstall": "Restart & install"
+    "actionRestartInstall": "Restart &amp; install",
+    "availableTitle": "Update available",
+    "downloadedTitle": "Update downloaded",
+    "appImageHint": "The update is in place — restart MoveBit to switch to the new version.",
+    "installHint": "To install, extract the downloaded archive over the current MoveBit directory.",
+    "openFolder": "Open Folder",
+    "usePackageManager": "This copy came from the system package manager — use it to upgrade MoveBit."
+  },
+  "dialog": {
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "main": {
     "configPath": "Config file: {0}"

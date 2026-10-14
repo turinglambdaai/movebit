@@ -523,14 +523,22 @@
   (current-install-dir (simple-form-path (string-trim path)))
   (void))
 
+;; Spawn the apply helper detached: no port wiring, and it must outlive both
+;; the host process and the backend thread that started it. cmd /c on
+;; Windows (the .cmd helper), /bin/sh elsewhere (the POSIX .sh helper).
+(define (spawn-apply-helper! helper)
+  (case (system-type 'os)
+    [(windows)
+     (subprocess #f #f #f (find-executable-path "cmd.exe") "/c" helper)]
+    [else
+     (subprocess #f #f #f "/bin/sh" helper)]))
+
 (define-rpc (prepare-update-install : String)
   ;; Extraction runs on the request worker (a few seconds). The host then
   ;; exits; the helper waits for THIS process to disappear before swapping.
   (define helper
     (prepare-install! (runtime-data-dir (require-runtime))))
-  ;; Spawn the helper detached from here — it must outlive both the host
-  ;; process and the backend thread that started it.
-  (subprocess #f #f #f (find-executable-path "cmd.exe") "/c" helper)
+  (spawn-apply-helper! helper)
   helper)
 
 (define-rpc (quit-and-install : String)
@@ -540,7 +548,7 @@
   (define rt (require-runtime))
   (define helper
     (prepare-install! (runtime-data-dir rt)))
-  (subprocess #f #f #f (find-executable-path "cmd.exe") "/c" helper)
+  (spawn-apply-helper! helper)
   helper)
 
 (define (auto-check-loop)

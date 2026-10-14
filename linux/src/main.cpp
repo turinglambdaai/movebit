@@ -18,9 +18,11 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <map>
@@ -29,6 +31,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #include "GeneratedBackend.hpp"
@@ -384,6 +387,8 @@ struct MainWidgets {
   GtkLabel* insight_sedentary{nullptr};
   GtkLabel* footer{nullptr};
   GtkLabel* about_version{nullptr};
+  GtkButton* updates_button{nullptr};
+  GtkLabel* updates_hint{nullptr};
   GtkLabel* config_status{nullptr};
 
   // Settings widgets (kept to apply config without re-signaling).
@@ -929,6 +934,446 @@ void on_quit_clicked(GtkButton*, gpointer) {
   g_state.window = nullptr;
 }
 
+// ---- updates (UPDATE.md) ----------------------------------------------------
+//
+// The backend verifies the signed feed and downloads the artifact; this host
+// owns consent, progress, and the install shape's final dialog. Three shapes
+// (parity with the taskly host): AppImage — the backend has already swapped
+// the sibling .AppImage over the running image, so the dialog only offers
+// the re-exec; deb/rpm — package-manager guidance, never downloads; portable
+// tarball — manual swap hint plus the file's folder. Failure text is always
+// selectable: a bug report starts from that string.
+
+struct UpdateFlowState {
+  guint poll_source{0};        // 400 ms update_state poll
+  GtkWindow* progress_dialog{nullptr};
+  GtkProgressBar* progress_bar{nullptr};
+  GtkLabel* progress_label{nullptr};
+  std::string pending_version;  // captured at consent for the progress title
+  bool check_in_flight{false};
+  bool download_in_flight{false};
+  bool reflected_pending{false};  // one-shot silent-check surfacing
+};
+
+UpdateFlowState g_update;
+
+// Install shape for the update flow: the AppImage runtime exports APPIMAGE
+// pointing at the running image; deb/rpm payloads land under /opt/movebit
+// (symlinked from /usr/bin) — those upgrade through the package manager;
+// everything else is the portable tarball layout.
+std::string install_shape() {
+  char const* appimage = getenv("APPIMAGE");
+  if (appimage != nullptr && appimage[0] != '\0') return "appimage";
+  std::error_code ec;
+  auto const exe = std::filesystem::read_symlink("/proc/self/exe", ec);
+  if (!ec) {
+    auto const path = exe.string();
+    if (path.rfind("/opt/movebit/", 0) == 0 || path.rfind("/usr/", 0) == 0) {
+      return "package";
+    }
+  }
+  return "tarball";
+}
+
+void stop_update_poll() {
+  if (g_update.poll_source != 0) {
+    g_source_remove(g_update.poll_source);
+    g_update.poll_source = 0;
+  }
+}
+
+void close_update_progress() {
+  if (g_update.progress_dialog != nullptr) {
+    gtk_window_destroy(g_update.progress_dialog);
+    g_update.progress_dialog = nullptr;
+    g_update.progress_bar = nullptr;
+    g_update.progress_label = nullptr;
+  }
+}
+
+void show_update_message(std::string const& title, std::string const& body) {
+  auto* dialog = gtk_dialog_new_with_buttons(
+      title.c_str(), g_state.window,
+      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
+                                  GTK_DIALOG_DESTROY_WITH_PARENT),
+      l10n::t("DialogClose").c_str(), GTK_RESPONSE_CLOSE, nullptr);
+  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  auto* text = gtk_label_new(body.c_str());
+  gtk_label_set_wrap(GTK_LABEL(text), TRUE);
+  // Error text must be copyable — a bug report starts from this string.
+  gtk_label_set_selectable(GTK_LABEL(text), TRUE);
+  gtk_label_set_max_width_chars(GTK_LABEL(text), 60);
+  gtk_widget_set_margin_top(text, 12);
+  gtk_widget_set_margin_bottom(text, 6);
+  gtk_widget_set_margin_start(text, 12);
+  gtk_widget_set_margin_end(text, 12);
+  gtk_box_append(GTK_BOX(area), text);
+  g_signal_connect(
+      dialog, "response",
+      G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
+        gtk_window_destroy(GTK_WINDOW(dialog));
+      }),
+      nullptr);
+  gtk_window_present(GTK_WINDOW(dialog));
+}
+
+void show_update_error(std::string const& message) {
+  show_update_message(
+      "MoveBit",
+      message.empty() ? std::string(l10n::t("UpdCheckFailed")) : message);
+}
+
+void set_updates_hint(std::string const& text) {
+  if (mw.updates_hint != nullptr) {
+    gtk_label_set_text(mw.updates_hint, text.c_str());
+  }
+}
+
+// AppImage: the backend already swapped the sibling .AppImage over the
+// running image atomically (sidecar-checksummed), so the only step left is
+// the user's consent to re-exec. Declining keeps the current (old) process;
+// the next launch is the new version regardless.
+void show_appimage_restart_dialog() {
+  auto* dialog = gtk_dialog_new_with_buttons(
+      l10n::t("UpdDownloadedTitle").c_str(), g_state.window,
+      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
+                                  GTK_DIALOG_DESTROY_WITH_PARENT),
+      l10n::t("DialogCancel").c_str(), GTK_RESPONSE_CLOSE,
+      l10n::t("UpdActionRestartInstall").c_str(), GTK_RESPONSE_ACCEPT,
+      nullptr);
+  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  auto* hint = gtk_label_new(l10n::t("UpdAppImageHint").c_str());
+  gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
+  gtk_label_set_max_width_chars(GTK_LABEL(hint), 60);
+  gtk_widget_set_margin_top(hint, 12);
+  gtk_widget_set_margin_bottom(hint, 6);
+  gtk_widget_set_margin_start(hint, 12);
+  gtk_widget_set_margin_end(hint, 12);
+  gtk_box_append(GTK_BOX(area), hint);
+  g_signal_connect(
+      dialog, "response",
+      G_CALLBACK(+[](GtkDialog* dialog, gint response, gpointer) {
+        gtk_window_destroy(GTK_WINDOW(dialog));
+        if (response != GTK_RESPONSE_ACCEPT) return;
+        char const* self = getenv("APPIMAGE");
+        if (self == nullptr || self[0] == '\0') return;
+        execl(self, self, static_cast<char*>(nullptr));
+        // execl only returns on failure — surface it, the old image keeps
+        // running either way.
+        show_update_error(std::string("re-exec failed: ") +
+                          std::strerror(errno));
+      }),
+      nullptr);
+  gtk_window_present(GTK_WINDOW(dialog));
+}
+
+// Tarball installs: hand off the verified archive. Installation stays manual
+// (nothing is ever executed or moved by the host), so the dialog explains
+// the step and points at the file's folder.
+void show_downloaded_dialog(std::string const& path) {
+  auto* dialog = gtk_dialog_new_with_buttons(
+      l10n::t("UpdDownloadedTitle").c_str(), g_state.window,
+      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
+                                  GTK_DIALOG_DESTROY_WITH_PARENT),
+      l10n::t("DialogClose").c_str(), GTK_RESPONSE_CLOSE, nullptr);
+  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_widget_set_margin_top(content, 12);
+  gtk_widget_set_margin_bottom(content, 6);
+  gtk_widget_set_margin_start(content, 12);
+  gtk_widget_set_margin_end(content, 12);
+  gtk_box_append(GTK_BOX(area), content);
+
+  auto* hint = gtk_label_new(l10n::t("UpdInstallHint").c_str());
+  gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
+  gtk_label_set_max_width_chars(GTK_LABEL(hint), 60);
+  gtk_box_append(GTK_BOX(content), hint);
+
+  // The backend stages the archive under <data-dir>/updates/.
+  if (!path.empty()) {
+    auto* path_label = gtk_label_new(path.c_str());
+    gtk_label_set_selectable(GTK_LABEL(path_label), TRUE);
+    gtk_label_set_wrap(GTK_LABEL(path_label), TRUE);
+    gtk_widget_add_css_class(path_label, "caption");
+    gtk_box_append(GTK_BOX(content), path_label);
+
+    auto* open = gtk_button_new_with_label(l10n::t("UpdOpenFolder").c_str());
+    g_object_set_data_full(G_OBJECT(open), "update-open-path",
+                           new std::string(path),
+                           +[](gpointer data) {
+                             delete static_cast<std::string*>(data);
+                           });
+    g_signal_connect(
+        open, "clicked",
+        G_CALLBACK(+[](GtkButton* button, gpointer) {
+          auto const* p = static_cast<std::string const*>(
+              g_object_get_data(G_OBJECT(button), "update-open-path"));
+          if (p == nullptr || g_state.window == nullptr) return;
+          // Parent directory of the file, POSIX paths only: plain string
+          // arithmetic keeps this noexcept inside a GTK callback.
+          auto const slash = p->find_last_of('/');
+          if (slash == std::string::npos || slash == 0) return;
+          std::string const dir = p->substr(0, slash);
+          GFile* folder = g_file_new_for_path(dir.c_str());
+          gchar* uri = g_file_get_uri(folder);
+          gtk_show_uri(GTK_WINDOW(g_state.window), uri, GDK_CURRENT_TIME);
+          g_free(uri);
+          g_object_unref(folder);
+        }),
+        nullptr);
+    gtk_box_append(GTK_BOX(content), open);
+  }
+
+  g_signal_connect(
+      dialog, "response",
+      G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
+        gtk_window_destroy(GTK_WINDOW(dialog));
+      }),
+      nullptr);
+  gtk_window_present(GTK_WINDOW(dialog));
+}
+
+int on_update_poll_tick(gpointer) {
+  if (g_state.api == nullptr || g_update.progress_dialog == nullptr) {
+    g_update.poll_source = 0;
+    return G_SOURCE_REMOVE;
+  }
+  (void)g_state.api->get_update_state_async(
+      [](rivet_app::Result<rivet_app::UpdateState> result) {
+        dispatch_ui([result = std::move(result)]() mutable {
+          if (g_update.progress_dialog == nullptr) return;  // detached UI
+          if (!result.succeeded()) return;  // keep polling through hiccups
+          rivet_app::UpdateState const& state = result.get();
+          auto const percent =
+              std::clamp<std::int64_t>(state.percent, 0, 100);
+          if (g_update.progress_bar != nullptr) {
+            gtk_progress_bar_set_fraction(g_update.progress_bar,
+                                          static_cast<double>(percent) /
+                                              100.0);
+          }
+          if (g_update.progress_label != nullptr) {
+            gtk_label_set_text(
+                g_update.progress_label,
+                l10n::t("UpdDownloadingPct",
+                        {l10n::A(g_update.pending_version),
+                         l10n::A(percent)})
+                    .c_str());
+          }
+          if (state.phase != "downloaded" && state.phase != "error") {
+            return;
+          }
+          stop_update_poll();
+          close_update_progress();
+          g_update.download_in_flight = false;
+          if (state.phase == "error") {
+            set_updates_hint(state.message.value_or("").empty()
+                                 ? std::string(l10n::t("UpdCheckFailed"))
+                                 : state.message.value_or(""));
+            show_update_error(state.message.value_or(""));
+            return;
+          }
+          if (install_shape() == "appimage") {
+            show_appimage_restart_dialog();
+            return;
+          }
+          show_downloaded_dialog(state.downloaded_path.value_or(""));
+        });
+      });
+  return G_SOURCE_CONTINUE;
+}
+
+void start_update_download() {
+  if (g_state.api == nullptr || g_update.download_in_flight) return;
+  g_update.download_in_flight = true;
+
+  auto* dialog = gtk_dialog_new_with_buttons(
+      l10n::t("UpdDownloading", {l10n::A(g_update.pending_version)}).c_str(),
+      g_state.window,
+      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
+                                  GTK_DIALOG_DESTROY_WITH_PARENT),
+      l10n::t("DialogCancel").c_str(), GTK_RESPONSE_CANCEL, nullptr);
+  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_widget_set_margin_top(content, 12);
+  gtk_widget_set_margin_bottom(content, 6);
+  gtk_widget_set_margin_start(content, 12);
+  gtk_widget_set_margin_end(content, 12);
+  gtk_box_append(GTK_BOX(area), content);
+  auto* bar = gtk_progress_bar_new();
+  gtk_widget_set_size_request(bar, 300, -1);
+  gtk_box_append(GTK_BOX(content), bar);
+  auto* label =
+      gtk_label_new(l10n::t("UpdDownloading",
+                            {l10n::A(g_update.pending_version)})
+                        .c_str());
+  gtk_box_append(GTK_BOX(content), label);
+
+  // Canceling only detaches the progress UI — the backend keeps downloading
+  // (family parity: there is no cancel RPC).
+  g_signal_connect(
+      dialog, "response",
+      G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
+        stop_update_poll();
+        g_update.progress_dialog = nullptr;
+        g_update.progress_bar = nullptr;
+        g_update.progress_label = nullptr;
+        g_update.download_in_flight = false;
+        gtk_window_destroy(GTK_WINDOW(dialog));
+      }),
+      nullptr);
+  // DESTROY_WITH_PARENT: if the main window goes away the dialog dies with
+  // it — clear the raw pointers and the poll so no tick touches dead
+  // widgets.
+  g_signal_connect(
+      dialog, "destroy",
+      G_CALLBACK(+[](GtkWidget*, gpointer) {
+        g_update.progress_dialog = nullptr;
+        g_update.progress_bar = nullptr;
+        g_update.progress_label = nullptr;
+        stop_update_poll();
+      }),
+      nullptr);
+  gtk_window_present(GTK_WINDOW(dialog));
+  g_update.progress_dialog = GTK_WINDOW(dialog);
+  g_update.progress_bar = GTK_PROGRESS_BAR(bar);
+  g_update.progress_label = GTK_LABEL(label);
+  g_update.poll_source = g_timeout_add(400, on_update_poll_tick, nullptr);
+
+  (void)g_state.api->start_update_download_async(
+      [](rivet_app::Result<void> result) {
+        dispatch_ui([result = std::move(result)]() mutable {
+          if (g_update.progress_dialog == nullptr) return;  // detached UI
+          if (result.succeeded()) return;  // the poll owns the rest
+          // The download never started; stop staring at a 0% bar.
+          stop_update_poll();
+          close_update_progress();
+          g_update.download_in_flight = false;
+          std::string message = "unknown failure";
+          try {
+            std::rethrow_exception(result.error);
+          } catch (std::exception const& e) {
+            message = e.what();
+          } catch (...) {
+          }
+          set_updates_hint(message);
+          show_update_error(message);
+        });
+      });
+}
+
+void show_update_consent(rivet_app::UpdateCheck const& check) {
+  std::string const version = check.available_version.value_or("?");
+  if (install_shape() == "package") {
+    // deb/rpm upgrade through the package manager; never download or exec.
+    show_update_message(l10n::t("UpdAvailableTitle"),
+                        l10n::t("UpdUsePackageManager"));
+    return;
+  }
+  g_update.pending_version = version;
+  auto* dialog = gtk_dialog_new_with_buttons(
+      l10n::t("UpdAvailableTitle").c_str(), g_state.window,
+      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
+                                  GTK_DIALOG_DESTROY_WITH_PARENT),
+      l10n::t("DialogCancel").c_str(), GTK_RESPONSE_CANCEL,
+      l10n::t("UpdActionUpdate").c_str(), GTK_RESPONSE_ACCEPT, nullptr);
+  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  auto* text =
+      gtk_label_new(l10n::t("UpdFound", {l10n::A(version)}).c_str());
+  gtk_label_set_wrap(GTK_LABEL(text), TRUE);
+  gtk_label_set_max_width_chars(GTK_LABEL(text), 60);
+  gtk_widget_set_margin_top(text, 12);
+  gtk_widget_set_margin_bottom(text, 6);
+  gtk_widget_set_margin_start(text, 12);
+  gtk_widget_set_margin_end(text, 12);
+  gtk_box_append(GTK_BOX(area), text);
+  g_signal_connect(
+      dialog, "response",
+      G_CALLBACK(+[](GtkDialog* dialog, gint response, gpointer) {
+        bool const go = response == GTK_RESPONSE_ACCEPT;
+        gtk_window_destroy(GTK_WINDOW(dialog));
+        if (go) {
+          start_update_download();
+        }
+      }),
+      nullptr);
+  gtk_window_present(GTK_WINDOW(dialog));
+}
+
+void on_check_updates_clicked(GtkButton*, gpointer) {
+  if (g_state.api == nullptr || g_update.check_in_flight ||
+      g_update.download_in_flight) {
+    return;
+  }
+  g_update.check_in_flight = true;
+  if (mw.updates_button != nullptr) {
+    gtk_button_set_label(mw.updates_button, l10n::t("UpdCheckingShort").c_str());
+    gtk_widget_set_sensitive(GTK_WIDGET(mw.updates_button), FALSE);
+  }
+  set_updates_hint(l10n::t("UpdChecking"));
+  (void)g_state.api->check_updates_async(
+      [](rivet_app::Result<rivet_app::UpdateCheck> result) {
+        dispatch_ui([result = std::move(result)]() mutable {
+          g_update.check_in_flight = false;
+          if (mw.updates_button != nullptr) {
+            gtk_button_set_label(mw.updates_button,
+                                 l10n::t("AboutCheckUpdates").c_str());
+            gtk_widget_set_sensitive(GTK_WIDGET(mw.updates_button), TRUE);
+          }
+          if (!result.succeeded()) {
+            std::string message = "unknown failure";
+            try {
+              std::rethrow_exception(result.error);
+            } catch (std::exception const& e) {
+              message = e.what();
+            } catch (...) {
+            }
+            set_updates_hint(message);
+            show_update_error(message);
+            return;
+          }
+          rivet_app::UpdateCheck const& check = result.get();
+          if (check.status == "available") {
+            set_updates_hint(
+                l10n::t("UpdFound",
+                        {l10n::A(check.available_version.value_or(""))}));
+            show_update_consent(check);
+            return;
+          }
+          if (check.status == "up-to-date") {
+            set_updates_hint(l10n::t("UpdCurrentUpToDate",
+                                     {l10n::A(check.current_version)}));
+            return;
+          }
+          // "error": show the real reason — check failures are network or
+          // signing conditions, not user mistakes.
+          std::string const message = check.error.value_or("");
+          set_updates_hint(message.empty()
+                               ? std::string(l10n::t("UpdCheckFailed"))
+                               : message);
+          show_update_error(message);
+        });
+      });
+}
+
+// One-shot surfacing of the backend's silent auto-check (startup + every
+// 6 h): a pending update turns into the About hint; everything else stays
+// invisible.
+void reflect_pending_update() {
+  if (g_update.reflected_pending || g_state.api == nullptr) return;
+  g_update.reflected_pending = true;
+  (void)g_state.api->get_update_state_async(
+      [](rivet_app::Result<rivet_app::UpdateState> result) {
+        dispatch_ui([result = std::move(result)]() mutable {
+          if (!result.succeeded()) return;
+          rivet_app::UpdateState const& state = result.get();
+          if (state.phase == "idle" && state.available_version.has_value()) {
+            set_updates_hint(l10n::t(
+                "UpdFound", {l10n::A(state.available_version.value_or(""))}));
+          }
+        });
+      });
+}
+
 GtkWidget* counter_tile(char const* emoji, char const* label_text,
                         GtkLabel** value_out) {
   auto* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
@@ -1160,6 +1605,28 @@ void build_main_content() {
     gtk_label_set_xalign(GTK_LABEL(version), 0.0f);
     box_append(GTK_BOX(card), version);
     mw.about_version = GTK_LABEL(version);
+    // Updates: manual check entry + a hint line for the state machine's
+    // outcome (progress lives in its own dialog). The hint is selectable —
+    // it may carry a failure message a bug report starts from.
+    {
+      auto* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+      auto* check_btn =
+          gtk_button_new_with_label(l10n::t("AboutCheckUpdates").c_str());
+      g_signal_connect(check_btn, "clicked",
+                       G_CALLBACK(on_check_updates_clicked), nullptr);
+      gtk_box_append(GTK_BOX(row), check_btn);
+      mw.updates_button = GTK_BUTTON(check_btn);
+      auto* hint = gtk_label_new("");
+      gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
+      gtk_label_set_selectable(GTK_LABEL(hint), TRUE);
+      gtk_label_set_max_width_chars(GTK_LABEL(hint), 40);
+      gtk_label_set_xalign(GTK_LABEL(hint), 0.0f);
+      gtk_widget_add_css_class(hint, "caption");
+      gtk_widget_set_hexpand(hint, TRUE);
+      gtk_box_append(GTK_BOX(row), hint);
+      mw.updates_hint = GTK_LABEL(hint);
+      box_append(GTK_BOX(card), row);
+    }
     mw.updates_switch = add_toggle_row(card, l10n::t("AboutAutoUpdate").c_str(),
                                        g_state.model.config.auto_check_updates,
                                        G_CALLBACK(on_updates_set));
@@ -2291,6 +2758,7 @@ void bootstrap(GtkApplication* app) {
   reload_history();
   reload_autostart();
   reload_data_dir();
+  reflect_pending_update();
   if (!config.welcome_shown) {
     onboarding_show(app);
   }

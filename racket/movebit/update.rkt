@@ -15,10 +15,16 @@
 ;; manifest; the artifact download runs on a background thread with progress
 ;; published to a state box that the UI polls through the `get-update-state`
 ;; RPC (RVT1 events are thread-local, so a background thread cannot emit
-;; them directly). The feed serves portable archives per platform — on
-;; Windows the zip IS the install layout, so `prepare-install!` extracts the
-;; verified archive into a staging directory and writes a helper script that
-;; waits for the app to exit, swaps the payload, and relaunches.
+;; them directly). The feed serves portable archives per platform:
+;;   Windows — the zip IS the install layout: `prepare-install!` extracts the
+;;     verified archive into a staging directory and writes a helper script
+;;     that waits for the app to exit, swaps the payload, and relaunches.
+;;   macOS — same shape as Windows: the zip carries movebit.app, the helper
+;;     swaps the bundle with a backup + rollback rename and relaunches.
+;;   Linux — AppImage installs update through the sibling .AppImage release
+;;     asset (downloaded, sidecar-checked, swapped over the running image);
+;;     tarball/package installs stay manual, so `prepare-install!` refuses
+;;     and the host hands off the downloaded file or shows guidance.
 
 (require json
          net/base64
@@ -27,6 +33,7 @@
          rivet/distribution
          racket/file
          racket/format
+         racket/list
          racket/path
          racket/port
          racket/string
@@ -48,7 +55,9 @@
          reset-update-state!
          perform-check!
          start-download!
-         prepare-install!)
+         prepare-install!
+         appimage-flavor?
+         appimage-asset-name)
 
 ;; Ed25519 public key, DER SPKI hex-encoded — committed on purpose: the
 ;; public half only enables verification. Rotation replaces this hex and the
@@ -131,11 +140,14 @@
 ;; ---------- shared update state (UI-visible) ----------
 
 ;; phase: idle | checking | downloading | downloaded | ready-to-apply | error
+;; The key set is the hosts' poll contract (get-update-state reads it) —
+;; every key is present in every state, #f when not applicable.
 (define update-state
   (box (hasheq 'phase "idle"
                'percent 0
                'message #f
                'availableVersion #f
+               'downloadedPath #f
                'stagedPath #f)))
 
 (define candidate-box (box #f))
@@ -154,6 +166,7 @@
                     'percent 0
                     'message #f
                     'availableVersion #f
+                    'downloadedPath #f
                     'stagedPath #f)))
 
 (define (set-update-error! message)
@@ -257,6 +270,142 @@
 (define (updates-dir data-dir)
   (build-path data-dir "updates"))
 
+;; ---------- AppImage flavor (Linux installs run from an AppImage) ----------
+;;
+;; The feed's linux entry is the tar.gz; AppImage installs update through the
+;; sibling .AppImage release asset: same asset base with .tar.gz → .AppImage
+;; (movebit publishes AppImages under the release-contract arch spelling,
+;; x64|arm64 — identical to the feed entry, so the derivation is only the
+;; extension swap), checksummed against the published .AppImage.sha256
+;; sidecar. The Ed25519 manifest still authenticates the tar.gz entry that
+;; carried the version; the sidecar is a plain checksum over the same HTTPS
+;; origin. The download lands NEXT TO the running image (same filesystem →
+;; atomic rename) and replaces it after the sidecar verifies; the host
+;; re-execs the replaced image on user consent.
+
+;; $APPIMAGE (set by the AppImage runtime) is inherited by the embedded
+;; backend — its presence IS the install shape; no config plumbing needed.
+(define (appimage-flavor?)
+  (and (eq? (system-type 'os) 'linux)
+       (let ([self (getenv "APPIMAGE")])
+         (and self (not (string=? self ""))))))
+
+;; Pure so tests can pin the derivation.
+(define (appimage-asset-name tar-gz-filename)
+  (unless (string-suffix? tar-gz-filename ".tar.gz")
+    (error 'appimage-asset-name "not a tar.gz filename: ~a" tar-gz-filename))
+  (string-append (substring tar-gz-filename 0
+                            (- (string-length tar-gz-filename) 7))
+                 ".AppImage"))
+
+(define (appimage-artifact-urls candidate)
+  (define url (update-artifact-url (update-candidate-artifact candidate)))
+  (define filename
+    (last (string-split (car (string-split url "?")) "/")))
+  (define appimage-name (appimage-asset-name filename))
+  (values (string-replace url filename appimage-name)
+          (string-append (string-replace url filename appimage-name)
+                         ".sha256")))
+
+(define (appimage-download-target)
+  ;; Stage the download next to the running image so the final rename stays
+  ;; on one device (atomic).
+  (define self (getenv "APPIMAGE"))
+  (unless (and self (non-empty-string? self))
+    (error 'start-download "APPIMAGE is not set; not running as an AppImage"))
+  (values self
+          (make-temporary-file "movebit-update-~a.AppImage" #f (path-only self))))
+
+;; sha256sum format: "<hex>  <filename>"; the first token is the digest.
+(define (fetch-sidecar-sha256! url)
+  (define in (get-pure-port (string->url url)
+                            '("User-Agent: MoveBit-Updater/1")
+                            #:redirections 10))
+  (dynamic-wind
+    void
+    (lambda ()
+      (define digest
+        (let ([body (string-trim (port->string in))])
+          (if (string=? body "") "" (first (string-split body)))))
+      (unless (regexp-match? #px"^[0-9a-fA-F]{64}$" digest)
+        (error 'start-download "checksum sidecar has an unexpected shape"))
+      (string-downcase digest))
+    (lambda () (close-input-port in))))
+
+;; Sibling-asset downloads come without a signed manifest, so the response
+;; head is the only total available: parse Content-Length for the progress
+;; percent (0 → indeterminate), then hand the body port to the copy loop.
+;; Connection: close keeps the copy ending at EOF, like the manifest-verified
+;; flow.
+(define (open-download-with-total! url)
+  (define in (get-impure-port (string->url url)
+                              '("User-Agent: MoveBit-Updater/1"
+                                "Connection: close")))
+  (let loop ([total 0])
+    (define line (read-line in 'return-linefeed))
+    (cond
+      [(eof-object? line) (values in 0)]
+      [(non-empty-string? (string-trim line))
+       (define match
+         (regexp-match #px"(?i:^content-length:\\s*(\\d+))" line))
+       (loop (if match (string->number (second match)) total))]
+      [else (values in total)])))
+
+;; Copy with progress; feeds the watchdog's stall clock on every read (not
+;; just integer percent changes, so a slow link never false-trips it).
+(define (copy-with-progress! in out total)
+  (define buffer (make-bytes 65536))
+  (let loop ([done 0] [last-percent -1])
+    (define count (read-bytes-avail! buffer in))
+    (cond
+      [(eof-object? count) done]
+      [else
+       (set-box! last-progress-seconds (current-seconds))
+       (write-bytes buffer out 0 count)
+       (define next (+ done count))
+       (define percent
+         (if (> total 0)
+             (min 100 (quotient (* next 100) total))
+             0))
+       (when (> percent last-percent)
+         (state-set! 'percent percent))
+       (loop next percent)])))
+
+(define (download-appimage-with-progress! candidate)
+  (define-values (appimage-url sidecar-url)
+    (appimage-artifact-urls candidate))
+  (define-values (self temporary) (appimage-download-target))
+  (define expected (fetch-sidecar-sha256! sidecar-url))
+  (with-handlers ([exn:fail?
+                   (lambda (e)
+                     (when (file-exists? temporary)
+                       (delete-file temporary))
+                     (raise e))])
+    (define-values (in total) (open-download-with-total! appimage-url))
+    (dynamic-wind
+      void
+      (lambda ()
+        (call-with-output-file temporary
+          #:exists 'truncate/replace
+          #:mode 'binary
+          (lambda (out) (copy-with-progress! in out total))))
+      (lambda () (close-input-port in)))
+    (define actual (string-downcase (sha256-file/hex temporary)))
+    (unless (string=? actual expected)
+      (raise-arguments-error 'start-download
+                             "downloaded appimage does not match its checksum sidecar"
+                             "expected" expected
+                             "actual" actual))
+    ;; The replaced image must stay executable: rename carries the temp
+    ;; file's modes, so set them explicitly before the swap.
+    (file-or-directory-permissions
+     temporary
+     #(user-read user-write user-execute
+                 group-read group-execute
+                 other-read other-execute))
+    (rename-file-or-directory temporary self #t)
+    self))
+
 ;; Runs on a backend worker thread; the host follows progress via the
 ;; update-state RPC. Never raises: failures surface through the phase.
 (define (start-download! data-dir)
@@ -289,7 +438,13 @@
                            (if (exn:break? e)
                                "update download stalled or timed out"
                                (exn-message e))))])
-         (define path (download-with-progress! candidate destination))
+         (define path
+           (if (appimage-flavor?)
+               ;; AppImage: the sibling asset is sidecar-checked and swapped
+               ;; over the running image in place; downloadedPath IS the
+               ;; image path.
+               (download-appimage-with-progress! candidate)
+               (download-with-progress! candidate destination)))
          (state-set! 'phase "downloaded")
          (state-set! 'percent 100)
          (state-set! 'availableVersion
@@ -317,26 +472,51 @@
          [else (loop)]))))
   (void))
 
-;; ---------- install preparation (Windows) ----------
+;; ---------- install preparation (Windows / macOS) ----------
 ;;
-;; The verified zip IS the install layout. Extract it into
-;; <data-dir>/updates/staged/ and write apply-update.cmd next to it: the
-;; helper waits for the running app to exit, copies the staged payload over
-;; the install directory, relaunches, and removes itself. Extract runs on
-;; the caller's thread (the quit-and-install RPC worker): PowerShell's
-;; Expand-Archive is built into Windows 10+.
+;; The verified archive is staged and an apply-helper script is written; the
+;; host exits and the detached helper finishes the swap:
+;;   Windows — the zip IS the install layout. Extract into
+;;     <data-dir>/updates/staged/ and write apply-update.cmd: the helper
+;;     waits for the running app to exit, robocopys the staged payload over
+;;     the install directory, relaunches, and removes itself. Extract runs
+;;     on the caller's thread (the quit-and-install RPC worker).
+;;   macOS — the zip carries movebit.app. Extract the same way (bsdtar reads
+;;     zip on macOS too), then apply-update.sh copies the staged bundle onto
+;;     the install volume and swaps it with a backup + rollback rename
+;;     before relaunching via `open`.
+;;   Linux — install is never automated here: AppImage swaps happened at
+;;     download time, tarball/package installs stay manual (the host shows
+;;     the downloaded file or the package-manager guidance), so
+;;     `prepare-install!` refuses honestly.
 
 (define (staged-dir data-dir)
   (build-path (updates-dir data-dir) "staged"))
 
+;; A staged macOS bundle counts only when the executable layout is real.
+(define (mac-bundle? path)
+  (and (directory-exists? path)
+       (string-suffix? (path->string (file-name-from-path path)) ".app")
+       (file-exists? (build-path path "Contents" "MacOS"))))
+
+;; The layout a staged payload must have before the helper may touch the
+;; install directory.
+(define (staged-payload-complete? staged)
+  (case (system-type 'os)
+    [(macosx)
+     (for/or ([entry (in-list (directory-list staged #:build? #t))])
+       (mac-bundle? entry))]
+    [else
+     (file-exists? (build-path staged "RivetHost.exe"))]))
+
 (define (extract-zip! zip-path destination)
   (make-directory* destination)
-  ;; Windows ships bsdtar since 1803 — it reads zip and is an order of
-  ;; magnitude faster than Expand-Archive, whose per-file copy grinds
-  ;; against real-time antivirus for minutes on a 300-file payload. The
-  ;; child's output goes to a log FILE: a GUI process has no console, and a
-  ;; subprocess inheriting the embedded runtime's dead stdout handle blocks
-  ;; forever.
+  ;; Windows ships bsdtar since 1803 and macOS /usr/bin/tar IS bsdtar — both
+  ;; read zip, and it is an order of magnitude faster than Expand-Archive,
+  ;; whose per-file copy grinds against real-time antivirus for minutes on a
+  ;; 300-file payload. The child's output goes to a log FILE: a GUI process
+  ;; has no console, and a subprocess inheriting the embedded runtime's dead
+  ;; stdout handle blocks forever.
   (define log (path-add-extension destination #".extract.log"))
   (call-with-output-file log
     (lambda (out)
@@ -349,9 +529,9 @@
           (error 'extract-zip!
                  "tar extraction failed; see ~a" log))))
     #:exists 'replace)
-  (unless (file-exists? (build-path destination "RivetHost.exe"))
+  (unless (staged-payload-complete? destination)
     (error 'prepare-install!
-           "staged payload is incomplete (no RivetHost.exe)")))
+           "staged payload is incomplete (no update payload)")))
 
 (define (write-apply-helper! data-dir pid)
   (define staged (staged-dir data-dir))
@@ -391,6 +571,52 @@
     #:exists 'replace)
   helper)
 
+;; The staged bundle the helper will promote (extract-zip! already proved
+;; one exists).
+(define (staged-mac-bundle staged)
+  (for/or ([entry (in-list (directory-list staged #:build? #t))])
+    (and (mac-bundle? entry) entry)))
+
+;; macOS apply helper: copy the staged bundle onto the install volume first
+;; (the data dir may live on another volume), then swap with same-directory
+;; renames — old bundle aside, promote the stage, roll back when the promote
+;; fails — and relaunch via `open`. Written before the app exits so the only
+;; work after quit is the swap.
+(define (write-apply-helper-mac! data-dir pid)
+  (define staged (staged-dir data-dir))
+  (define bundle (staged-mac-bundle staged))
+  (define install
+    (regexp-replace #rx"[/\\]+$" (path->string (current-install-dir)) ""))
+  (define helper
+    (build-path (updates-dir data-dir) "apply-update.sh"))
+  (define script
+    (string-append
+     "#!/bin/sh\n"
+     "# MoveBit apply-update helper — written by the backend, spawned\n"
+     "# detached. Waits for the app to exit, swaps the bundle, relaunches.\n"
+     "PID=\"" (number->string pid) "\"\n"
+     "INSTALL=\"" install "\"\n"
+     "STAGED_BUNDLE=\"" (path->string bundle) "\"\n"
+     "APP=\"$INSTALL/" (path->string (file-name-from-path bundle)) "\"\n"
+     "BACKUP=\"$APP.old\"\n"
+     "STAGE=\"$INSTALL/.movebit-update.app\"\n"
+     "while kill -0 \"$PID\" 2>/dev/null; do sleep 1; done\n"
+     "rm -rf \"$STAGE\"\n"
+     "cp -R \"$STAGED_BUNDLE\" \"$STAGE\" || exit 1\n"
+     "rm -rf \"$BACKUP\"\n"
+     "[ -d \"$APP\" ] && mv \"$APP\" \"$BACKUP\"\n"
+     "if mv \"$STAGE\" \"$APP\"; then\n"
+     "  rm -rf \"$BACKUP\"\n"
+     "  open \"$APP\"\n"
+     "else\n"
+     "  [ -d \"$BACKUP\" ] && mv \"$BACKUP\" \"$APP\"\n"
+     "  exit 1\n"
+     "fi\n"))
+  (call-with-output-file helper
+    (lambda (out) (display script out))
+    #:exists 'replace)
+  helper)
+
 ;; Verify the install directory is writable BEFORE the app exits — a pointer
 ;; to an unwritable directory would only fail inside the helper.
 (define (assert-install-writable!)
@@ -405,29 +631,44 @@
 ;; zip, write the helper, and hand back the command to spawn. The host then
 ;; exits and the helper finishes the swap.
 (define (prepare-install! data-dir)
-  (define downloaded
-    (hash-ref (update-state-snapshot) 'downloadedPath #f))
-  (unless (and downloaded (file-exists? downloaded))
-    (error 'prepare-install! "no downloaded update; run a download first"))
-  (assert-install-writable!)
-  (define staged (staged-dir data-dir))
-  (when (directory-exists? staged)
-    (delete-directory/files staged))
-  (extract-zip! (string->path downloaded) staged)
-  (define helper (write-apply-helper! data-dir (getpid)))
-  (state-set! 'phase "ready-to-apply")
-  (state-set! 'stagedPath (path->string staged))
-  (path->string helper))
+  (case (system-type 'os)
+    [(linux)
+     ;; AppImage swaps happen at download time; tarball/package installs are
+     ;; manual (the host shows the file or the guidance). Never pretend.
+     (error 'prepare-install! "install is not automated on this platform")]
+    [else
+     (define downloaded
+       (hash-ref (update-state-snapshot) 'downloadedPath #f))
+     (unless (and downloaded (file-exists? downloaded))
+       (error 'prepare-install! "no downloaded update; run a download first"))
+     (assert-install-writable!)
+     (define staged (staged-dir data-dir))
+     (when (directory-exists? staged)
+       (delete-directory/files staged))
+     (extract-zip! (string->path downloaded) staged)
+     (define helper
+       (case (system-type 'os)
+         [(macosx) (write-apply-helper-mac! data-dir (getpid))]
+         [else (write-apply-helper! data-dir (getpid))]))
+     (state-set! 'phase "ready-to-apply")
+     (state-set! 'stagedPath (path->string staged))
+     (path->string helper)]))
 
-;; The apply helper waits on the precise PID of the exiting app, so a
-;; stray RivetHost.exe from another install can never hold the swap open.
+;; The apply helper waits on the precise PID of the exiting app, so a stray
+;; RivetHost.exe from another install can never hold the swap open. The
+;; embedded runtime shares the host's process, so this IS the host's pid.
 (define getpid
   (case (system-type 'os)
     [(windows)
      (define-ffi-definer define-kernel32 (ffi-lib "kernel32"))
      (define-kernel32 GetCurrentProcessId (_fun -> _uint32))
      (lambda () (GetCurrentProcessId))]
+    [(macosx)
+     ;; libSystem is the macOS libc.
+     (define-ffi-definer define-libsystem (ffi-lib "libSystem.B.dylib"))
+     (define-libsystem getpid (_fun -> _int))
+     (lambda () (getpid))]
     [else
-     ;; Install preparation is a Windows flow; other platforms get their
-     ;; own install step when their hosts adopt the updater.
+     ;; Install preparation is not automated here (the host owns the three
+     ;; install shapes); no helper is ever written.
      (lambda () 0)]))

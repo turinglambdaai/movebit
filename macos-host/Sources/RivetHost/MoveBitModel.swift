@@ -109,6 +109,10 @@ final class MoveBitModel: ObservableObject {
     var onRemindersDue: ((RemindersDue) -> Void)?
     var onBreakStarted: (() -> Void)?
     var onBreakEnded: ((Bool) -> Void)?
+    /// The restart-install handoff: after the backend staged the payload and
+    /// spawned the apply helper, the host must quit so the helper can swap
+    /// the bundle and relaunch.
+    var onQuitRequested: (() -> Void)?
 
     private var backend: EmbeddedRacketBackend?
     private var language = "auto"
@@ -159,6 +163,12 @@ final class MoveBitModel: ObservableObject {
                     let api = RivetAPI(client: backend.client)
                     // initialize seeds states and starts the 30 s backend tick.
                     try await api.initialize()
+                    // The updater stages its payload into the install root
+                    // (the folder holding movebit.app) — hand it over before
+                    // anything can start a download.
+                    try? await api.set_install_dir(
+                        path: Bundle.main.bundleURL.deletingLastPathComponent()
+                            .path)
                     async let config = api.get_active_config()
                     async let today = api.get_today()
                     async let paused = api.get_paused()
@@ -190,6 +200,7 @@ final class MoveBitModel: ObservableObject {
         Task { await reloadHistory() }
         Task { await reloadAutostart() }
         Task { await reloadDataDir() }
+        Task { reflectPendingUpdate() }
         onReady?()
     }
 
@@ -354,5 +365,177 @@ final class MoveBitModel: ObservableObject {
             semaphore.signal()
         }
         _ = semaphore.wait(timeout: .now() + 1)
+    }
+
+    // MARK: updates (backend-driven state machine)
+
+    /// Update state machine, mirroring the Windows host's controller and the
+    /// backend's snapshot phases: idle → checking → (available | upToDate |
+    /// failed) → downloading → ready → applying. The backend owns verify +
+    /// download (signed feed) and the staged swap; this is presentation only.
+    enum UpdatePhase: Equatable {
+        case idle
+        case checking
+        case available
+        case downloading
+        case ready
+        case applying
+        case upToDate
+        case failed
+    }
+
+    @Published var updatePhase: UpdatePhase = .idle
+    @Published var updateAvailableVersion: String?
+    @Published var updatePercent: Int64 = 0
+    /// Raw backend failure text — the About card shows it selectable so a
+    /// bug report starts from the real message (family UPDATE.md rule).
+    @Published var updateErrorText: String?
+
+    private var updatePollTask: Task<Void, Never>?
+
+    /// Manual entry (About card ▸ Check for Updates). Every outcome is
+    /// visible — up to date and failures included.
+    func checkForUpdates() {
+        guard updatePhase != .checking, updatePhase != .downloading,
+              updatePhase != .applying else { return }
+        guard let api = api() else { return }
+        updatePollTask?.cancel()
+        updatePhase = .checking
+        updateErrorText = nil
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let check = try await api.check_updates()
+                self.handleUpdateCheck(check)
+            } catch {
+                self.updatePhase = .failed
+                self.updateErrorText = Self.cleanError(String(describing: error))
+            }
+        }
+    }
+
+    private func handleUpdateCheck(_ check: RivetTypes.UpdateCheck) {
+        switch check.status {
+        case "available":
+            updatePhase = .available
+            updateAvailableVersion = check.available_version
+            updateErrorText = nil
+        case "up-to-date":
+            updatePhase = .upToDate
+            updateAvailableVersion = nil
+            updateErrorText = nil
+        default:
+            updatePhase = .failed
+            updateErrorText = check.error ?? L10n.t("UpdCheckFailed")
+        }
+    }
+
+    /// One-shot snapshot read at startup: the backend's silent auto-check
+    /// (startup + every 6 h) leaves its outcome in the state box; surface a
+    /// pending update without nagging about anything else.
+    func reflectPendingUpdate() {
+        guard updatePhase == .idle, let api = api() else { return }
+        Task { [weak self] in
+            guard let self, let state = try? await api.get_update_state() else { return }
+            guard self.updatePhase == .idle else { return }
+            if state.phase == "idle", let version = state.available_version {
+                self.updatePhase = .available
+                self.updateAvailableVersion = version
+            }
+        }
+    }
+
+    /// Consent given: the backend downloads against the signed manifest while
+    /// the UI polls the state snapshot. There is no cancel RPC (family
+    /// parity) — closing the About card detaches only the progress UI.
+    func startUpdateDownload() {
+        guard updatePhase == .available, let api = api() else { return }
+        updatePhase = .downloading
+        updatePercent = 0
+        updateErrorText = nil
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await api.start_update_download()
+                self.pollUpdateState()
+            } catch {
+                self.updatePhase = .failed
+                self.updateErrorText = Self.cleanError(String(describing: error))
+            }
+        }
+    }
+
+    /// 700 ms poll while downloading; terminal phases leave the loop.
+    private func pollUpdateState() {
+        updatePollTask?.cancel()
+        updatePollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, let api = self.api() else { return }
+                if let state = try? await api.get_update_state() {
+                    self.applyUpdateState(state)
+                }
+                try? await Task.sleep(nanoseconds: 700_000_000)
+            }
+        }
+    }
+
+    private func applyUpdateState(_ state: RivetTypes.UpdateState) {
+        guard updatePhase == .downloading else { return }
+        updatePercent = state.percent
+        if let version = state.available_version {
+            updateAvailableVersion = version
+        }
+        switch state.phase {
+        case "downloaded":
+            updatePollTask?.cancel()
+            updatePhase = .ready
+            updateErrorText = nil
+        case "error":
+            updatePollTask?.cancel()
+            updatePhase = .failed
+            updateErrorText = state.message ?? L10n.t("UpdCheckFailed")
+        default:
+            break
+        }
+    }
+
+    /// 重启并安装: the backend stages the payload and spawns the detached
+    /// helper; this host's only remaining job is to quit so the helper can
+    /// swap the bundle and relaunch.
+    func applyStagedUpdate() {
+        guard updatePhase == .ready, let api = api() else { return }
+        updatePhase = .applying
+        updatePollTask?.cancel()
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await api.prepare_update_install()
+                self.onQuitRequested?()
+            } catch {
+                self.updatePhase = .failed
+                self.updateErrorText = Self.cleanError(String(describing: error))
+            }
+        }
+    }
+
+    /// The About card's button IS the state machine (parity with Windows):
+    /// check → download → restart-install, retry on failure.
+    func handleUpdateButton() {
+        switch updatePhase {
+        case .available:
+            startUpdateDownload()
+        case .ready:
+            applyStagedUpdate()
+        default:
+            checkForUpdates()
+        }
+    }
+
+    static func cleanError(_ text: String) -> String {
+        // RVT1 failures arrive as "...error: <message>"; keep the message.
+        if let range = text.range(of: "error: ") {
+            return String(text[range.upperBound...])
+        }
+        return text
     }
 }
