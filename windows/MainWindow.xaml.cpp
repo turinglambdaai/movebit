@@ -593,9 +593,9 @@ void MainWindow::SetWindowIconFromResources() {
 // rule): whatever lands in the hint is remembered and the 复制错误信息 /
 // Copy error button (UpdCopyError) puts exactly that string on the
 // clipboard — a bug report starts from this string.
-void MainWindow::ShowUpdateErrorHint(std::wstring const& text) {
+void MainWindow::ShowUpdateErrorHint(winrt::hstring const& text) {
   last_update_error_ = text;
-  AboutCheckHint().Text(winrt::to_hstring(text));
+  AboutCheckHint().Text(text);
   UpdateCopyErrorButton().Visibility(Visibility::Visible);
 }
 
