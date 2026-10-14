@@ -9,6 +9,9 @@
         (macos-min-version . "14.0")
         (windows-min-version . "10.0.19041.0")
         (windows-icon . "Assets/icon.ico")
+        ;; The AppImage format requires a top-level icon PNG (rivet errors
+        ;; out without it); project-relative like windows-icon.
+        (linux-icon . "Assets/icon.png")
         (backend . "app/backend.rkt")
         (module . "backend")
         (entry . "start")

@@ -104,18 +104,6 @@ jobs:
           reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /v DumpType /t REG_DWORD /d 2 /f
           reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps" /v DumpCount /t REG_DWORD /d 5 /f
 
-      - name: Package (payload for the portable zip)
-        shell: pwsh
-        run: raco rivet package --skip-launch-smoke
-
-      - name: Portable zip + checksum (update feed artifact)
-        shell: pwsh
-        run: |
-          $version = $env:GITHUB_REF_NAME.TrimStart('v')
-          Compress-Archive -Path 'dist\*\*' -DestinationPath "movebit-$version-windows-x64.zip"
-          $hash = (Get-FileHash "movebit-$version-windows-x64.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  movebit-$version-windows-x64.zip" | Set-Content "movebit-$version-windows-x64.zip.sha256"
-
       - name: Package + installer (rivet release, development signing)
         env:
           RIVET_UPDATE_BASE_URL: https://github.com/turinglambdaai/movebit/releases/download/${{ github.ref_name }}
@@ -150,12 +138,22 @@ jobs:
           Get-Content dump-out.txt | Select-Object -Last 200
           exit 0
 
-      - name: Collect MSI + checksum
+      - name: Collect MSI + portable zip + checksums
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           rm -f dist/update-*.json
           mv dist/*.msi "movebit-${VERSION}-windows-x64.msi"
           sha256sum "movebit-${VERSION}-windows-x64.msi" > "movebit-${VERSION}-windows-x64.msi.sha256"
+          # rivet's portable zip (same payload the msi installs) with its own
+          # sidecar — the update feed's windows artifact shape. Adopt it
+          # instead of re-zipping the payload tree: the release flow packages
+          # once and cleans the unpacked tree from dist/ at the end, so a
+          # second `raco rivet package` (or Compress-Archive after it) either
+          # collides ("copy-file: destination exists") or finds no tree.
+          test -f "dist/movebit-${VERSION}-windows-x64.zip"
+          test -f "dist/movebit-${VERSION}-windows-x64.zip.sha256"
+          mv "dist/movebit-${VERSION}-windows-x64.zip" \
+             "dist/movebit-${VERSION}-windows-x64.zip.sha256" .
         shell: bash
 
       - uses: actions/upload-artifact@v4
@@ -169,9 +167,11 @@ jobs:
   # Both family architectures build from source on their native runner
   # (x64: ubuntu-24.04, arm64: ubuntu-24.04-arm); the cache key carries
   # runner.arch so each arch keeps its own embeddable runtime. Each leg
-  # packages the tar.gz (the update-feed payload) plus the installer
-  # assets: a hand-rolled deb (both arches) and an AppImage (x64 required,
-  # arm64 best-effort — installer assets, never the update payload).
+  # runs one `raco rivet release` and adopts rivet's own artifacts: the
+  # tar.gz (update-feed payload), the portable zip (+ sidecar), and the
+  # native installers (deb, rpm, AppImage — both arches, rivet pins an
+  # aarch64 appimagetool). The release flow cleans the unpacked payload
+  # tree from dist/ at the end, so nothing may re-zip or re-package after.
   linux:
     name: Linux ${{ matrix.arch }}
     needs: validate
@@ -204,6 +204,9 @@ jobs:
           RIVET_UPDATE_BASE_URL: https://github.com/turinglambdaai/movebit/releases/download/${{ github.ref_name }}
           RIVET_UPDATE_KEY_ID: movebit-2026-10
           RIVET_UPDATE_PRIVATE_KEY_B64: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY_B64 }}
+          # Lets appimagetool (itself an AppImage) run on the runner while
+          # rivet assembles the AppImage's GTK4 dependency closure.
+          APPIMAGE_EXTRACT_AND_RUN: '1'
         run: |
           set -euo pipefail
           KEY_DER="$(mktemp -d)/update-ed25519-private.der"
@@ -211,7 +214,7 @@ jobs:
           export RIVET_UPDATE_PRIVATE_KEY="$KEY_DER"
           xvfb-run -a raco rivet release --development
           rm -f "$KEY_DER"
-      - name: Collect tar.gz + checksum
+      - name: Collect rivet artifacts + checksums
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
@@ -220,68 +223,26 @@ jobs:
           # rivet names the tarball after the building machine's arch, which
           # equals the matrix arch by construction of the runner matrix.
           test -f "dist/movebit-${VERSION}-linux-${ARCH}.tar.gz"
-          mv "dist/movebit-${VERSION}-linux-${ARCH}.tar.gz" \
-            "movebit-${VERSION}-linux-${ARCH}.tar.gz"
-          sha256sum "movebit-${VERSION}-linux-${ARCH}.tar.gz" \
-            > "movebit-${VERSION}-linux-${ARCH}.tar.gz.sha256"
-      - name: deb (installer asset)
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCH="${{ matrix.arch }}"
-          bash packaging/linux/build-deb.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
-      - name: rpm (installer asset)
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCH="${{ matrix.arch }}"
-          bash packaging/linux/build-rpm.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
-      - name: Portable zip (tar.gz twin, same staged payload)
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCH="${{ matrix.arch }}"
-          ( cd dist && zip -qry "../movebit-${VERSION}-linux-${ARCH}.zip" "movebit-linux-${ARCH}" )
-          sha256sum "movebit-${VERSION}-linux-${ARCH}.zip" \
-            > "movebit-${VERSION}-linux-${ARCH}.zip.sha256"
-      - name: AppImage (installer asset)
-        if: matrix.arch == 'x64'
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: '1'
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCH="${{ matrix.arch }}"
-          bash packaging/linux/build-appimage.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"
-      - name: AppImage (arm64, best effort — the aarch64 appimagetool path is young)
-        if: matrix.arch == 'arm64'
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: '1'
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCH="${{ matrix.arch }}"
-          if ! bash packaging/linux/build-appimage.sh "$VERSION" "dist/movebit-linux-${ARCH}" "$ARCH"; then
-            echo "::warning::arm64 AppImage build failed — arm64 still ships tar.gz + deb; retry next release"
-          fi
-      - name: Collect installer assets + checksums
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCH="${{ matrix.arch }}"
-          # The packaging scripts write into dist/; the artifact upload path
-          # is the repository root, so the installer assets join the tar.gz
-          # there (their .sha256 sidecars move along, hashes are unchanged).
-          # The rpm file name carries the native arch spelling.
+          mv "dist/movebit-${VERSION}-linux-${ARCH}.tar.gz" .
+          # rivet's portable zip (with its own sidecar) joins the set.
+          test -f "dist/movebit-${VERSION}-linux-${ARCH}.zip"
+          test -f "dist/movebit-${VERSION}-linux-${ARCH}.zip.sha256"
+          mv "dist/movebit-${VERSION}-linux-${ARCH}.zip" \
+             "dist/movebit-${VERSION}-linux-${ARCH}.zip.sha256" .
+          # The native installers keep rivet's ecosystem spellings (deb
+          # amd64/arm64, rpm embeds the build number + x86_64/aarch64,
+          # AppImage x86_64/aarch64); rename them to the release contract
+          # names (deb/AppImage x64|arm64, rpm native arch spelling).
+          mv dist/movebit-*-linux-*.deb "movebit-${VERSION}-linux-${ARCH}.deb"
           case "$ARCH" in x64) RPM_ARCH=x86_64 ;; arm64) RPM_ARCH=aarch64 ;; esac
-          for f in "dist/movebit-${VERSION}-linux-${ARCH}.deb" \
-                   "dist/movebit-${VERSION}-linux-${ARCH}.deb.sha256" \
-                   "dist/movebit-${VERSION}-linux-${RPM_ARCH}.rpm" \
-                   "dist/movebit-${VERSION}-linux-${RPM_ARCH}.rpm.sha256" \
-                   "dist/movebit-${VERSION}-linux-${ARCH}.AppImage" \
-                   "dist/movebit-${VERSION}-linux-${ARCH}.AppImage.sha256"; do
-            [[ -f "$f" ]] || continue
-            mv "$f" .
+          mv dist/movebit-*-linux-*.rpm "movebit-${VERSION}-linux-${RPM_ARCH}.rpm"
+          mv dist/movebit-*-linux-*.AppImage "movebit-${VERSION}-linux-${ARCH}.AppImage"
+          # Sidecars for everything rivet did not already checksum.
+          for f in movebit-${VERSION}-linux-*; do
+            case "$f" in *.sha256) continue ;; esac
+            sha256sum "$f" > "$f.sha256"
           done
+        shell: bash
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}
