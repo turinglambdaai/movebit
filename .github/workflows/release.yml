@@ -71,7 +71,7 @@ jobs:
             -ov -format UDZO "dist/movebit-${VERSION}-macos-${{ matrix.arch }}.dmg"
           shasum -a 256 "dist/movebit-${VERSION}-macos-${{ matrix.arch }}.dmg" \
             > "dist/movebit-${VERSION}-macos-${{ matrix.arch }}.dmg.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.arch }}
           path: dist/movebit-*
@@ -156,7 +156,7 @@ jobs:
              "dist/movebit-${VERSION}-windows-x64.zip.sha256" .
         shell: bash
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: movebit-*
@@ -243,7 +243,7 @@ jobs:
             sha256sum "$f" > "$f.sha256"
           done
         shell: bash
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.arch }}
           path: movebit-*
