@@ -12,6 +12,9 @@
 #include "pch.h"
 #include "GeneratedStrings.h"
 #include "system_services.hpp"
+// NativeWindowHandle lives outside system_services.hpp in rivet 0.11: the
+// platform library stays WinUI-free, WinUI hosts include this header directly.
+#include "winui_window.hpp"
 
 #include <functional>
 #include <memory>
