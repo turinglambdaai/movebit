@@ -39,7 +39,8 @@
          racket/string
          racket/system
          ffi/unsafe
-         (only-in ffi/unsafe/define define-ffi-definer))
+         (only-in ffi/unsafe/define define-ffi-definer)
+         "paths.rkt")
 
 (provide current-update-version
          current-install-dir
@@ -54,6 +55,9 @@
          update-state-snapshot
          reset-update-state!
          perform-check!
+         update-check-throttle-seconds
+         update-check-throttled?
+         record-update-check-stamp!
          start-download!
          prepare-install!
          appimage-flavor?
@@ -173,9 +177,43 @@
   (state-set! 'phase "error")
   (state-set! 'message message))
 
+;; ---------- silent-check throttle (the family's 4-hour stamp) --------------
+;;
+;; The family contract (taskly's settings whitelist, threadly's local stamp
+;; files): silent checks are throttled by a PERSISTENT per-machine stamp, so
+;; a restart does not force a fresh check on a freshly checked install. The
+;; stamp lives in bootstrap.json — per-machine by design; a stamp inside the
+;; synced data dir would let one device's check suppress another's. Only a
+;; SETTLED check refreshes it: a definitive answer (available / up-to-date)
+;; or a deterministic failure (developer build, no feed URL). Transient
+;; failures — network errors, unreadable feeds — leave the stamp alone so
+;; the next launch retries. Manual checks never consult the throttle, and a
+;; settled manual check refreshes the stamp like any other settled check.
+
+(define update-check-throttle-seconds (* 4 60 60))
+
+(define (record-update-check-stamp!)
+  (save-bootstrap
+   (hash-set (load-bootstrap) 'last-update-check (current-seconds))))
+
+;; A failed read counts as "never checked" — the throttle must never block
+;; on a corrupt stamp.
+(define (update-check-throttled?)
+  (define stamp (hash-ref (load-bootstrap) 'last-update-check #f))
+  (and (exact-integer? stamp)
+       (< (- (current-seconds) stamp) update-check-throttle-seconds)))
+
 ;; ---------- check ----------
 
+;; A check is settled when it produced a definitive answer or hit a
+;; deterministic failure (the developer-build / no-feed-URL refusals) —
+;; exactly the results that may refresh the persistent throttle stamp.
+;; Transient failures (network, feed fetch/verification) are not settled.
 (define (perform-check! base-url)
+  (define (settle result)
+    (when (hash-ref result 'settled #f)
+      (record-update-check-stamp!))
+    result)
   (reset-update-state!)
   (state-set! 'phase "checking")
   (with-handlers
@@ -183,16 +221,19 @@
         (lambda (e)
           (state-set! 'phase "error")
           (state-set! 'message (exn-message e))
-          (hasheq 'status "error" 'message (exn-message e)))])
+          (settle (hasheq 'status "error" 'settled #f
+                          'message (exn-message e))))])
     (cond
       [(not (movebit-update-configured?))
        (state-set! 'phase "idle")
-       (hasheq 'status "error"
-               'message "updates unavailable: developer build (no update key configured)")]
+       (settle
+        (hasheq 'status "error" 'settled #t
+                'message "updates unavailable: developer build (no update key configured)"))]
       [(or (not base-url) (string=? (string-trim base-url) ""))
        (state-set! 'phase "idle")
-       (hasheq 'status "error"
-               'message "updates unavailable: no update base URL configured")]
+       (settle
+        (hasheq 'status "error" 'settled #t
+                'message "updates unavailable: no update base URL configured"))]
       [else
        (define manifest
          (fetch-update-manifest
@@ -207,18 +248,20 @@
           (define inner (update-candidate-manifest candidate))
           (state-set! 'phase "idle")
           (state-set! 'availableVersion (update-manifest-version inner))
-          (hasheq 'status "available"
-                  'currentVersion (effective-version)
-                  'availableVersion (update-manifest-version inner)
-                  'build (update-manifest-build inner)
-                  'publishedAt (update-manifest-published-at inner)
-                  'sizeBytes (update-artifact-size
-                              (update-candidate-artifact candidate)))]
+          (settle
+           (hasheq 'status "available" 'settled #t
+                   'currentVersion (effective-version)
+                   'availableVersion (update-manifest-version inner)
+                   'build (update-manifest-build inner)
+                   'publishedAt (update-manifest-published-at inner)
+                   'sizeBytes (update-artifact-size
+                               (update-candidate-artifact candidate))))]
          [else
           (state-set! 'phase "idle")
           (state-set! 'availableVersion (void))
-          (hasheq 'status "up-to-date"
-                  'currentVersion (effective-version))])])))
+          (settle
+           (hasheq 'status "up-to-date" 'settled #t
+                   'currentVersion (effective-version)))])])))
 
 ;; ---------- download ----------
 

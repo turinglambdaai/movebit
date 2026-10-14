@@ -552,14 +552,22 @@
   helper)
 
 (define (auto-check-loop)
-  ;; Startup check shortly after init, then every six hours, honoring the
-  ;; user's auto-check preference at each round.
+  ;; The family's silent-check contract: one throttled check shortly after
+  ;; init, then a six-hour wake. Every wake honors the user's auto-check
+  ;; preference AND the persistent four-hour throttle stamp (update.rkt's
+  ;; bootstrap-backed stamp) — a restart no longer forces a check on a
+  ;; freshly checked install, and a settled stamp means the wake can never
+  ;; reset the update state out from under an in-flight manual download
+  ;; (downloads are bounded at 30 minutes, well inside the throttle).
+  ;; Manual checks go through the check-updates RPC and never consult the
+  ;; throttle; both paths refresh the stamp on a settled check.
   (let loop ()
     (sleep 3)
     (define rt (unbox runtime-box))
     (when (and rt
                (reminder-config-auto-check-updates
-                (scheduler-config (runtime-scheduler rt))))
+                (scheduler-config (runtime-scheduler rt)))
+               (not (update-check-throttled?)))
       (with-handlers ([exn:fail? void])
         (perform-check! default-update-base-url)))
     (sleep (* 6 60 60))
