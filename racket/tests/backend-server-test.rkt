@@ -224,6 +224,11 @@
 (define-values (diag diag-ev) (call "get-diagnostics"))
 (check-true (string-contains? diag "movebit"))
 (check-true (string-contains? diag "idle-provider: constant"))
+;; The version line rides the repo single source (effective-version:
+;; rivet-app-info in packaged builds, the update parameter headless) — a
+;; semver, never a stale hand-written epoch like "1.4.0-rivet.1".
+(check-true (regexp-match? #px"movebit [0-9]+\\.[0-9]+\\.[0-9]+" diag))
+(check-false (string-contains? diag "1.4.0"))
 
 (define-values (flush-result flush-ev) (call "flush-now"))
 (check-true (void? flush-result))

@@ -40,10 +40,7 @@
          current-data-dir
          ;; RPC handlers, exported for the server-level tests
          initialize
-         check-updates
-         backend-version)
-
-(define backend-version "1.4.0-rivet.1")
+         check-updates)
 
 ;; --- Injectable seams (defaults = the real world) ------------------------
 
@@ -577,9 +574,12 @@
   (define c (scheduler-config scheduler))
   (define stats (scheduler-stats scheduler))
   (define date-key (day-stats-date-key stats))
+  ;; The version is the repo's single source (rivet-app-info in packaged
+  ;; builds, staged from rivet.rktd = VERSION; the update parameter covers
+  ;; headless runs) — never a second, hand-maintained string here.
   (string-join
    (list
-    (~a "movebit " backend-version)
+    (~a "movebit " (effective-version))
     (~a "platform: " (system-type) " / " (system-type 'machine))
     (~a "data-dir: " (runtime-data-dir rt))
     (~a "device-id: " (runtime-device-id rt)

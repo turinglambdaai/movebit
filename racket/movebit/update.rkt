@@ -40,6 +40,7 @@
          update-key-id
          maximum-download-bytes
          hex->bytes
+         effective-version
          movebit-update-configured?
          platform-symbol
          architecture-symbol

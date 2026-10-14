@@ -24,6 +24,7 @@
 #include <winrt/Microsoft.UI.Input.h>
 #include <winrt/Microsoft.UI.Windowing.h>
 #include <winrt/Windows.Storage.Pickers.h>
+#include <winrt/Windows.ApplicationModel.DataTransfer.h>
 #include <shobjidl_core.h>
 #include <microsoft.ui.xaml.window.h>
 #include <winrt/Microsoft.UI.Dispatching.h>

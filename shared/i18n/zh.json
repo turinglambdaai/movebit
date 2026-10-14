@@ -63,7 +63,10 @@
     "dataFolder": "数据目录",
     "dataFolderHint": "指向 Resilio / Syncthing 等同步文件夹后，多设备的活跃时间会自动合并累计；更改在重启后生效。",
     "changeDataFolder": "更改…",
-    "dataFolderApplied": "已保存，重启 MoveBit 后生效"
+    "dataFolderApplied": "已保存，重启 MoveBit 后生效",
+    "website": "官网",
+    "reportIssue": "问题反馈",
+    "license": "以 MIT 授权发布"
   },
   "upd": {
     "currentVersion": "当前版本 v{0}",
@@ -89,6 +92,7 @@
     "actionUpdate": "更新并重启",
     "actionRetry": "重试",
     "actionUpdating": "更新中…",
+    "copyError": "复制错误信息",
   "actionRestartInstall": "重启并安装"
   },
   "main": {

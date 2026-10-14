@@ -728,6 +728,19 @@ private struct AboutCard: View {
                     set: { model.saveConfig(model.config.with(auto_check_updates: $0)) }))
                     .labelsHidden()
             }
+            // Website / issue tracker / license — the family About rows.
+            HStack(spacing: 16) {
+                Link(L10n.t("AboutWebsite"),
+                     destination: URL(string: "https://movebit.jrtx.site")!)
+                Link(L10n.t("AboutReportIssue"),
+                     destination: URL(string:
+                        "https://github.com/turinglambdaai/movebit/issues")!)
+            }
+            .font(.system(size: 12))
+            .tint(Palette.accent)
+            Text(L10n.t("AboutLicense"))
+                .font(.system(size: 11))
+                .foregroundColor(Palette.inkMuted)
         }
         .modifier(CardBackground())
     }

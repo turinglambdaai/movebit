@@ -589,6 +589,35 @@ void MainWindow::SetWindowIconFromResources() {
   apply_window_icon(*this);
 }
 
+// Update failure text must leave the screen with the user (family UPDATE.md
+// rule): whatever lands in the hint is remembered and the 复制错误信息 /
+// Copy error button (UpdCopyError) puts exactly that string on the
+// clipboard — a bug report starts from this string.
+void MainWindow::ShowUpdateErrorHint(std::wstring const& text) {
+  last_update_error_ = text;
+  AboutCheckHint().Text(winrt::to_hstring(text));
+  UpdateCopyErrorButton().Visibility(Visibility::Visible);
+}
+
+void MainWindow::ClearUpdateErrorHint() {
+  last_update_error_.clear();
+  UpdateCopyErrorButton().Visibility(Visibility::Collapsed);
+}
+
+void MainWindow::UpdateCopyError_Click(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::RoutedEventArgs const&) {
+  try {
+    winrt::Windows::ApplicationModel::DataTransfer::DataPackage package;
+    package.SetText(last_update_error_);
+    winrt::Windows::ApplicationModel::DataTransfer::Clipboard::SetContent(
+        package);
+  } catch (...) {
+    // The clipboard can be briefly held by another process; the failure is
+    // still on screen to copy by selection.
+  }
+}
+
 void MainWindow::UpdateCheck_Click(
     winrt::Windows::Foundation::IInspectable const&,
     Microsoft::UI::Xaml::RoutedEventArgs const&) {
@@ -625,6 +654,7 @@ void MainWindow::HandleUpdateCheck(
     auto const check = r.get();
     if (check.status == "available") {
       update_phase_ = "available";
+      ClearUpdateErrorHint();
       UpdateCheckButton().Content(winrt::box_value(
           winrt::to_hstring(l10n::t("UpdActionUpdate"))));
       AboutCheckHint().Text(winrt::to_hstring(l10n::t(
@@ -633,6 +663,7 @@ void MainWindow::HandleUpdateCheck(
     }
     if (check.status == "up-to-date") {
       update_phase_ = "up-to-date";
+      ClearUpdateErrorHint();
       UpdateCheckButton().Content(winrt::box_value(
           winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
       AboutCheckHint().Text(winrt::to_hstring(l10n::t(
@@ -644,13 +675,13 @@ void MainWindow::HandleUpdateCheck(
         winrt::to_hstring(l10n::t("UpdActionRetry"))));
     // Show the real reason: check failures are network/signing conditions,
     // not user mistakes, and "try again later" alone hides which one.
-    AboutCheckHint().Text(winrt::to_hstring(
+    ShowUpdateErrorHint(winrt::to_hstring(
         check.error.value_or(l10n::t("UpdCheckFailed"))));
   } catch (std::exception const& e) {
     update_phase_ = "error";
     UpdateCheckButton().Content(winrt::box_value(
         winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
-    AboutCheckHint().Text(winrt::to_hstring(l10n::t("UpdCheckFailed")));
+    ShowUpdateErrorHint(winrt::to_hstring(l10n::t("UpdCheckFailed")));
     SetStatus(e.what());
   }
 }
@@ -678,8 +709,8 @@ void MainWindow::StartUpdateDownload() {
             try {
               std::rethrow_exception(r.error);
             } catch (std::exception const& e) {
-              w->AboutCheckHint().Text(winrt::to_hstring(
-                  std::string("start failed: ") + e.what()));
+              w->ShowUpdateErrorHint(
+                  winrt::to_hstring(std::string("start failed: ") + e.what()));
               w->SetStatus(e.what());
             }
             w->update_phase_ = "error";
@@ -715,12 +746,13 @@ void MainWindow::PollUpdateProgress() {
                   if (w->update_progress_timer_)
                     w->update_progress_timer_.Stop();
                   if (state.phase == "error") {
-                    w->AboutCheckHint().Text(winrt::to_hstring(
+                    w->ShowUpdateErrorHint(winrt::to_hstring(
                         state.message.value_or(
                             l10n::t("UpdCheckFailed"))));
                   }
                   if (state.phase == "downloaded") {
                     w->update_phase_ = "ready";
+                    w->ClearUpdateErrorHint();
                     w->UpdateCheckButton().IsEnabled(true);
                     w->UpdateCheckButton().Content(winrt::box_value(
                         winrt::to_hstring(
@@ -743,8 +775,8 @@ void MainWindow::PollUpdateProgress() {
                 w->UpdateCheckButton().IsEnabled(true);
                 w->UpdateCheckButton().Content(winrt::box_value(
                     winrt::to_hstring(l10n::t("UpdActionRetry"))));
-                w->AboutCheckHint().Text(winrt::to_hstring(
-                    std::string("poll: ") + e.what()));
+                w->ShowUpdateErrorHint(
+                    winrt::to_hstring(std::string("poll: ") + e.what()));
                 w->SetStatus(e.what());
               } catch (...) {
                 if (w->update_progress_timer_)
@@ -753,8 +785,8 @@ void MainWindow::PollUpdateProgress() {
                 w->UpdateCheckButton().IsEnabled(true);
                 w->UpdateCheckButton().Content(winrt::box_value(
                     winrt::to_hstring(l10n::t("UpdActionRetry"))));
-                w->AboutCheckHint().Text(winrt::to_hstring(
-                    L"poll: non-standard exception"));
+                w->ShowUpdateErrorHint(
+                    winrt::to_hstring(L"poll: non-standard exception"));
               }
             }
           });
@@ -884,6 +916,13 @@ void MainWindow::ApplyTexts() {
   AboutCheckHint().Text(winrt::to_hstring(l10n::t("AboutCheckUpdatesHint")));
   UpdateCheckButton().Content(
       winrt::box_value(winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
+  UpdateCopyErrorButton().Content(
+      winrt::box_value(winrt::to_hstring(l10n::t("UpdCopyError"))));
+  WebsiteLink().Content(
+      winrt::box_value(winrt::to_hstring(l10n::t("AboutWebsite"))));
+  IssueLink().Content(
+      winrt::box_value(winrt::to_hstring(l10n::t("AboutReportIssue"))));
+  AboutLicenseText().Text(winrt::to_hstring(l10n::t("AboutLicense")));
   DataFolderLabel().Text(winrt::to_hstring(l10n::t("AboutDataFolder")));
   DataFolderHint().Text(winrt::to_hstring(l10n::t("AboutDataFolderHint")));
   DataFolderButton().Content(

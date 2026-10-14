@@ -62,6 +62,9 @@ struct MainWindow : MainWindowT<MainWindow> {
   void UpdateCheck_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void UpdateCopyError_Click(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void HandleUpdateCheck(
       rivet_app::Result<rivet_app::UpdateCheck> const& result);
   void StartUpdateDownload();
@@ -93,6 +96,11 @@ struct MainWindow : MainWindowT<MainWindow> {
   void ShowHistoryBars();
   void ShowOnboarding();
   void SetStatus(std::string const& message);
+  // Update failure text must leave the screen with the user (family
+  // UPDATE.md rule): the hint carries the failure and the copy button
+  // (UpdCopyError) puts exactly that string on the clipboard.
+  void ShowUpdateErrorHint(std::wstring const& text);
+  void ClearUpdateErrorHint();
   void SetWindowIconFromResources();
   winrt::fire_and_forget PickDataFolderAsync();
 
@@ -118,6 +126,7 @@ struct MainWindow : MainWindowT<MainWindow> {
   // Update button state machine: idle | checking | available | downloading |
   // ready | applying | error | up-to-date.
   std::string update_phase_ = "idle";
+  std::wstring last_update_error_;
   Microsoft::UI::Dispatching::DispatcherQueueTimer update_progress_timer_{nullptr};
 
   void InitTray();

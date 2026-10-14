@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- GitHub issue templates (bug report, feature request, contact links)
+  pointing at the site manual and asking for the diagnostics line and the
+  copyable update error text.
+
+### Changed
+
+- The About card on every host (settings & stats window) now carries the
+  family About rows alongside version and the auto-update toggle: links
+  to the website (<https://movebit.jrtx.site>) and the issue tracker
+  (<https://github.com/turinglambdaai/movebit/issues>), plus the MIT
+  license line.
+- Windows update failures can leave the screen with the user: every
+  error hint in the check/download flow (check failure, download start,
+  progress error) now reveals a 复制错误信息 / Copy error button
+  (`UpdCopyError`) that puts the shown failure text on the clipboard —
+  a bug report starts from this string.
+- `get-diagnostics` no longer reports a stale hand-written epoch string:
+  the version line rides the repo single source (`effective-version`,
+  i.e. rivet-app-info in packaged builds — staged from `rivet.rktd` =
+  `VERSION` — and the update-version parameter in headless runs), and
+  the server-level test asserts the semver shape.
+
 ## [0.3.1] - 2026-10-14
 
 **Alignment release: the updater rides rivet, the host builds consume rivet as a package, and the site gains a bilingual manual.** No new features.

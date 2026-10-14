@@ -1165,6 +1165,19 @@ void build_main_content() {
                                        G_CALLBACK(on_updates_set));
     box_append(GTK_BOX(card),
                    label_with(l10n::t("AboutAutoUpdateHint").c_str(), "caption"));
+    // Website / issue tracker / license — the family About rows.
+    auto* links = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
+    gtk_box_append(
+        links, gtk_link_button_new_with_label("https://movebit.jrtx.site",
+                                              l10n::t("AboutWebsite").c_str()));
+    gtk_box_append(
+        links,
+        gtk_link_button_new_with_label(
+            "https://github.com/turinglambdaai/movebit/issues",
+            l10n::t("AboutReportIssue").c_str()));
+    box_append(GTK_BOX(card), links);
+    box_append(GTK_BOX(card),
+               label_with(l10n::t("AboutLicense").c_str(), "caption"));
     box_append(right, card);
   }
 
