@@ -397,12 +397,11 @@
                              "expected" expected
                              "actual" actual))
     ;; The replaced image must stay executable: rename carries the temp
-    ;; file's modes, so set them explicitly before the swap.
-    (file-or-directory-permissions
-     temporary
-     #(user-read user-write user-execute
-                 group-read group-execute
-                 other-read other-execute))
+    ;; file's modes, so set them explicitly before the swap. The setter
+    ;; only takes integer bits — the vector form is a contract violation
+    ;; on every platform (the same trap taskly 63c1f00 fixed), so the
+    ;; AppImage swap must set modes the portable way.
+    (file-or-directory-permissions temporary #o755)
     (rename-file-or-directory temporary self #t)
     self))
 
