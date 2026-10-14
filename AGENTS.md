@@ -10,7 +10,7 @@ Avalonia/.NET 旧栈已彻底移除，仓库从 rivet 时代（0.1.0 起）起�
 
 | 平台宿主 | 技术栈 | 目录 | 状态 |
 |---|---|---|---|
-| macOS | SwiftUI 宿主 + 生成客户端 | `macos-host/` | 待建 |
+| macOS | SwiftUI 宿主 + 生成客户端 | `macos-host/` | 可用 |
 | Windows | C++/WinRT 宿主 + 生成客户端 | `windows/` | 可用 |
 | Linux | GTK4 宿主 + 生成客户端 | `linux/` | 可用 |
 | agent CLI | — | — | 不适用 |
@@ -42,7 +42,7 @@ raco test racket/          # 领域核心测试
 ├── app/backend.rkt     Rivet 后端入口（装配领域层）
 ├── racket/             Racket 领域核心 + tests/
 ├── shared/i18n/        zh.json / en.json 单源
-├── macos-host/         SwiftUI 宿主（待建）
-├── windows/            WinUI3 宿主（待建）
-└── linux/              GTK4 宿主（待建）
+├── macos-host/         SwiftUI 宿主
+├── windows/            WinUI3 宿主
+└── linux/              GTK4 宿主
 ```
