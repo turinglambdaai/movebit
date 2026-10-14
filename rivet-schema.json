@@ -336,9 +336,154 @@
         }
       ],
       "name": "RemindersDue"
+    },
+    {
+      "fields": [
+        {
+          "name": "data-dir",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "device-id",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "devices-today",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "String"
+            },
+            "kind": "list"
+          }
+        }
+      ],
+      "name": "RuntimeInfo"
+    },
+    {
+      "fields": [
+        {
+          "name": "status",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "current-version",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "available-version",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "String"
+            },
+            "kind": "optional"
+          }
+        },
+        {
+          "name": "build",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "Int64"
+            },
+            "kind": "optional"
+          }
+        },
+        {
+          "name": "size-bytes",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "Int64"
+            },
+            "kind": "optional"
+          }
+        },
+        {
+          "name": "error",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "String"
+            },
+            "kind": "optional"
+          }
+        }
+      ],
+      "name": "UpdateCheck"
+    },
+    {
+      "fields": [
+        {
+          "name": "phase",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "percent",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "message",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "String"
+            },
+            "kind": "optional"
+          }
+        },
+        {
+          "name": "available-version",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "String"
+            },
+            "kind": "optional"
+          }
+        },
+        {
+          "name": "downloaded-path",
+          "type": {
+            "element": {
+              "kind": "scalar",
+              "name": "String"
+            },
+            "kind": "optional"
+          }
+        }
+      ],
+      "name": "UpdateState"
     }
   ],
   "rpcs": [
+    {
+      "arguments": [],
+      "name": "check-updates",
+      "result": {
+        "kind": "record",
+        "name": "UpdateCheck"
+      }
+    },
     {
       "arguments": [],
       "name": "complete-break",
@@ -361,6 +506,14 @@
       "result": {
         "kind": "scalar",
         "name": "Bool"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "get-data-dir",
+      "result": {
+        "kind": "scalar",
+        "name": "String"
       }
     },
     {
@@ -392,6 +545,14 @@
     },
     {
       "arguments": [],
+      "name": "get-update-state",
+      "result": {
+        "kind": "record",
+        "name": "UpdateState"
+      }
+    },
+    {
+      "arguments": [],
       "name": "initialize",
       "result": {
         "kind": "scalar",
@@ -404,6 +565,14 @@
       "result": {
         "kind": "scalar",
         "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "prepare-update-install",
+      "result": {
+        "kind": "scalar",
+        "name": "String"
       }
     },
     {
@@ -447,6 +616,38 @@
       }
     },
     {
+      "arguments": [
+        {
+          "name": "path",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        }
+      ],
+      "name": "set-data-dir",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [
+        {
+          "name": "path",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        }
+      ],
+      "name": "set-install-dir",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
       "arguments": [],
       "name": "skip-break",
       "result": {
@@ -465,6 +666,14 @@
         }
       ],
       "name": "snooze",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [],
+      "name": "start-update-download",
       "result": {
         "kind": "scalar",
         "name": "Void"
