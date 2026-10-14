@@ -61,7 +61,12 @@
          start-download!
          prepare-install!
          appimage-flavor?
-         appimage-asset-name)
+         appimage-asset-name
+         ;; test seams: drive the download paths against a local server
+         ;; without a network check (the threadly test-suite shape)
+         set-candidate!
+         download-with-progress!
+         download-appimage-with-progress!)
 
 ;; Ed25519 public key, DER SPKI hex-encoded — committed on purpose: the
 ;; public half only enables verification. Rotation replaces this hex and the
@@ -262,6 +267,10 @@
           (settle
            (hasheq 'status "up-to-date" 'settled #t
                    'currentVersion (effective-version)))])])))
+
+;; Test seam: install a candidate without a network check so the download
+;; paths can be driven against a local HTTP server.
+(define (set-candidate! candidate) (set-box! candidate-box candidate))
 
 ;; ---------- download ----------
 
@@ -536,10 +545,14 @@
   (build-path (updates-dir data-dir) "staged"))
 
 ;; A staged macOS bundle counts only when the executable layout is real.
+;; Contents/MacOS is a directory, so the check is directory-exists? —
+;; file-exists? is #f on directories and would refuse every real bundle
+;; (found by the update-flow test port; prepare-install! never got past
+;; the completeness gate on macOS).
 (define (mac-bundle? path)
   (and (directory-exists? path)
        (string-suffix? (path->string (file-name-from-path path)) ".app")
-       (file-exists? (build-path path "Contents" "MacOS"))))
+       (directory-exists? (build-path path "Contents" "MacOS"))))
 
 ;; The layout a staged payload must have before the helper may touch the
 ;; install directory.
