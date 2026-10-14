@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-14
+
+**Rollout note: in-app updates on macOS and Linux are a new capability
+of 0.4.0.** Windows has been self-updating since 0.3.x; from this
+release the macOS host auto-installs a verified update (staged bundle →
+POSIX apply helper: backup → swap with rollback → relaunch) and the
+Linux host follows the family install-shape flow (AppImage swaps in
+place, deb/rpm get package-manager guidance, portable tarballs get the
+verified archive). **If you run 0.3.x today, your build cannot update
+itself yet — install 0.4.0 once by hand** (dmg / msi / deb / AppImage
+from this release or the stable `releases/latest/download/<alias>`
+links), and every later release then offers 检查更新 → 重启并安装
+inside the app.
+
 ### Added
 
 - The macOS and Linux hosts are wired to the updater's full state machine
