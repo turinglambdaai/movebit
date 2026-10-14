@@ -336,8 +336,11 @@
 
 ;; $APPIMAGE (set by the AppImage runtime) is inherited by the embedded
 ;; backend — its presence IS the install shape; no config plumbing needed.
+;; platform-symbol is the stable predicate: system-type's os is 'unix on
+;; Linux, so an (eq? (system-type 'os) 'linux) guard is never true there
+;; (the same trap the threadly suite documents).
 (define (appimage-flavor?)
-  (and (eq? (system-type 'os) 'linux)
+  (and (eq? (platform-symbol) 'linux)
        (let ([self (getenv "APPIMAGE")])
          (and self (not (string=? self ""))))))
 
@@ -610,7 +613,7 @@
      ")\r\n"
      "echo [%time%] app exited, swapping payload >> \"%TRACE%\"\r\n"
      "robocopy \"" (path->string staged) "\" \""
-     (path->string install) "\" /E /NFL /NDL /NJH /NJS >> \"%TRACE%\" 2>&1\r\n"
+     install "\" /E /NFL /NDL /NJH /NJS >> \"%TRACE%\" 2>&1\r\n"
      "echo [%time%] robocopy exit %errorlevel% >> \"%TRACE%\"\r\n"
      "if errorlevel 8 goto :fail\r\n"
      "start \"\" \"" (path->string (build-path install "RivetHost.exe")) "\"\r\n"
@@ -685,7 +688,10 @@
 ;; verified zip, write the helper, and hand back the command to spawn. The
 ;; host then exits and the detached helper finishes the swap.
 (define (prepare-install! data-dir)
-  (case (system-type 'os)
+  ;; platform-symbol, not system-type's os — on Linux that is 'unix and the
+  ;; refusal below never matched, so Linux installs fell into the
+  ;; Windows/macOS flow (found by the swap-chain test on CI).
+  (case (platform-symbol)
     [(linux)
      ;; AppImage swaps happen at download time; tarball/package installs are
      ;; manual (the host shows the file or the guidance). Never pretend.
@@ -701,9 +707,9 @@
        (delete-directory/files staged))
      (extract-zip! (string->path downloaded) staged)
      (define helper
-       (case (system-type 'os)
-         [(macosx) (write-apply-helper-mac! data-dir (getpid))]
-         [else (write-apply-helper! data-dir (getpid))]))
+       (if (eq? (platform-symbol) 'macos)
+           (write-apply-helper-mac! data-dir (getpid))
+           (write-apply-helper! data-dir (getpid))))
      (state-set! 'phase "ready-to-apply")
      (path->string helper)]))
 

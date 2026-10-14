@@ -234,10 +234,12 @@
       (hash-ref (upd:update-state-snapshot) 'downloadedPath #f))
     (check-true (and downloaded (file-exists? downloaded)))
 
-    (case (system-type 'os)
+    (case (upd:platform-symbol)
       [(linux)
        ;; AppImage swaps happen at download time; tarball/package installs
-       ;; are manual — prepare-install! refuses honestly.
+       ;; are manual — prepare-install! refuses honestly. platform-symbol,
+       ;; not system-type's os ('unix on Linux — the same trap the module
+       ;; had).
        (check-exn exn:fail? (lambda () (upd:prepare-install! test-data-dir)))]
       [else
        (define helper (upd:prepare-install! test-data-dir))
@@ -286,9 +288,12 @@
     (dynamic-wind
       void
       (lambda ()
-        ;; flavor detection stays linux-only (the OS guard is the install
-        ;; shape); the swap mechanics below run on any POSIX platform
-        (check-equal? (upd:appimage-flavor?) (eq? (system-type 'os) 'linux))
+        ;; flavor detection follows the platform symbol AND the env marker;
+        ;; the swap mechanics below run on any POSIX platform
+        (check-equal? (upd:appimage-flavor?)
+                      (and (eq? (upd:platform-symbol) 'linux)
+                           (let ([v (getenv "APPIMAGE")])
+                             (and v (not (string=? v ""))))))
         ;; The feed entry is the linux tar.gz no matter where the mechanics
         ;; run — pin the config AND the artifact to linux (the manifest
         ;; helper pins to the running platform, wrong for this flow).
