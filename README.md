@@ -2,7 +2,7 @@
 
 A desktop health companion that watches how long you **actually work** and gets you out of the chair — sit reminders can cover **every monitor** with a countdown break screen, while water reminders stay lightweight. One Racket domain core drives first-party native hosts on Windows, macOS, and Linux over [Rivet](https://github.com/turinglambdaai/rivet)'s typed RPC.
 
-![Rivet](https://img.shields.io/badge/built%20with-Rivet-2f9e55) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turinglambdaai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **English** · [中文](README.zh-CN.md)
 
@@ -56,7 +56,7 @@ Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releas
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` · `.zip` | `movebit-<version>-linux-x64.deb` · `-x86_64.rpm` · `.AppImage` |
 | Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` · `.zip` | `movebit-<version>-linux-arm64.deb` · `-aarch64.rpm` |
 
-Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.3.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json`.
+Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.3.1-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json`.
 
 Platform notes:
 
@@ -115,7 +115,7 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 
 ## Release process
 
-1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd`, and the release tag must equal it too (for example `0.3.0` ↔ `v0.3.0`).
+1. Bump the single-source `VERSION` file; `scripts/check-release-version.sh` enforces `VERSION == rivet.rktd`, and the release tag must equal it too (for example `0.3.1` ↔ `v0.3.1`).
 2. Add a `CHANGELOG.md` section for the version — the release validate job greps for it.
 3. Merge only with CI green (Racket tests plus the Windows/macOS/Linux host matrix).
 4. Push the version tag. Release automation builds macOS DMG + portable ZIP (arm64 and x64), the Windows MSI + portable ZIP, the Linux tar.gz + zip (x64 + arm64) plus deb, rpm, and AppImage installers, per-asset `.sha256` sidecars, the `SHA256SUMS` manifest, and the signed `update-manifest.json`; one GitHub Release is created only after every required package succeeds, with the release notes taken from the matching CHANGELOG section.

@@ -245,130 +245,130 @@ public struct RivetAPI: Sendable {
     public init(client: RivetClient) { self.client = client }
 
     public func check_updates() async throws -> RivetTypes.UpdateCheck {
-        let result = try await client.call("check-updates", arguments: [])
-        return try decode_UpdateCheck(result)
+        let rivetResult = try await client.call("check-updates", arguments: [])
+        return try decode_UpdateCheck(rivetResult)
     }
     public func complete_break() async throws -> Void {
-        let result = try await client.call("complete-break", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("complete-break", arguments: [])
+        return try decode_Void(rivetResult)
     }
     public func flush_now() async throws -> Void {
-        let result = try await client.call("flush-now", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("flush-now", arguments: [])
+        return try decode_Void(rivetResult)
     }
     public func get_autostart() async throws -> Bool {
-        let result = try await client.call("get-autostart", arguments: [])
-        return try decode_Bool(result)
+        let rivetResult = try await client.call("get-autostart", arguments: [])
+        return try decode_Bool(rivetResult)
     }
     public func get_data_dir() async throws -> String {
-        let result = try await client.call("get-data-dir", arguments: [])
-        return try decode_String(result)
+        let rivetResult = try await client.call("get-data-dir", arguments: [])
+        return try decode_String(rivetResult)
     }
     public func get_diagnostics() async throws -> String {
-        let result = try await client.call("get-diagnostics", arguments: [])
-        return try decode_String(result)
+        let rivetResult = try await client.call("get-diagnostics", arguments: [])
+        return try decode_String(rivetResult)
     }
     public func get_history(days: Int64) async throws -> [RivetTypes.DayStats] {
-        let result = try await client.call("get-history", arguments: [encode_Int64(days)])
-        return try decode__List_DayStats_(result)
+        let rivetResult = try await client.call("get-history", arguments: [encode_Int64(days)])
+        return try decode__List_DayStats_(rivetResult)
     }
     public func get_update_state() async throws -> RivetTypes.UpdateState {
-        let result = try await client.call("get-update-state", arguments: [])
-        return try decode_UpdateState(result)
+        let rivetResult = try await client.call("get-update-state", arguments: [])
+        return try decode_UpdateState(rivetResult)
     }
     public func initialize() async throws -> Void {
-        let result = try await client.call("initialize", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("initialize", arguments: [])
+        return try decode_Void(rivetResult)
     }
     public func pause_1h() async throws -> Void {
-        let result = try await client.call("pause-1h", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("pause-1h", arguments: [])
+        return try decode_Void(rivetResult)
     }
     public func prepare_update_install() async throws -> String {
-        let result = try await client.call("prepare-update-install", arguments: [])
-        return try decode_String(result)
+        let rivetResult = try await client.call("prepare-update-install", arguments: [])
+        return try decode_String(rivetResult)
     }
     public func quit_and_install() async throws -> String {
-        let result = try await client.call("quit-and-install", arguments: [])
-        return try decode_String(result)
+        let rivetResult = try await client.call("quit-and-install", arguments: [])
+        return try decode_String(rivetResult)
     }
     public func resume() async throws -> Void {
-        let result = try await client.call("resume", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("resume", arguments: [])
+        return try decode_Void(rivetResult)
     }
     public func set_autostart(enabled: Bool) async throws -> Void {
-        let result = try await client.call("set-autostart", arguments: [encode_Bool(enabled)])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("set-autostart", arguments: [encode_Bool(enabled)])
+        return try decode_Void(rivetResult)
     }
     public func set_config(value: RivetTypes.ReminderConfig) async throws -> Void {
-        let result = try await client.call("set-config", arguments: [encode_ReminderConfig(value)])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("set-config", arguments: [encode_ReminderConfig(value)])
+        return try decode_Void(rivetResult)
     }
     public func set_data_dir(path: String) async throws -> Void {
-        let result = try await client.call("set-data-dir", arguments: [encode_String(path)])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("set-data-dir", arguments: [encode_String(path)])
+        return try decode_Void(rivetResult)
     }
     public func set_install_dir(path: String) async throws -> Void {
-        let result = try await client.call("set-install-dir", arguments: [encode_String(path)])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("set-install-dir", arguments: [encode_String(path)])
+        return try decode_Void(rivetResult)
     }
     public func skip_break() async throws -> Void {
-        let result = try await client.call("skip-break", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("skip-break", arguments: [])
+        return try decode_Void(rivetResult)
     }
     public func snooze(kind: RivetTypes.ReminderKind) async throws -> Void {
-        let result = try await client.call("snooze", arguments: [encode_ReminderKind(kind)])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("snooze", arguments: [encode_ReminderKind(kind)])
+        return try decode_Void(rivetResult)
     }
     public func start_update_download() async throws -> Void {
-        let result = try await client.call("start-update-download", arguments: [])
-        return try decode_Void(result)
+        let rivetResult = try await client.call("start-update-download", arguments: [])
+        return try decode_Void(rivetResult)
     }
 
     // Shared state
     public func get_active_config() async throws -> RivetTypes.ReminderConfig {
-        let result = try await client.getState("active-config")
-        return try decode_ReminderConfig(result)
+        let rivetResult = try await client.getState("active-config")
+        return try decode_ReminderConfig(rivetResult)
     }
     @discardableResult
     public func set_active_config(_ value: RivetTypes.ReminderConfig) async throws -> RivetTypes.ReminderConfig {
-        let result = try await client.setState("active-config", value: encode_ReminderConfig(value))
-        return try decode_ReminderConfig(result)
+        let rivetResult = try await client.setState("active-config", value: encode_ReminderConfig(value))
+        return try decode_ReminderConfig(rivetResult)
     }
     public func get_break_active() async throws -> RivetTypes.BreakState? {
-        let result = try await client.getState("break-active")
-        return try decode__Optional_BreakState_(result)
+        let rivetResult = try await client.getState("break-active")
+        return try decode__Optional_BreakState_(rivetResult)
     }
     @discardableResult
     public func set_break_active(_ value: RivetTypes.BreakState?) async throws -> RivetTypes.BreakState? {
-        let result = try await client.setState("break-active", value: encode__Optional_BreakState_(value))
-        return try decode__Optional_BreakState_(result)
+        let rivetResult = try await client.setState("break-active", value: encode__Optional_BreakState_(value))
+        return try decode__Optional_BreakState_(rivetResult)
     }
     public func get_loops() async throws -> [RivetTypes.LoopInfo] {
-        let result = try await client.getState("loops")
-        return try decode__List_LoopInfo_(result)
+        let rivetResult = try await client.getState("loops")
+        return try decode__List_LoopInfo_(rivetResult)
     }
     @discardableResult
     public func set_loops(_ value: [RivetTypes.LoopInfo]) async throws -> [RivetTypes.LoopInfo] {
-        let result = try await client.setState("loops", value: encode__List_LoopInfo_(value))
-        return try decode__List_LoopInfo_(result)
+        let rivetResult = try await client.setState("loops", value: encode__List_LoopInfo_(value))
+        return try decode__List_LoopInfo_(rivetResult)
     }
     public func get_paused() async throws -> RivetTypes.PauseState {
-        let result = try await client.getState("paused")
-        return try decode_PauseState(result)
+        let rivetResult = try await client.getState("paused")
+        return try decode_PauseState(rivetResult)
     }
     @discardableResult
     public func set_paused(_ value: RivetTypes.PauseState) async throws -> RivetTypes.PauseState {
-        let result = try await client.setState("paused", value: encode_PauseState(value))
-        return try decode_PauseState(result)
+        let rivetResult = try await client.setState("paused", value: encode_PauseState(value))
+        return try decode_PauseState(rivetResult)
     }
     public func get_today() async throws -> RivetTypes.DayStats {
-        let result = try await client.getState("today")
-        return try decode_DayStats(result)
+        let rivetResult = try await client.getState("today")
+        return try decode_DayStats(rivetResult)
     }
     @discardableResult
     public func set_today(_ value: RivetTypes.DayStats) async throws -> RivetTypes.DayStats {
-        let result = try await client.setState("today", value: encode_DayStats(value))
-        return try decode_DayStats(result)
+        let rivetResult = try await client.setState("today", value: encode_DayStats(value))
+        return try decode_DayStats(rivetResult)
     }
 }

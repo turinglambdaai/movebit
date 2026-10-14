@@ -10,14 +10,10 @@ permissions:
   attestations: write
 
 env:
-  # Exact rivet pin. a5f6718 = rivet#153 (redirect-following update fetch) —
-  # the same commit the v1.5.1 release pipeline was built and published with.
-  # Held back deliberately: newer pins generate the RivetTypes-namespaced
-  # Swift schema this host has not migrated to yet. Family policy: rivet is
-  # consumed as a package (this git-sha install), never as a linked source
-  # checkout — keeps local and release builds reproducible against one
-  # revision.
-  RIVET_COMMIT: 3a4d93105cb8b526191d808fff4fc4542c279285
+  # Exact rivet pin (released tag). Family policy: rivet is consumed as a
+  # package (this tag install), never as a linked source checkout — keeps
+  # local and release builds reproducible against one revision.
+  RIVET_PIN: v0.11.0
 
 jobs:
   validate:
@@ -56,8 +52,8 @@ jobs:
           architecture: ${{ matrix.racket-arch }}
           version: stable
           distribution: full
-      - name: Install pinned Rivet (git-sha package install)
-        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
+      - name: Install pinned Rivet (tag package install)
+        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
         shell: bash
       - name: Package
         run: raco rivet package
@@ -93,8 +89,8 @@ jobs:
           architecture: x64
           version: stable
           distribution: full
-      - name: Install pinned Rivet (git-sha package install)
-        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
+      - name: Install pinned Rivet (tag package install)
+        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
         shell: bash
       - name: Install WiX (v5; v7 requires EULA acceptance, v5 runs the v4 schema)
         run: dotnet tool install --global wix --version 5.0.2
@@ -191,7 +187,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up embeddable Racket CS
-        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@main
+        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@v0.11.0
       - name: Install GTK4, a virtual display, and packaging tooling
         run: |
           sudo apt-get update
@@ -199,9 +195,9 @@ jobs:
       # Installed after the embeddable runtime so the dependency closure
       # (cext-lib, crypto-lib, keel) resolves against the minimal build —
       # it ships no packages of its own.
-      - name: Install pinned Rivet (git-sha package install)
+      - name: Install pinned Rivet (tag package install)
         shell: bash
-        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
+        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
       - name: Package (rivet release, development signing)
         shell: bash
         env:
@@ -307,8 +303,8 @@ jobs:
           architecture: arm64
           version: stable
           distribution: full
-      - name: Install pinned Rivet (git-sha package install)
-        run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_COMMIT}"
+      - name: Install pinned Rivet (tag package install)
+        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
         shell: bash
       - name: Flatten artifact dirs
         run: |

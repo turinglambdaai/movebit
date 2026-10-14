@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.1] - 2026-10-14
+
+**Alignment release: the updater rides rivet, the host builds consume rivet as a package, and the site gains a bilingual manual.** No new features.
+
+### Added
+
+- A user manual at [docs/manual.html](https://movebit.jrtx.site/manual): a five-minute start plus one self-contained section each for work timing, forced breaks, water & micro breaks, tray behavior, and online updates, with an FAQ (data location, accounts, platforms, language/theme, uninstall, failed updates). Fully bilingual (Chinese/English) through the site i18n mechanism, with sticky table of contents and the real macOS screenshot embedded
+
+### Changed
+
+- The updater download leg now rides rivet's `download-update` (redirect-following fetch, signed-size cap, `.partial` cleanup, SHA-256 + size verification, atomic rename) instead of a hand-rolled copy loop, and a watchdog bounds it: no byte progress for 120 seconds or 30 minutes total wall clock breaks the worker (`exn:break`), so the UI phase always reaches a terminal state instead of resting on "downloading" forever
+- The rivet pin moved from the stale `3a4d931` git-sha to the released `v0.11.0` tag in CI and release workflows, and `setup-embed-racket` is pinned to `@v0.11.0` instead of `@main`
+- The Linux host consumes the Rivet platform as a CMake package target (`add_subdirectory` + `rivet::platform`) instead of hand-listing 12 rivet translation units; the Windows host links `rivet-host.vcxproj` via ProjectReference with an explicit four-way `RivetRuntimeLibrary` CRT forward (static flavors for self-contained packaging, DLL flavors for development builds) instead of compiling rivet cpp files; the macOS host consumes the root rivet package (`.package(path:)` with `package: "rivet"` products, including `RivetUpdate`) instead of the old platform-subdirectory form
+- The site palette aligns with the family values (warm paper `#faf7f2`, terracotta accent `#c15f3c`), dark mode gained a manual toggle with `localStorage` persistence and an anti-flicker head script, i18n moved to the family-standard `data-i18n` + JS dictionary with Chinese as the default (`lang="zh-CN"`), and the download area is a `dl-card` structure listing the real assets of the latest release (no more hardcoded version in URLs); the hero shows the real app screenshot
+- README gained release/platform/CI badges (both English and Chinese)
+
+
 ## [0.3.0] - 2026-10-11
 
 **Linux rpm and portable zips close the packaging benchmark gap.** The Linux set now matches the family benchmark (taskly) format-for-format: deb + rpm + AppImage + tar.gz + zip on both architectures.

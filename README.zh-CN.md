@@ -2,7 +2,7 @@
 
 一个桌面健康小卫士：监测你**真正处于电脑前工作的时间**，到点把你从椅子上请起来——久坐提醒可用带倒计时的休息屏**覆盖所有显示器**，喝水提醒保持轻量。一份 Racket 领域核心通过 [Rivet](https://github.com/turinglambdaai/rivet) 的类型化 RPC 驱动 Windows、macOS、Linux 上的第一方原生宿主。
 
-![Rivet](https://img.shields.io/badge/built%20with-Rivet-2f9e55) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turinglambdaai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 [English](README.md) · **中文**
 
@@ -56,7 +56,7 @@ Racket 运行时静态链接进宿主——不依赖外部解释器、没有 .NE
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` · `.zip` | `movebit-<version>-linux-x64.deb` · `-x86_64.rpm` · `.AppImage` |
 | Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` · `.zip` | `movebit-<version>-linux-arm64.deb` · `-aarch64.rpm` |
 
-资产遵循统一的小写命名 `movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.3.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还提供 `SHA256SUMS` 与 Ed25519 签名的 `update-manifest.json`。
+资产遵循统一的小写命名 `movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.3.1-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还提供 `SHA256SUMS` 与 Ed25519 签名的 `update-manifest.json`。
 
 平台说明：
 
@@ -115,7 +115,7 @@ Linux 打包脚本（deb / rpm / AppImage）在 `packaging/linux/` 下，作用�
 
 ## 发布流程
 
-1. 更新单一来源的 `VERSION` 文件；`scripts/check-release-version.sh` 校验 `VERSION == rivet.rktd`，发布 tag 也必须一致（如 `0.3.0` ↔ `v0.3.0`）。
+1. 更新单一来源的 `VERSION` 文件；`scripts/check-release-version.sh` 校验 `VERSION == rivet.rktd`，发布 tag 也必须一致（如 `0.3.1` ↔ `v0.3.1`）。
 2. 在 `CHANGELOG.md` 里加上对应版本的章节——发布流水线的 validate 任务会检查它。
 3. CI 全绿才可合入（Racket 测试 + Windows/macOS/Linux 宿主矩阵）。
 4. 推送版本 tag。发布自动化会构建 macOS DMG + 便携 ZIP（arm64/x64）、Windows MSI + 便携 ZIP、Linux tar.gz + zip（双架构）及 deb、rpm、AppImage，生成逐资产 `.sha256`、`SHA256SUMS` 与签名的 `update-manifest.json`；全部必需包成功后才创建唯一的 GitHub Release，发布说明取自 CHANGELOG 对应章节。
