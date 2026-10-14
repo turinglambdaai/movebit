@@ -91,7 +91,7 @@
           </h1>
           <p class="hero-lead animate" data-i18n="hero.lead">MoveBit 统计你真正操作电脑的活跃时长。工作太久，它会把全部屏幕锁定进入定时休息；你自己离开工位时，它也能识别。Windows、macOS、Linux 一次安装即可，每个发布都同时提供安装器与便携压缩包。</p>
           <div class="hero-actions animate">
-            <a class="btn btn-primary" href="#download"><span data-i18n="hero.download">下载 MoveBit</span><span aria-hidden="true">↓</span></a>
+            <a class="btn btn-primary" id="hero-download" href="#download"><span data-i18n="hero.download">下载 MoveBit</span><span aria-hidden="true">↓</span></a>
             <a class="btn btn-secondary" href="manual.html"><span data-i18n="hero.manual">使用手册</span><span aria-hidden="true">→</span></a>
             <a class="btn btn-secondary" href="https://github.com/turinglambdaai/movebit" target="_blank" rel="noopener"><span data-i18n="hero.source">查看源码</span><span aria-hidden="true">↗</span></a>
           </div>
@@ -239,7 +239,7 @@
         <div class="center-head">
           <div class="section-kicker animate" data-i18n="dl.kicker">下载</div>
           <h2 class="section-title animate" data-i18n="dl.title">Windows 推荐安装；需要时，便携版一直都在。</h2>
-          <p class="section-lead animate" data-i18n="dl.lead">Windows 用户通常选择 MSI 安装版；macOS 在 Apple silicon 和 Intel 上都提供 DMG。每个平台都有便携压缩包：Windows 与 macOS 是 ZIP，Linux 是 tar.gz——另有双架构 deb 与 rpm、x64 AppImage 和便携 zip。下面的列表直接读取最新 Release 的真实资产。</p>
+          <p class="section-lead animate" data-i18n="dl.lead">Windows 用户通常选择 MSI 安装版；macOS 在 Apple silicon 和 Intel 上都提供 DMG，Linux 提供 deb 与 AppImage。下面的直链永远指向最新发布的文件，你所在平台的卡片会自动高亮；便携压缩包与其余格式都在 Releases 页。</p>
         </div>
 
         <div class="download-shell animate">
@@ -248,21 +248,30 @@
             <span class="release-badge"><span data-i18n="dl.badge.feed">更新 feed</span> <strong>update-manifest.json</strong></span>
           </div>
           <div class="dl-grid" id="dl-grid">
-            <div class="dl-card">
+            <div class="dl-card" data-os="windows">
               <div class="download-head"><span class="head-icon"><svg role="img" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623z"/></svg></span><strong>Windows x64</strong><span class="download-tag" data-i18n="dl.tag.installer">推荐安装版</span></div>
-              <div class="dl-assets" data-platform="windows"></div>
+              <div class="dl-assets">
+                <a class="format-link" href="https://github.com/turinglambdaai/movebit/releases/latest/download/movebit-windows-x64.msi"><span class="format-kind">MSI</span><span class="format-name">movebit-windows-x64.msi</span><span class="download-arrow" aria-hidden="true">↓</span></a>
+              </div>
             </div>
-            <div class="dl-card">
+            <div class="dl-card" data-os="macos">
               <div class="download-head"><span class="head-icon"><svg role="img" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg></span><strong>macOS</strong><span class="download-tag" data-i18n="dl.tag.apple">Apple silicon 与 Intel</span></div>
-              <div class="dl-assets" data-platform="macos"></div>
+              <div class="dl-assets">
+                <a class="format-link" href="https://github.com/turinglambdaai/movebit/releases/latest/download/movebit-macos-arm64.dmg"><span class="format-kind">DMG</span><span class="format-name">movebit-macos-arm64.dmg</span><span class="download-arrow" aria-hidden="true">↓</span></a>
+                <a class="format-link" href="https://github.com/turinglambdaai/movebit/releases/latest/download/movebit-macos-x64.dmg"><span class="format-kind">DMG</span><span class="format-name">movebit-macos-x64.dmg</span><span class="download-arrow" aria-hidden="true">↓</span></a>
+              </div>
             </div>
-            <div class="dl-card">
+            <div class="dl-card" data-os="linux">
               <div class="download-head"><span class="head-icon"><svg role="img" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139z"/></svg></span><strong>Linux</strong><span class="download-tag">x64 &amp; arm64</span></div>
-              <div class="dl-assets" data-platform="linux"></div>
+              <div class="dl-assets">
+                <a class="format-link" href="https://github.com/turinglambdaai/movebit/releases/latest/download/movebit-linux-x64.deb"><span class="format-kind">deb</span><span class="format-name">movebit-linux-x64.deb</span><span class="download-arrow" aria-hidden="true">↓</span></a>
+                <a class="format-link" href="https://github.com/turinglambdaai/movebit/releases/latest/download/movebit-linux-arm64.deb"><span class="format-kind">deb</span><span class="format-name">movebit-linux-arm64.deb</span><span class="download-arrow" aria-hidden="true">↓</span></a>
+                <a class="format-link" href="https://github.com/turinglambdaai/movebit/releases/latest/download/movebit-linux-x64.AppImage"><span class="format-kind">AppImage</span><span class="format-name">movebit-linux-x64.AppImage</span><span class="download-arrow" aria-hidden="true">↓</span></a>
+              </div>
             </div>
           </div>
-          <p class="download-note" data-i18n="dl.note">每个资产都有对应的 .sha256 文件，每个发布还提供 SHA256SUMS 与签名的 update-manifest.json feed。升级就是运行新版安装器或替换便携目录——没有任何步骤会自行替换文件。</p>
-          <div style="text-align:center;margin-top:14px"><a class="btn btn-quiet" href="https://github.com/turinglambdaai/movebit/releases" target="_blank" rel="noopener"><span data-i18n="dl.notes">版本说明与校验值</span><span aria-hidden="true">↗</span></a></div>
+          <p class="download-note" data-i18n="dl.note">每个版本化资产都有对应的 .sha256 文件，每个发布还提供 SHA256SUMS 与签名的 update-manifest.json feed。升级就是运行新版安装器或替换便携目录——没有任何步骤会自行替换文件。</p>
+          <div style="text-align:center;margin-top:14px"><a class="btn btn-quiet" href="https://github.com/turinglambdaai/movebit/releases" target="_blank" rel="noopener"><span data-i18n="dl.notes">全部格式、版本说明与校验值</span><span aria-hidden="true">↗</span></a></div>
           <div class="warning"><strong data-i18n="dl.warn.strong">未签名构建：</strong><span data-i18n="dl.warn.body">当前 GitHub 二进制文件尚未进行代码签名或 macOS 公证，因此 Windows SmartScreen 或 macOS Gatekeeper 可能提示警告。在签名分发完成前，MoveBit 会明确说明这一点。</span></div>
         </div>
       </div>
@@ -361,13 +370,12 @@
         "plat.dist.linux": "tar.gz + deb + rpm + AppImage + ZIP", "plat.dist.linux2": "tar.gz + deb + rpm + AppImage + ZIP",
         "plat.fallback": "自然时间降级", "plat.supported": "支持",
         "dl.kicker": "下载", "dl.title": "Windows 推荐安装；需要时，便携版一直都在。",
-        "dl.lead": "Windows 用户通常选择 MSI 安装版；macOS 在 Apple silicon 和 Intel 上都提供 DMG。每个平台都有便携压缩包：Windows 与 macOS 是 ZIP，Linux 是 tar.gz——另有双架构 deb 与 rpm、x64 AppImage 和便携 zip。下面的列表直接读取最新 Release 的真实资产。",
+        "dl.lead": "Windows 用户通常选择 MSI 安装版；macOS 在 Apple silicon 和 Intel 上都提供 DMG，Linux 提供 deb 与 AppImage。下面的直链永远指向最新发布的文件，你所在平台的卡片会自动高亮；便携压缩包与其余格式都在 Releases 页。",
         "dl.badge.release": "最新版本", "dl.badge.feed": "更新 feed",
-        "dl.tag.installer": "推荐安装版", "dl.tag.apple": "Apple silicon 与 Intel",
-        "dl.note": "每个资产都有对应的 .sha256 文件，每个发布还提供 SHA256SUMS 与签名的 update-manifest.json feed。升级就是运行新版安装器或替换便携目录——没有任何步骤会自行替换文件。",
-        "dl.notes": "版本说明与校验值",
+        "dl.tag.installer": "推荐安装版", "dl.tag.apple": "Apple silicon 与 Intel", "dl.tag.current": "你的平台",
+        "dl.note": "每个版本化资产都有对应的 .sha256 文件，每个发布还提供 SHA256SUMS 与签名的 update-manifest.json feed。升级就是运行新版安装器或替换便携目录——没有任何步骤会自行替换文件。",
+        "dl.notes": "全部格式、版本说明与校验值",
         "dl.warn.strong": "未签名构建：", "dl.warn.body": "当前 GitHub 二进制文件尚未进行代码签名或 macOS 公证，因此 Windows SmartScreen 或 macOS Gatekeeper 可能提示警告。在签名分发完成前，MoveBit 会明确说明这一点。",
-        "dl.empty": "打开 GitHub Releases 页获取。",
         "faq.title": "安装之前，值得先说清楚的问题。",
         "faq.q1": "选安装版还是便携版？",
         "faq.a1": "日常长期使用推荐安装版：Windows MSI 或 macOS DMG。它给 MoveBit 一个稳定的位置、开始菜单/启动台入口和标准卸载。临时使用、U 盘、受管电脑不希望安装，或者你偏爱便携软件时再选便携 ZIP、Linux tar.gz 或 AppImage。",
@@ -434,13 +442,12 @@
         "plat.dist.linux": "tar.gz + deb + rpm + AppImage + ZIP", "plat.dist.linux2": "tar.gz + deb + rpm + AppImage + ZIP",
         "plat.fallback": "Elapsed-time fallback", "plat.supported": "Supported",
         "dl.kicker": "Download", "dl.title": "Install on Windows. Portable when you want it.",
-        "dl.lead": "Windows users should normally choose the MSI installer; macOS users get a DMG on Apple silicon and Intel. Portable archives exist for every platform: ZIP on Windows and macOS, tar.gz on Linux — which additionally ships deb and rpm for both architectures and an AppImage. The list below reads the real assets of the latest release.",
+        "dl.lead": "Windows users normally choose the MSI installer; macOS ships a DMG for Apple silicon and Intel, and Linux gets deb packages and an AppImage. The links below always point at the files of the latest release and the card for your platform is highlighted; portable archives and every other format live on the Releases page.",
         "dl.badge.release": "Latest release", "dl.badge.feed": "Update feed",
-        "dl.tag.installer": "Installer recommended", "dl.tag.apple": "Apple silicon & Intel",
-        "dl.note": "Every asset has a matching .sha256 sidecar, and each release publishes SHA256SUMS plus the signed update-manifest.json feed. Upgrading means running the newer installer or replacing the portable payload — nothing replaces files on its own.",
-        "dl.notes": "Release notes & checksums",
+        "dl.tag.installer": "Installer recommended", "dl.tag.apple": "Apple silicon & Intel", "dl.tag.current": "Your platform",
+        "dl.note": "Every versioned asset has a matching .sha256 sidecar, and each release publishes SHA256SUMS plus the signed update-manifest.json feed. Upgrading means running the newer installer or replacing the portable payload — nothing replaces files on its own.",
+        "dl.notes": "All formats, release notes & checksums",
         "dl.warn.strong": "Unsigned builds:", "dl.warn.body": "current GitHub binaries are not code-signed or notarized, so Windows SmartScreen or macOS Gatekeeper may show a warning. MoveBit states this plainly until signed distribution is added.",
-        "dl.empty": "Grab it from the GitHub Releases page.",
         "faq.title": "The questions worth answering before install.",
         "faq.q1": "Installer or portable archive?",
         "faq.a1": "For normal daily use, choose the installer: the Windows MSI or the macOS DMG. It gives MoveBit a stable location, Start-menu/Launchpad launch and normal uninstall support. Choose the portable ZIP, Linux tar.gz, or AppImage for temporary use, USB drives, managed machines where installation is undesirable, or if you simply prefer portable apps.",
@@ -517,6 +524,42 @@
         apply(lang);
       };
       try { localStorage.removeItem(LEGACY_LANGUAGE_KEY); } catch (e) {}
+
+      // ---- platform detection: highlight the current OS dl-card and turn the
+      // hero CTA into a stable releases/latest/download alias (never versioned) ----
+      var DOWNLOAD_BASE = 'https://github.com/turinglambdaai/movebit/releases/latest/download/';
+      var DOWNLOAD_ALIASES = {
+        windows: 'movebit-windows-x64.msi',
+        macos: 'movebit-macos-arm64.dmg',
+        linux: 'movebit-linux-x64.deb'
+      };
+      function detectOS() {
+        var ua = navigator.userAgent || '';
+        if (/Android/i.test(ua)) return null;
+        if (/Mac|iPhone|iPad/i.test(ua)) return 'macos';
+        if (/Win/i.test(ua)) return 'windows';
+        if (/Linux|X11|CrOS/i.test(ua)) return 'linux';
+        return null;
+      }
+      (function () {
+        var os = detectOS();
+        if (!os) return;
+        var card = document.querySelector('.dl-card[data-os="' + os + '"]');
+        if (card) {
+          card.classList.add('current');
+          var head = card.querySelector('.download-head');
+          if (head) {
+            var chip = document.createElement('span');
+            chip.className = 'download-tag tag-current';
+            chip.setAttribute('data-i18n', 'dl.tag.current');
+            chip.textContent = zh['dl.tag.current'];
+            head.appendChild(chip);
+          }
+        }
+        var hero = document.getElementById('hero-download');
+        if (hero) hero.href = DOWNLOAD_BASE + DOWNLOAD_ALIASES[os];
+      }());
+
       apply(readLanguageOverride() || detectBrowserLanguage());
       window.addEventListener("languagechange", function () {
         if (!readLanguageOverride()) apply(detectBrowserLanguage());
@@ -548,75 +591,14 @@
 
       document.getElementById('year').textContent = new Date().getFullYear();
 
-      // ---- release: version badge + real asset list (no hardcoded version) ----
-      var REPO = 'turinglambdaai/movebit';
-      function assetRow(name, url, kindLabel) {
-        var a = document.createElement('a');
-        a.className = 'format-link';
-        a.href = url;
-        var kind = document.createElement('span');
-        kind.className = 'format-kind';
-        kind.textContent = kindLabel;
-        var nm = document.createElement('span');
-        nm.className = 'format-name';
-        nm.textContent = name;
-        var arrow = document.createElement('span');
-        arrow.className = 'download-arrow';
-        arrow.setAttribute('aria-hidden', 'true');
-        arrow.textContent = '↓';
-        a.appendChild(kind); a.appendChild(nm); a.appendChild(arrow);
-        return a;
-      }
-      function assetKind(name) {
-        if (/\.msi$/.test(name)) return 'MSI';
-        if (/\.dmg$/.test(name)) return 'DMG';
-        if (/\.deb$/.test(name)) return 'deb';
-        if (/\.rpm$/.test(name)) return 'rpm';
-        if (/\.AppImage$/.test(name)) return 'AppImage';
-        if (/\.tar\.gz$/.test(name)) return 'tar.gz';
-        if (/\.zip$/.test(name)) return 'ZIP';
-        return null; // sha256 sidecars, manifest, SHA256SUMS — not download rows
-      }
-      function platformOf(name) {
-        if (/windows/.test(name)) return 'windows';
-        if (/macos/.test(name)) return 'macos';
-        if (/linux/.test(name)) return 'linux';
-        return null;
-      }
-      function renderAssets(assets) {
-        var byPlatform = { windows: [], macos: [], linux: [] };
-        (assets || []).forEach(function (asset) {
-          var name = asset.name || '';
-          var kind = assetKind(name);
-          var platform = platformOf(name);
-          if (kind && platform && byPlatform[platform]) {
-            byPlatform[platform].push({ name: name, url: asset.browser_download_url, kind: kind });
-          }
-        });
-        Object.keys(byPlatform).forEach(function (platform) {
-          var box = document.querySelector('.dl-assets[data-platform="' + platform + '"]');
-          if (!box) return;
-          if (!byPlatform[platform].length) {
-            var empty = document.createElement('a');
-            empty.className = 'dl-empty';
-            empty.href = 'https://github.com/' + REPO + '/releases/latest';
-            empty.setAttribute('data-i18n', 'dl.empty');
-            empty.textContent = document.documentElement.getAttribute('data-language') === 'en' ? en['dl.empty'] : zh['dl.empty'];
-            box.appendChild(empty);
-            return;
-          }
-          byPlatform[platform]
-            .sort(function (a, b) { return a.name < b.name ? -1 : 1; })
-            .forEach(function (item) { box.appendChild(assetRow(item.name, item.url, item.kind)); });
-        });
-      }
-      fetch('https://api.github.com/repos/' + REPO + '/releases/latest', { headers: { 'Accept': 'application/vnd.github+json' } })
+      // ---- release version badge: read-only lookup, the download links above
+      // are static alias URLs that GitHub resolves to the latest release ----
+      fetch('https://api.github.com/repos/turinglambdaai/movebit/releases/latest', { headers: { 'Accept': 'application/vnd.github+json' } })
         .then(function (response) { if (!response.ok) throw new Error('release lookup failed'); return response.json(); })
         .then(function (release) {
           if (release && release.tag_name) document.getElementById('release-version').textContent = release.tag_name;
-          if (release && release.assets) renderAssets(release.assets);
         })
-        .catch(function () { renderAssets(null); });
+        .catch(function () { /* badge keeps its fallback label */ });
     }());
   </script>
 </body>

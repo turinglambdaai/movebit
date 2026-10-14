@@ -326,6 +326,25 @@ jobs:
             find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS
           }
           shasum -a 256 --check SHA256SUMS
+      - name: Create stable download aliases
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd dist
+          # Stable, version-free names so the site can link
+          # releases/latest/download/<alias> without knowing the version.
+          # Bytes are identical copies of the tagged assets, created after
+          # SHA256SUMS so the checksum manifest stays versioned-asset-only.
+          required="macos-arm64.dmg macos-x64.dmg windows-x64.msi linux-x64.deb linux-arm64.deb linux-x64.AppImage"
+          for a in $required; do
+            test -f "movebit-${VERSION}-${a}" || { echo "::error::missing movebit-${VERSION}-${a}"; exit 1; }
+            cp "movebit-${VERSION}-${a}" "movebit-${a}"
+          done
+          # arm64 AppImage is best-effort upstream; alias it only when present.
+          if [ -f "movebit-${VERSION}-linux-arm64.AppImage" ]; then
+            cp "movebit-${VERSION}-linux-arm64.AppImage" "movebit-linux-arm64.AppImage"
+          fi
+          ls -la
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
