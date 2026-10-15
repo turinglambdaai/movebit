@@ -8,6 +8,7 @@
         (file-associations . ())
         (macos-min-version . "14.0")
         (windows-min-version . "10.0.19041.0")
+        (macos-icon . "Assets/movebit.icns")
         (windows-icon . "Assets/icon.ico")
         ;; The AppImage format requires a top-level icon PNG (rivet errors
         ;; out without it); project-relative like windows-icon.
