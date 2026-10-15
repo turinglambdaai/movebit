@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [0.4.0] - 2026-10-14
+## [0.4.0] - 2026-10-15
 
 **Rollout note: in-app updates on macOS and Linux are a new capability
 of 0.4.0.** Windows has been self-updating since 0.3.x; from this
