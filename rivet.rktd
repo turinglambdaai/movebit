@@ -16,4 +16,4 @@
         (backend . "app/backend.rkt")
         (module . "backend")
         (entry . "start")
-        (protocol . 1))
+        (protocol . 1) (dmg-background . "Assets/dmg-background.png") (windows-installer-bitmaps . #hasheq((banner . "Assets/wizard-banner.bmp") (dialog . "Assets/wizard-dialog.bmp")))))
