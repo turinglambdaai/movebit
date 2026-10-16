@@ -4,13 +4,46 @@ import RivetEmbedding
 import RivetRuntime
 import RivetSystem
 
+// Tray app with no SwiftUI scenes: every window is an AppKit NSWindow owned
+// by the delegate. Scene placeholders are not viable here — on current macOS
+// both Settings and Window scenes present their (empty) window at launch,
+// which users read as a stray "MoveBit Settings" window that never goes away.
 @main
-struct MoveBitApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+enum MoveBitApp {
+    @MainActor
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        AppDelegate.shared = delegate // NSApplication.delegate is not retained
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        app.run()
+    }
+}
 
-    // Tray app: all windows are AppKit windows owned by the delegate.
-    var body: some Scene {
-        Settings { EmptyView() }
+/// The droplet status-bar glyph, drawn as a template image (pure black +
+/// alpha) so it follows the menu bar's light/dark appearance. Drawn in code —
+/// SwiftPM resource bundles cannot ship inside a signed rivet app bundle.
+private enum MenuBarIcon {
+    static var droplet: NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            let path = NSBezierPath()
+            path.move(to: NSPoint(x: 9, y: 16.5))
+            path.curve(to: NSPoint(x: 3.1, y: 6.7),
+                       controlPoint1: NSPoint(x: 9, y: 13.2),
+                       controlPoint2: NSPoint(x: 4.6, y: 10.9))
+            path.appendArc(withCenter: NSPoint(x: 9, y: 6.7), radius: 5.9,
+                           startAngle: 180, endAngle: 360, clockwise: false)
+            path.curve(to: NSPoint(x: 9, y: 16.5),
+                       controlPoint1: NSPoint(x: 13.4, y: 10.9),
+                       controlPoint2: NSPoint(x: 9, y: 13.2))
+            path.close()
+            NSColor.black.setFill()
+            path.fill()
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 }
 
@@ -39,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             instanceLease = lease
         }
         Self.shared = self
-        NSApp.setActivationPolicy(.accessory)
+        installMenus()
 
         let model = MoveBitModel()
         self.model = model
@@ -98,25 +131,86 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: menu bar (tray)
-    // RivetMenuBarController's items are fixed at install time and the pause
-    // label swaps with the paused state, so rebuild on state/language changes.
+    // The status item installs once with the droplet icon; the pause label
+    // swaps with the paused state and labels follow the language, so refresh
+    // the menu entries in place (no status-item flicker on rebuild).
 
     private func rebuildMenuBar() {
         guard let model else { return }
-        menuBar?.remove()
-        let controller = RivetMenuBarController()
-        controller.install(title: "MoveBit", menuItems: [
-            (L10n.t("TrayOpen"), "tray-open", { [weak self] in self?.showMainWindow() }),
-            (model.paused.paused ? L10n.t("TrayResume") : L10n.t("TrayPause"),
-             "tray-pause", { [weak self] in self?.model?.togglePause() }),
-            (L10n.t("TrayExit"), "tray-exit", { [weak self] in self?.quit() }),
-        ])
-        menuBar = controller
+        let items: [RivetMenuItem] = [
+            .action(label: L10n.t("TrayOpen"), identifier: "tray-open",
+                    handler: { [weak self] in self?.showMainWindow() }),
+            .action(label: model.paused.paused ? L10n.t("TrayResume") : L10n.t("TrayPause"),
+                    identifier: "tray-pause",
+                    handler: { [weak self] in self?.model?.togglePause() }),
+            .action(label: L10n.t("TrayExit"), identifier: "tray-exit",
+                    handler: { [weak self] in self?.quit() }),
+        ]
+        if let menuBar {
+            menuBar.update(items: items)
+        } else {
+            let controller = RivetMenuBarController()
+            controller.install(icon: MenuBarIcon.droplet, items: items)
+            menuBar = controller
+        }
     }
 
     func quit() {
         model?.flushNowSync()
         NSApp.terminate(nil)
+    }
+
+    // MARK: main menu
+    // The app is accessory, so its menus show only while a window is focused.
+    // This restores the standard keyboard plumbing (Cmd+Q, text commands for
+    // the selectable update-failure text, Cmd+W/M on windows) that the SwiftUI
+    // scene layer used to provide for free.
+
+    private func installMenus() {
+        let mainMenu = NSMenu()
+
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: L10n.t("MenuAbout"),
+                        action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+                        keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: L10n.t("TrayExit"),
+                        action: #selector(NSApplication.terminate(_:)),
+                        keyEquivalent: "q")
+
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: L10n.t("MenuEdit"))
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: L10n.t("MenuUndo"),
+                         action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: L10n.t("MenuRedo"),
+                         action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L10n.t("MenuCut"),
+                         action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L10n.t("MenuCopy"),
+                         action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L10n.t("MenuPaste"),
+                         action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L10n.t("MenuSelectAll"),
+                         action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        let windowItem = NSMenuItem()
+        mainMenu.addItem(windowItem)
+        let windowMenu = NSMenu(title: L10n.t("MenuWindow"))
+        windowItem.submenu = windowMenu
+        windowMenu.addItem(withTitle: L10n.t("MenuClose"),
+                           action: #selector(NSWindow.performClose(_:)),
+                           keyEquivalent: "w")
+        windowMenu.addItem(withTitle: L10n.t("MenuMinimize"),
+                           action: #selector(NSWindow.performMiniaturize(_:)),
+                           keyEquivalent: "m")
+
+        NSApp.mainMenu = mainMenu
     }
 
     // MARK: reminders due

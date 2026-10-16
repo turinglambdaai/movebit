@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **macOS: no more stray empty "MoveBit Settings" window.** A SwiftUI scene
+  placeholder presented its own empty window at every launch (current macOS
+  auto-presents Settings and Window scenes), so finishing the first-run
+  wizard still left an untouchable-looking window behind. The host now boots
+  as a pure AppKit tray app: first run shows only the wizard, afterwards
+  launch shows no window at all — MoveBit lives in the menu bar. The
+  standard menu bar (app/edit/window, localized) is rebuilt in AppKit to
+  keep Cmd+Q, the selectable update-failure text (Cmd+C), and Cmd+W/M
+  working.
+
+### Changed
+
+- **macOS: the menu bar shows the droplet icon** — a template image that
+  follows light/dark — instead of the "MoveBit" text label the app's own
+  copy never mentioned. Tray menu labels now swap in place on pause instead
+  of rebuilding the status item.
+
 ## [0.4.0] - 2026-10-15
 
 **Rollout note: in-app updates on macOS and Linux are a new capability

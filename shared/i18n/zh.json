@@ -111,6 +111,19 @@
   "sync": {
     "title": "同步"
   },
+  "menu": {
+    "about": "关于 MoveBit",
+    "edit": "编辑",
+    "undo": "撤销",
+    "redo": "重做",
+    "cut": "剪切",
+    "copy": "拷贝",
+    "paste": "粘贴",
+    "selectAll": "全选",
+    "window": "窗口",
+    "close": "关闭",
+    "minimize": "最小化"
+  },
   "tray": {
     "open": "设置与统计",
     "pause": "暂停提醒 1 小时",

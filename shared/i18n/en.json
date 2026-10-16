@@ -111,6 +111,19 @@
   "sync": {
     "title": "Sync"
   },
+  "menu": {
+    "about": "About MoveBit",
+    "edit": "Edit",
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select All",
+    "window": "Window",
+    "close": "Close",
+    "minimize": "Minimize"
+  },
   "tray": {
     "open": "Settings &amp; stats",
     "pause": "Pause reminders for 1 hour",
