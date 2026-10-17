@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- **检查更新 died with `updater-config: arity mismatch`.** Rivet main added a
+  trailing `component` discriminator to the updater structs; dev builds
+  linked to rivet main constructed the config with the old field count, so
+  every manual update check failed at the RPC. The config is now built for
+  whichever struct shape the linked rivet provides, selecting the plain
+  component-less artifact — the v0.11.0 release pin and rivet main both
+  work, and the updater tests cover both shapes.
 - **macOS: no more stray empty "MoveBit Settings" window.** A SwiftUI scene
   placeholder presented its own empty window at every launch (current macOS
   auto-presents Settings and Window scenes), so finishing the first-run

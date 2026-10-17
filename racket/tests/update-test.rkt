@@ -38,6 +38,12 @@
 
 (define download-limit (* 512 1024 1024))
 
+;; Rivet main grew a trailing `component` discriminator on updater-config and
+;; update-artifact; the release pin (v0.11.0) predates it. Fixtures carry the
+;; plain component-less artifact (#f) either way (see movebit/update.rkt).
+(define component-tail
+  (if (equal? (procedure-arity updater-config) 10) (list #f) '()))
+
 ;; ---- platform identity ------------------------------------------------------
 
 (test-case "platform symbols match rivet release manifests"
@@ -107,11 +113,12 @@
   (update-manifest
    "site.jrtx.movebit" "9.9.9" 7 'stable
    "2026-10-10T00:00:00Z" "0.0.0" #f #t 100
-   (list (update-artifact (upd:platform-symbol) (upd:architecture-symbol)
-                          artifact-url
-                          payload-sha256
-                          (file-size payload-zip)
-                          'zip '()))))
+   (list (apply update-artifact (upd:platform-symbol) (upd:architecture-symbol)
+                artifact-url
+                payload-sha256
+                (file-size payload-zip)
+                'zip '()
+                component-tail))))
 
 (test-case "signed manifest verifies, a wrong key-id fails closed"
   (define wrapped (open-output-bytes))
@@ -129,9 +136,10 @@
 
 (test-case "select-update picks this platform's artifact and gates versions"
   (define config
-    (updater-config "site.jrtx.movebit" "0.0.1" 'stable
-                    (upd:platform-symbol) (upd:architecture-symbol)
-                    pub "movebit-test" 0 download-limit))
+    (apply updater-config "site.jrtx.movebit" "0.0.1" 'stable
+           (upd:platform-symbol) (upd:architecture-symbol)
+           pub "movebit-test" 0 download-limit
+           component-tail))
   (define candidate
     (select-update config
                    (test-manifest "https://dl.example/movebit-9.9.9.zip")))
@@ -211,9 +219,10 @@
   (define-values (port-number stop-server!)
     (serve-files! (list (cons "/movebit-9.9.9.zip" payload))))
   (define config
-    (updater-config "site.jrtx.movebit" "0.1.0" 'stable
-                    (upd:platform-symbol) (upd:architecture-symbol)
-                    pub "movebit-test" 0 download-limit))
+    (apply updater-config "site.jrtx.movebit" "0.1.0" 'stable
+           (upd:platform-symbol) (upd:architecture-symbol)
+           pub "movebit-test" 0 download-limit
+           component-tail))
   (define candidate
     (select-update config
                    (test-manifest
@@ -298,21 +307,23 @@
         ;; run — pin the config AND the artifact to linux (the manifest
         ;; helper pins to the running platform, wrong for this flow).
         (define config
-          (updater-config "site.jrtx.movebit" "0.1.0" 'stable
-                          'linux (upd:architecture-symbol)
-                          pub "movebit-test" 0 download-limit))
+          (apply updater-config "site.jrtx.movebit" "0.1.0" 'stable
+                 'linux (upd:architecture-symbol)
+                 pub "movebit-test" 0 download-limit
+                 component-tail))
         (define candidate
           (select-update config
                          (update-manifest
                           "site.jrtx.movebit" "9.9.9" 7 'stable
                           "2026-10-10T00:00:00Z" "0.0.0" #f #t 100
-                          (list (update-artifact
-                                 'linux (upd:architecture-symbol)
-                                 (format "http://127.0.0.1:~a/movebit-9.9.9-linux-x64.tar.gz"
-                                         port-number)
-                                 payload-digest
-                                 (bytes-length payload)
-                                 'zip '())))))
+                          (list (apply update-artifact
+                                        'linux (upd:architecture-symbol)
+                                        (format "http://127.0.0.1:~a/movebit-9.9.9-linux-x64.tar.gz"
+                                                port-number)
+                                        payload-digest
+                                        (bytes-length payload)
+                                        'zip '()
+                                        component-tail)))))
         (check-true (update-candidate? candidate))
         (upd:reset-update-state!)
         (upd:set-candidate! candidate)

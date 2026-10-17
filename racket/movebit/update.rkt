@@ -131,21 +131,33 @@
       (with-handlers ([exn:fail? (lambda (_) configured)])
         (app-version))))
 
+;; Rivet main grew a trailing `component` discriminator on updater-config
+;; (and update-artifact): one feed may carry several installables per
+;; platform, and the config names which entry this consumer selects.
+;; MoveBit ships plain component-less artifacts (`release --update-payload`
+;; without a component keeps #f), so select #f when the field exists. The
+;; release pin (v0.11.0) predates the field — branch on the constructor
+;; arity until the pin moves past it, then inline the argument.
+(define component-tail
+  (if (equal? (procedure-arity updater-config) 10) (list #f) '()))
+
 (define (updater-config* maximum-bytes)
-  (updater-config "site.jrtx.movebit"
-                  (effective-version)
-                  'stable
-                  (platform-symbol)
-                  (architecture-symbol)
-                  (current-update-public-key)
-                  update-key-id
-                  ;; Rollout 0 always matches a manifest rolling out to 100;
-                  ;; MoveBit ships to everyone today (bucket 0..99 < 100).
-                  ;; When a sticky rollout ships, replace this with the
-                  ;; persisted real bucket (threadly's updater-state.json
-                  ;; one-key whitelist pattern).
-                  0
-                  maximum-bytes))
+  (apply updater-config
+         "site.jrtx.movebit"
+         (effective-version)
+         'stable
+         (platform-symbol)
+         (architecture-symbol)
+         (current-update-public-key)
+         update-key-id
+         ;; Rollout 0 always matches a manifest rolling out to 100;
+         ;; MoveBit ships to everyone today (bucket 0..99 < 100).
+         ;; When a sticky rollout ships, replace this with the
+         ;; persisted real bucket (threadly's updater-state.json
+         ;; one-key whitelist pattern).
+         0
+         maximum-bytes
+         component-tail))
 
 ;; ---------- shared update state (UI-visible) ----------
 
