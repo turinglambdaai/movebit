@@ -125,8 +125,7 @@ Linux 打包脚本（deb / rpm / AppImage）在 `packaging/linux/` 下，作用�
 - [ ] Windows 托盘图标与快捷操作（打开 / 暂停 / 退出）
 - [ ] 原生宿主接入签名 `update-manifest.json` 的应用内更新
 - [ ] Windows 代码签名与 macOS 签名/公证
-- [ ] 移动端——对齐家族全平台标准（rivet 移动宿主就绪即启动）：iOS / iPadOS 宿主（Rivet portable Swift 层）+ Android 宿主（Rivet Kotlin 平台）
-- [ ] watchOS 伴机——手腕上的站立/喝水提醒，尾随手机宿主
+- **不做移动端（iOS / iPadOS / Android）与 watchOS。** MoveBit 解决的是桌面办公时的长时间久坐；手机和平板的使用姿态是站着、走动、躺着，久坐问题不成立。产品定位就是桌面跨平台：macOS、Windows、Linux。
 
 ## 许可
 
