@@ -13,8 +13,7 @@ env:
   # Exact rivet pin (released tag). Family policy: rivet is consumed as a
   # package (this tag install), never as a linked source checkout — keeps
   # local and release builds reproducible against one revision.
-  RIVET_PIN: v0.11.0
-
+  RIVET_PIN: v0.12.0
 jobs:
   validate:
     name: Validate release tag
@@ -187,7 +186,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up embeddable Racket CS
-        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@v0.11.0
+        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@v0.12.0
       - name: Install GTK4, a virtual display, and packaging tooling
         run: |
           sudo apt-get update
