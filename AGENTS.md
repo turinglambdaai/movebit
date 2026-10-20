@@ -22,10 +22,22 @@ Avalonia/.NET 旧栈已彻底移除，仓库从 rivet 时代（0.1.0 起）起�
 # cd ../rivet && raco pkg install --auto --no-docs --name rivet --link file://$PWD
 
 raco rivet doctor --json   # 工具链自检
+raco rivet schema check rivet-schema.json --json # RPC 兼容性门禁
 raco rivet build           # 生成三端客户端 + 编译后端 bundle + 宿主构建
 raco rivet dev             # 开发循环
 raco test racket/          # 领域核心测试
+raco test racket/tests/backend-server-test.rkt # 真实 RVT1 wire test
+raco rivet acceptance --json # 当前平台的打包产品验收
 ```
+
+## 完成定义
+
+- GUI 功能必须通过 `raco rivet acceptance --json`：领域契约、真实 RVT1、
+  原生宿主、可分发包以及打包后的原生 UI 操作缺一不可。
+- 默认验收使用隔离配置启动打包应用，并确认后端发布的 `Active today`
+  状态进入原生可访问性树；只构建成功、只截图或只打开空窗口不算完成。
+- 跨平台交互要同步 macOS、Windows、Linux，或明确记录真实平台边界。
+- 不得用 `continue-on-error`、空测试、跳过 UI 或强杀进程作为成功证据。
 
 ## 契约（不要破坏）
 

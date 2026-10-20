@@ -103,6 +103,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handleReady() {
         guard let model else { return }
+        if ProcessInfo.processInfo.environment["MOVEBIT_ACCEPTANCE"] == "1" {
+            showMainWindow()
+            return
+        }
         if !model.config.welcome_shown {
             showOnboarding()
         }

@@ -133,6 +133,12 @@ MainWindow::MainWindow() {
   AppWindow().Closing(
       [this](Microsoft::UI::Windowing::AppWindow const&,
              Microsoft::UI::Windowing::AppWindowClosingEventArgs const& args) {
+        wchar_t acceptance[2]{};
+        if (::GetEnvironmentVariableW(L"MOVEBIT_ACCEPTANCE", acceptance, 2) == 1 &&
+            acceptance[0] == L'1') {
+          really_quitting_ = true;
+          return;
+        }
         if (really_quitting_) return;
         args.Cancel(true);
         HideToTray();
