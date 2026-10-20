@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Racket
-        uses: Bogdanp/setup-racket@v1.15
+        uses: Bogdanp/setup-racket@v1.16
         with:
           architecture: ${{ matrix.racket-arch }}
           version: stable
@@ -83,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install Racket
-        uses: Bogdanp/setup-racket@v1.15
+        uses: Bogdanp/setup-racket@v1.16
         with:
           architecture: x64
           version: stable
@@ -258,7 +258,7 @@ jobs:
         with:
           path: dist
       - name: Install Racket
-        uses: Bogdanp/setup-racket@v1.15
+        uses: Bogdanp/setup-racket@v1.16
         with:
           architecture: arm64
           version: stable

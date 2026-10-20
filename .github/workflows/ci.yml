@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: Bogdanp/setup-racket@v1.15
+      - uses: Bogdanp/setup-racket@v1.16
         with:
           version: stable
       - name: Version preflight (VERSION == rivet.rktd)
@@ -77,7 +77,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: Bogdanp/setup-racket@v1.15
+      - uses: Bogdanp/setup-racket@v1.16
         with:
           architecture: arm64
           distribution: full
@@ -101,7 +101,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: Bogdanp/setup-racket@v1.15
+      - uses: Bogdanp/setup-racket@v1.16
         with:
           architecture: x64
           distribution: full
