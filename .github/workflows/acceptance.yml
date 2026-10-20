@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 env:
-  RIVET_PIN: de1fb8997539d34ba029064f500f6903b955b5a7
+  RIVET_PIN: v0.12.0
 jobs:
   windows:
     name: Windows packaged WinUI acceptance
@@ -53,7 +53,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config libgtk-4-dev libjson-glib-dev libglib2.0-dev libsecret-1-dev liblz4-dev zlib1g-dev libncurses-dev libx11-dev libxtst-dev weston at-spi2-core python3-pyatspi
       - run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_PIN}"
       - run: echo "FULL_RACKET_BIN=$(dirname "$(command -v raco)")" >> "$GITHUB_ENV"
-      - uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@de1fb8997539d34ba029064f500f6903b955b5a7
+      - uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@v0.12.0
       - run: PATH="$FULL_RACKET_BIN:$PATH" dbus-run-session -- raco rivet acceptance --json
       - uses: actions/upload-artifact@v4
         if: always()
