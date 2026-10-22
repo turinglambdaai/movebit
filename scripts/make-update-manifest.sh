@@ -4,11 +4,12 @@
 #
 # Usage: scripts/make-update-manifest.sh <tag> <dist-dir> <key-der-path>
 #   <tag>          release tag, e.g. v1.6.0 (must match the VERSION file)
-#   <dist-dir>     directory containing the packaged portable archives, i.e.
-#                  the names the release pipeline produces:
+#   <dist-dir>     directory containing the packaged archives, i.e. the
+#                  names the release pipeline produces:
 #                    movebit-<version>-macos-arm64.zip
 #                    movebit-<version>-macos-x64.zip
 #                    movebit-<version>-windows-x64.zip
+#                    movebit-<version>-windows-x64.msi
 #                    movebit-<version>-linux-x64.tar.gz
 #                    movebit-<version>-linux-arm64.tar.gz
 #   <key-der-path> Ed25519 private key in DER (OneAsymmetricKey) form; the
@@ -16,10 +17,9 @@
 #
 # Emits <dist-dir>/update-manifest.json — a single signed channel manifest
 # (the family format: schema + payload + Ed25519 signature block) carrying
-# every platform's portable archive. Env overrides: RELEASE_ASSET_BASE_URL,
-# RIVET_UPDATE_KEY_ID. The C# updater still consumes the GitHub latest-release
-# API + .sha256 sidecars until it grows an Ed25519 verifier; this feed is the
-# migration target.
+# every platform's installable. Env overrides: RELEASE_ASSET_BASE_URL,
+# RIVET_UPDATE_KEY_ID. Clients verify the signature against the key embedded
+# in racket/movebit/update.rkt before any version decision.
 
 set -euo pipefail
 
@@ -37,6 +37,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 for artifact in "$DIST/movebit-$VERSION-macos-arm64.zip" \
                 "$DIST/movebit-$VERSION-macos-x64.zip" \
                 "$DIST/movebit-$VERSION-windows-x64.zip" \
+                "$DIST/movebit-$VERSION-windows-x64.msi" \
                 "$DIST/movebit-$VERSION-linux-x64.tar.gz" \
                 "$DIST/movebit-$VERSION-linux-arm64.tar.gz"; do
   [[ -f "$artifact" ]] || { echo "error: missing $artifact" >&2; exit 1; }
@@ -96,6 +97,12 @@ cat > "$SCRIPT" <<RKT
                                    (format "movebit-~a-macos-x64.zip" version) 'zip)
                          (artifact 'windows 'x64
                                    (format "movebit-~a-windows-x64.zip" version) 'zip)
+                         ;; Windows MSI installs (Program Files) cannot swap
+                         ;; the portable zip in place — those installs select
+                         ;; the 'msi entry by install-kind and hand off to
+                         ;; a passive msiexec upgrade.
+                         (artifact 'windows 'x64
+                                   (format "movebit-~a-windows-x64.msi" version) 'msi)
                          ;; The update payload stays the tar.gz on Linux —
                          ;; the deb/AppImage are installer assets, never fed.
                          (artifact 'linux 'x64
@@ -114,7 +121,7 @@ cat > "$SCRIPT" <<RKT
                            key-id
                            out)
     (newline out)))
-(printf "manifest: ~a (5 artifacts, key-id ~a)\\n"
+(printf "manifest: ~a (6 artifacts, key-id ~a)\\n"
         (build-path dist "update-manifest.json") key-id)
 RKT
 

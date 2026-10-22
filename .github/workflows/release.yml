@@ -28,6 +28,18 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           grep -qE "^## (\[)?$TAG(\])?" CHANGELOG.md || { echo "::error::CHANGELOG.md has no '## $TAG' section"; exit 1; }
+      # Never publish an unupdatable release: every leg signs through this
+      # key, and the aggregate job signs the merged feed with it. A missing
+      # secret must stop the pipeline here with a readable reason, not as a
+      # garbled DER failure three jobs later.
+      - name: Preflight — the update signing secret must be present
+        env:
+          KEY_B64: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY_B64 }}
+        run: |
+          if [ -z "${KEY_B64}" ]; then
+            echo "::error::UPDATE_ED25519_PRIVATE_KEY_B64 is not set — the update feed could not be signed; refusing to publish an unupdatable release"
+            exit 1
+          fi
 
   macos:
     name: macOS package (${{ matrix.arch }})
@@ -54,22 +66,37 @@ jobs:
       - name: Install pinned Rivet (tag package install)
         run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
         shell: bash
-      - name: Package
-        run: raco rivet package
-      - name: Portable zip + checksum (update feed artifact)
+      - name: Package + branded DMG (rivet release, development signing)
+        env:
+          RIVET_UPDATE_BASE_URL: https://github.com/turinglambdaai/movebit/releases/download/${{ github.ref_name }}
+          RIVET_UPDATE_KEY_ID: movebit-2026-10
+          RIVET_UPDATE_PRIVATE_KEY_B64: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY_B64 }}
+        run: |
+          KEY_DER="$(mktemp -d)/update-ed25519-private.der"
+          printf '%s' "$RIVET_UPDATE_PRIVATE_KEY_B64" | base64 -d > "$KEY_DER"
+          export RIVET_UPDATE_PRIVATE_KEY="$KEY_DER"
+          raco rivet release --development
+          rm -f "$KEY_DER"
+        shell: bash
+      - name: Collect DMG + portable zip + checksums
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          cd dist
-          zip -qry "movebit-${VERSION}-macos-${{ matrix.arch }}.zip" movebit.app
-          shasum -a 256 "movebit-${VERSION}-macos-${{ matrix.arch }}.zip" \
-            > "movebit-${VERSION}-macos-${{ matrix.arch }}.zip.sha256"
-      - name: Human installer (DMG, drag to Applications)
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          hdiutil create -volname "MoveBit ${VERSION}" -srcfolder dist/movebit.app \
-            -ov -format UDZO "dist/movebit-${VERSION}-macos-${{ matrix.arch }}.dmg"
-          shasum -a 256 "dist/movebit-${VERSION}-macos-${{ matrix.arch }}.dmg" \
-            > "dist/movebit-${VERSION}-macos-${{ matrix.arch }}.dmg.sha256"
+          ARCH="${{ matrix.arch }}"
+          rm -f dist/update-*.json
+          # rivet's branded DMG (the dmg-background artwork declared in
+          # rivet.rktd, applied with the icon layout) carries no arch in its
+          # name — the building machine's arch IS the matrix arch.
+          test -f "dist/movebit-${VERSION}-macos.dmg"
+          mv "dist/movebit-${VERSION}-macos.dmg" "movebit-${VERSION}-macos-${ARCH}.dmg"
+          shasum -a 256 "movebit-${VERSION}-macos-${ARCH}.dmg" \
+            > "movebit-${VERSION}-macos-${ARCH}.dmg.sha256"
+          # rivet's portable zip (the update feed artifact) with its own
+          # sidecar joins the set.
+          test -f "dist/movebit-${VERSION}-macos-${ARCH}.zip"
+          test -f "dist/movebit-${VERSION}-macos-${ARCH}.zip.sha256"
+          mv "dist/movebit-${VERSION}-macos-${ARCH}.zip" \
+             "dist/movebit-${VERSION}-macos-${ARCH}.zip.sha256" .
+        shell: bash
       - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.arch }}
