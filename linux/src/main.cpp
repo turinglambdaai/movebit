@@ -950,6 +950,11 @@ struct UpdateFlowState {
   GtkProgressBar* progress_bar{nullptr};
   GtkLabel* progress_label{nullptr};
   std::string pending_version;  // captured at consent for the progress title
+  // Last polled backend phase: the cancel gesture fires only when the
+  // backend really is still downloading (a cancel fired after "downloaded"
+  // would START a new download — the toggle doubles as the start).
+  std::string last_phase;
+  std::int64_t download_started_ms{0};  // monotonic ms; 30-min backstop
   bool check_in_flight{false};
   bool download_in_flight{false};
   bool reflected_pending{false};  // one-shot silent-check surfacing
@@ -1138,12 +1143,33 @@ int on_update_poll_tick(gpointer) {
     g_update.poll_source = 0;
     return G_SOURCE_REMOVE;
   }
+  // Host-side backstop: the backend's own watchdog (stall 120 s / total
+  // 30 min) normally lands the terminal state first; if the backend itself
+  // is wedged, break out of an endless progress bar — fire the cancel
+  // toggle so a half-alive backend resets too, then surface the failure.
+  if (g_update.download_started_ms != 0 &&
+      g_get_monotonic_time() / 1000 - g_update.download_started_ms >
+          30LL * 60 * 1000) {
+    if (g_state.api != nullptr && g_update.last_phase == "downloading") {
+      (void)g_state.api->start_update_download_async(
+          [](rivet_app::Result<void>) {});
+    }
+    stop_update_poll();
+    close_update_progress();
+    g_update.download_in_flight = false;
+    g_update.download_started_ms = 0;
+    g_update.poll_source = 0;
+    set_updates_hint(l10n::t("UpdCheckFailed"));
+    show_update_error(l10n::t("UpdCheckFailed"));
+    return G_SOURCE_REMOVE;
+  }
   (void)g_state.api->get_update_state_async(
       [](rivet_app::Result<rivet_app::UpdateState> result) {
         dispatch_ui([result = std::move(result)]() mutable {
           if (g_update.progress_dialog == nullptr) return;  // detached UI
           if (!result.succeeded()) return;  // keep polling through hiccups
           rivet_app::UpdateState const& state = result.get();
+          g_update.last_phase = state.phase;
           auto const percent =
               std::clamp<std::int64_t>(state.percent, 0, 100);
           if (g_update.progress_bar != nullptr) {
@@ -1159,12 +1185,20 @@ int on_update_poll_tick(gpointer) {
                          l10n::A(percent)})
                     .c_str());
           }
-          if (state.phase != "downloaded" && state.phase != "error") {
+          if (state.phase != "downloaded" && state.phase != "error" &&
+              state.phase != "idle") {
             return;
           }
           stop_update_poll();
           close_update_progress();
           g_update.download_in_flight = false;
+          g_update.download_started_ms = 0;
+          if (state.phase == "idle") {
+            // The cancel gesture landed: a cancel is not a failure — the
+            // hint says so and the update stays one click away.
+            set_updates_hint(l10n::t("UpdCancelled"));
+            return;
+          }
           if (state.phase == "error") {
             set_updates_hint(state.message.value_or("").empty()
                                  ? std::string(l10n::t("UpdCheckFailed"))
@@ -1185,6 +1219,8 @@ int on_update_poll_tick(gpointer) {
 void start_update_download() {
   if (g_state.api == nullptr || g_update.download_in_flight) return;
   g_update.download_in_flight = true;
+  g_update.download_started_ms = g_get_monotonic_time() / 1000;
+  g_update.last_phase = "downloading";
 
   auto* dialog = gtk_dialog_new_with_buttons(
       l10n::t("UpdDownloading", {l10n::A(g_update.pending_version)}).c_str(),
@@ -1208,16 +1244,24 @@ void start_update_download() {
                         .c_str());
   gtk_box_append(GTK_BOX(content), label);
 
-  // Canceling only detaches the progress UI — the backend keeps downloading
-  // (family parity: there is no cancel RPC).
+  // Cancel really cancels now: the start RPC doubles as the cancel gesture
+  // (the backend's toggle contract). Fire it while the backend is still
+  // downloading, detach the progress UI, and show the cancelled hint — the
+  // update itself stays one click away (the offer was never withdrawn).
   g_signal_connect(
       dialog, "response",
       G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
+        if (g_state.api != nullptr && g_update.last_phase == "downloading") {
+          (void)g_state.api->start_update_download_async(
+              [](rivet_app::Result<void>) {});
+        }
         stop_update_poll();
         g_update.progress_dialog = nullptr;
         g_update.progress_bar = nullptr;
         g_update.progress_label = nullptr;
         g_update.download_in_flight = false;
+        g_update.download_started_ms = 0;
+        set_updates_hint(l10n::t("UpdCancelled"));
         gtk_window_destroy(GTK_WINDOW(dialog));
       }),
       nullptr);
@@ -1248,6 +1292,7 @@ void start_update_download() {
           stop_update_poll();
           close_update_progress();
           g_update.download_in_flight = false;
+          g_update.download_started_ms = 0;
           std::string message = "unknown failure";
           try {
             std::rethrow_exception(result.error);

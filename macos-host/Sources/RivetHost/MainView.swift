@@ -728,6 +728,11 @@ private struct AboutCard: View {
                     Text("\(model.updatePercent)%")
                         .font(.system(size: 11))
                         .foregroundColor(Palette.inkSecondary)
+                    Button(action: model.cancelUpdateDownload) {
+                        Text(L10n.t("UpdActionCancel"))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
                 }
                 Spacer()
             }
@@ -777,7 +782,7 @@ private struct AboutCard: View {
     private var updateButtonLabel: String {
         switch model.updatePhase {
         case .checking: return L10n.t("UpdCheckingShort")
-        case .available: return L10n.t("UpdActionUpdate")
+        case .available, .cancelled: return L10n.t("UpdActionUpdate")
         case .downloading: return L10n.t("UpdActionUpdating")
         case .ready: return L10n.t("UpdActionRestartInstall")
         case .applying: return L10n.t("UpdActionUpdating")
@@ -803,6 +808,8 @@ private struct AboutCard: View {
             return L10n.t("UpdDownloadingPct",
                           model.updateAvailableVersion ?? "",
                           "\(model.updatePercent)")
+        case .cancelled:
+            return L10n.t("UpdCancelled")
         case .ready:
             return L10n.t("UpdRestartPrep", model.updateAvailableVersion ?? "")
         case .applying:

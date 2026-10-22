@@ -92,6 +92,7 @@
     "actionUpdate": "更新并重启",
     "actionRetry": "重试",
     "actionUpdating": "更新中…",
+    "actionCancel": "取消下载",
     "copyError": "复制错误信息",
     "actionRestartInstall": "重启并安装",
     "availableTitle": "发现新版本",

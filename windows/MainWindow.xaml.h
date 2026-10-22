@@ -62,6 +62,9 @@ struct MainWindow : MainWindowT<MainWindow> {
   void UpdateCheck_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void UpdateCancel_Click(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void UpdateCopyError_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
@@ -70,6 +73,9 @@ struct MainWindow : MainWindowT<MainWindow> {
   void StartUpdateDownload();
   void PollUpdateProgress();
   void ApplyStagedUpdate();
+  // One-shot receipt: a failed update leaves update-failed.txt in the
+  // updates dir; surface it once on the next launch and delete it.
+  void HandleUpdateFailureMarker();
   void ChangeDataDir_Click(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::RoutedEventArgs const& args);
@@ -124,10 +130,13 @@ struct MainWindow : MainWindowT<MainWindow> {
   bool really_quitting_ = false;
   bool tray_hint_shown_ = false;
   // Update button state machine: idle | checking | available | downloading |
-  // ready | applying | error | up-to-date.
+  // cancelled | ready | applying | error | up-to-date.
   std::string update_phase_ = "idle";
   winrt::hstring last_update_error_;
   Microsoft::UI::Dispatching::DispatcherQueueTimer update_progress_timer_{nullptr};
+  // GetTickCount64 at download start — the host-side 30-minute backstop for
+  // a wedged backend (the backend's own watchdog normally fires first).
+  unsigned long long update_download_start_tick_ = 0;
 
   void InitTray();
   void HideToTray();

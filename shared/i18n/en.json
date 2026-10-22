@@ -92,6 +92,7 @@
     "actionUpdate": "Update &amp; restart",
     "actionRetry": "Retry",
     "actionUpdating": "Updating…",
+    "actionCancel": "Cancel download",
     "copyError": "Copy error",
     "actionRestartInstall": "Restart &amp; install",
     "availableTitle": "Update available",

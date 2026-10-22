@@ -371,13 +371,15 @@ final class MoveBitModel: ObservableObject {
 
     /// Update state machine, mirroring the Windows host's controller and the
     /// backend's snapshot phases: idle → checking → (available | upToDate |
-    /// failed) → downloading → ready → applying. The backend owns verify +
-    /// download (signed feed) and the staged swap; this is presentation only.
+    /// failed) → downloading → (cancelled | ready) → applying. The backend
+    /// owns verify + download (signed feed) and the staged swap; this is
+    /// presentation only.
     enum UpdatePhase: Equatable {
         case idle
         case checking
         case available
         case downloading
+        case cancelled
         case ready
         case applying
         case upToDate
@@ -392,6 +394,9 @@ final class MoveBitModel: ObservableObject {
     @Published var updateErrorText: String?
 
     private var updatePollTask: Task<Void, Never>?
+    /// Wall-clock start of the current download — the host-side 30-minute
+    /// watchdog reads it (nil whenever no download is in flight).
+    private var updateDownloadStartedAt: Date?
 
     /// Manual entry (About card ▸ Check for Updates). Every outcome is
     /// visible — up to date and failures included.
@@ -446,13 +451,14 @@ final class MoveBitModel: ObservableObject {
     }
 
     /// Consent given: the backend downloads against the signed manifest while
-    /// the UI polls the state snapshot. There is no cancel RPC (family
-    /// parity) — closing the About card detaches only the progress UI.
+    /// the UI polls the state snapshot.
     func startUpdateDownload() {
-        guard updatePhase == .available, let api = api() else { return }
+        guard updatePhase == .available || updatePhase == .cancelled,
+              let api = api() else { return }
         updatePhase = .downloading
         updatePercent = 0
         updateErrorText = nil
+        updateDownloadStartedAt = Date()
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -465,14 +471,39 @@ final class MoveBitModel: ObservableObject {
         }
     }
 
-    /// 700 ms poll while downloading; terminal phases leave the loop.
+    /// The start RPC doubles as the cancel gesture (the backend's toggle
+    /// contract): calling it while a download runs cancels that download and
+    /// the poll loop observes the idle phase. The card then offers the
+    /// update again instead of reporting a failure — a cancel is not one.
+    func cancelUpdateDownload() {
+        guard updatePhase == .downloading, api() != nil else { return }
+        Task { [weak self] in
+            guard let self, let api = self.api() else { return }
+            _ = try? await api.start_update_download()
+        }
+    }
+
+    /// 700 ms poll while downloading; terminal phases leave the loop. The
+    /// 30-minute ceiling is the host-side backstop: the backend's own
+    /// watchdog (stall 120 s / total 30 min) normally lands the terminal
+    /// state first, but if the backend itself is wedged this forces the UI
+    /// out of an endless progress bar.
     private func pollUpdateState() {
         updatePollTask?.cancel()
         updatePollTask = Task { [weak self] in
+            let deadline = Date().addingTimeInterval(30 * 60)
             while !Task.isCancelled {
                 guard let self, let api = self.api() else { return }
                 if let state = try? await api.get_update_state() {
                     self.applyUpdateState(state)
+                }
+                if Date() > deadline, self.updatePhase == .downloading {
+                    self.cancelUpdateDownload()
+                    self.updatePollTask?.cancel()
+                    self.updateDownloadStartedAt = nil
+                    self.updatePhase = .failed
+                    self.updateErrorText = L10n.t("UpdCheckFailed")
+                    return
                 }
                 try? await Task.sleep(nanoseconds: 700_000_000)
             }
@@ -488,10 +519,18 @@ final class MoveBitModel: ObservableObject {
         switch state.phase {
         case "downloaded":
             updatePollTask?.cancel()
+            updateDownloadStartedAt = nil
             updatePhase = .ready
+            updateErrorText = nil
+        case "idle":
+            // The cancel gesture landed: back to the offer, not a failure.
+            updatePollTask?.cancel()
+            updateDownloadStartedAt = nil
+            updatePhase = .cancelled
             updateErrorText = nil
         case "error":
             updatePollTask?.cancel()
+            updateDownloadStartedAt = nil
             updatePhase = .failed
             updateErrorText = state.message ?? L10n.t("UpdCheckFailed")
         default:
@@ -522,7 +561,7 @@ final class MoveBitModel: ObservableObject {
     /// check → download → restart-install, retry on failure.
     func handleUpdateButton() {
         switch updatePhase {
-        case .available:
+        case .available, .cancelled:
             startUpdateDownload()
         case .ready:
             applyStagedUpdate()

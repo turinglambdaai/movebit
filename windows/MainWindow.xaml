@@ -469,9 +469,15 @@
                                             HorizontalAlignment="Left"
                                             Padding="8,2,8,2" FontSize="11" />
                                 </StackPanel>
-                                <Button Grid.Column="1" x:Name="UpdateCheckButton"
-                                        VerticalAlignment="Center"
-                                        Click="UpdateCheck_Click" />
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                            Spacing="4">
+                                    <Button x:Name="UpdateCheckButton"
+                                            Click="UpdateCheck_Click" />
+                                    <Button x:Name="UpdateCancelButton"
+                                            Click="UpdateCancel_Click"
+                                            Visibility="Collapsed"
+                                            Padding="8,2,8,2" FontSize="11" />
+                                </StackPanel>
                             </Grid>
                             <StackPanel Spacing="2">
                                 <StackPanel Orientation="Horizontal" Spacing="16">

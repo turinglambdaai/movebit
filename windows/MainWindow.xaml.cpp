@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <dbghelp.h>
+#include <fstream>
 #include <stdexcept>
 
 #pragma comment(lib, "dbghelp.lib")
@@ -196,6 +197,10 @@ winrt::fire_and_forget MainWindow::InitializeBackendAsync() {
                                                 .wstring()),
                                         [](rivet_app::Result<void>) {});
                                     w->Bootstrap();
+                                    // A previously failed update left its
+                                    // marker; surface it once, now that the
+                                    // UI is up.
+                                    w->HandleUpdateFailureMarker();
                                   } catch (std::exception const& e) {
                                     w->SetStatus(e.what());
                                   }
@@ -624,12 +629,48 @@ void MainWindow::UpdateCopyError_Click(
   }
 }
 
+// A failed update leaves update-failed.txt next to the apply helper (the
+// data dir's updates/); the helper already restored the old install before
+// this ever runs, so this one-time hint is the receipt, not an alarm (the
+// taskly marker shape). Deleting the marker is what makes it once.
+void MainWindow::HandleUpdateFailureMarker() {
+  if (api_ == nullptr) return;
+  auto const weak = get_weak();
+  (void)api_->get_data_dir_async([weak](rivet_app::Result<std::string> r) {
+    if (auto outer = weak.get()) {
+      outer->dispatcher_.TryEnqueue([weak, r] {
+        if (auto w = weak.get()) {
+          if (w->api_ == nullptr) return;
+          try {
+            std::filesystem::path const data_dir(
+                winrt::to_hstring(r.get()).c_str());
+            std::filesystem::path const marker =
+                data_dir / L"updates" / L"update-failed.txt";
+            std::error_code ec;
+            if (!std::filesystem::exists(marker, ec)) return;
+            std::ifstream in(marker);
+            std::string reason((std::istreambuf_iterator<char>(in)),
+                               std::istreambuf_iterator<char>());
+            std::filesystem::remove(marker, ec);
+            w->ShowUpdateErrorHint(winrt::to_hstring(
+                l10n::t("UpdFailed") + L" (" + winrt::to_hstring(reason) +
+                L")"));
+          } catch (std::exception const& e) {
+            w->SetStatus(e.what());
+          } catch (...) {
+          }
+        }
+      });
+    }
+  });
+}
+
 void MainWindow::UpdateCheck_Click(
     winrt::Windows::Foundation::IInspectable const&,
     Microsoft::UI::Xaml::RoutedEventArgs const&) {
   if (api_ == nullptr) return;
   // The button is the state machine: check -> download -> restart-install.
-  if (update_phase_ == "available") {
+  if (update_phase_ == "available" || update_phase_ == "cancelled") {
     StartUpdateDownload();
     return;
   }
@@ -694,9 +735,13 @@ void MainWindow::HandleUpdateCheck(
 
 void MainWindow::StartUpdateDownload() {
   update_phase_ = "downloading";
+  update_download_start_tick_ = GetTickCount64();
   UpdateCheckButton().IsEnabled(false);
   UpdateCheckButton().Content(winrt::box_value(
       winrt::to_hstring(l10n::t("UpdActionUpdating"))));
+  UpdateCancelButton().Visibility(Visibility::Visible);
+  UpdateCancelButton().Content(winrt::box_value(
+      winrt::to_hstring(l10n::t("UpdActionCancel"))));
   AboutCheckHint().Text(
       winrt::to_hstring(l10n::t("UpdDownloading", {l10n::A("")})));
   auto const weak = get_weak();
@@ -720,6 +765,8 @@ void MainWindow::StartUpdateDownload() {
               w->SetStatus(e.what());
             }
             w->update_phase_ = "error";
+            w->update_download_start_tick_ = 0;
+            w->UpdateCancelButton().Visibility(Visibility::Collapsed);
             w->UpdateCheckButton().IsEnabled(true);
             w->UpdateCheckButton().Content(winrt::box_value(
                 winrt::to_hstring(l10n::t("UpdActionRetry"))));
@@ -730,8 +777,44 @@ void MainWindow::StartUpdateDownload() {
   });
 }
 
+// The start RPC doubles as the cancel gesture (the backend's toggle
+// contract): this call cancels the in-flight download, and the poll loop
+// observes the idle phase — the card flips to the cancelled state, which
+// offers the update again. A cancel is not a failure, so no error hint.
+void MainWindow::UpdateCancel_Click(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::RoutedEventArgs const&) {
+  if (api_ == nullptr || update_phase_ != "downloading") return;
+  (void)api_->start_update_download_async([](rivet_app::Result<void>) {});
+}
+
 void MainWindow::PollUpdateProgress() {
   if (api_ == nullptr || update_phase_ != "downloading") return;
+  // Host-side backstop: the backend's own watchdog (stall 120 s / total
+  // 30 min) normally lands the terminal state first; if the backend itself
+  // is wedged, break out of an endless progress bar — fire the cancel
+  // toggle so a half-alive backend resets too, then render the failure.
+  if (update_download_start_tick_ != 0 &&
+      GetTickCount64() - update_download_start_tick_ >
+          30ULL * 60 * 1000) {
+    auto const weak = get_weak();
+    (void)api_->start_update_download_async([](rivet_app::Result<void>) {});
+    dispatcher_.TryEnqueue([weak] {
+      if (auto w = weak.get()) {
+        if (w->update_phase_ != "downloading") return;
+        if (w->update_progress_timer_) w->update_progress_timer_.Stop();
+        w->update_download_start_tick_ = 0;
+        w->UpdateCancelButton().Visibility(Visibility::Collapsed);
+        w->update_phase_ = "error";
+        w->UpdateCheckButton().IsEnabled(true);
+        w->UpdateCheckButton().Content(winrt::box_value(
+            winrt::to_hstring(l10n::t("UpdActionRetry"))));
+        w->ShowUpdateErrorHint(
+            winrt::to_hstring(l10n::t("UpdCheckFailed")));
+      }
+    });
+    return;
+  }
   auto const weak = get_weak();
   (void)api_->get_update_state_async(
       [weak](rivet_app::Result<rivet_app::UpdateState> r) {
@@ -748,9 +831,27 @@ void MainWindow::PollUpdateProgress() {
                     l10n::t("UpdDownloadingPct",
                             {l10n::A(state.available_version.value_or("")),
                              l10n::A(percent)})));
+                if (state.phase == "idle") {
+                  // The cancel gesture landed: back to the offer, with the
+                  // update still one click away.
+                  if (w->update_progress_timer_)
+                    w->update_progress_timer_.Stop();
+                  w->update_download_start_tick_ = 0;
+                  w->UpdateCancelButton().Visibility(Visibility::Collapsed);
+                  w->update_phase_ = "cancelled";
+                  w->ClearUpdateErrorHint();
+                  w->UpdateCheckButton().IsEnabled(true);
+                  w->UpdateCheckButton().Content(winrt::box_value(
+                      winrt::to_hstring(l10n::t("UpdActionUpdate"))));
+                  w->AboutCheckHint().Text(winrt::to_hstring(
+                      l10n::t("UpdCancelled")));
+                  return;
+                }
                 if (state.phase == "downloaded" || state.phase == "error") {
                   if (w->update_progress_timer_)
                     w->update_progress_timer_.Stop();
+                  w->update_download_start_tick_ = 0;
+                  w->UpdateCancelButton().Visibility(Visibility::Collapsed);
                   if (state.phase == "error") {
                     w->ShowUpdateErrorHint(winrt::to_hstring(
                         state.message.value_or(
