@@ -1,6 +1,65 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.0] - 2026-10-22
+
+**Rollout note: this is the release where in-app updates meet every install
+shape on every platform.** Downloads can be cancelled (all three hosts), and
+Windows joins the update flow with no dead ends: MSI installs (Program Files)
+now take the feed's signed .msi through a passive msiexec upgrade, and
+per-user installs gained backup + rollback around the file swap. The feed
+also grows a real staged-rollout lever and every install keeps a JSONL
+diagnostic log a bug report can point at.
+
+### Added
+
+- **Downloads can be cancelled.** The start-download RPC doubles as the
+  cancel gesture (the family toggle contract — no schema change): a second
+  call while a download runs breaks the worker and lands the phase back on
+  idle with the offer intact, because a cancel is not a failure. All three
+  hosts grew the Cancel button, the cancelled state (「更新已取消，当前版本
+  保持不变」), and a one-click way back to 更新并重启.
+- **Windows MSI installs self-update.** Until now an MSI install (Program
+  Files, per-machine) could never pass the writability probe — the only
+  Windows update path was the portable zip swap. The feed now carries the
+  signed .msi alongside the zip; installs under the Program Files prefixes
+  (the taskly IsMsiInstall signal) select it by install-kind and hand off
+  to one passive `msiexec /passive /norestart /i` — one UAC consent, and a
+  failure leaves the old install working.
+- **Windows update swaps are backed up.** The zip handoff used to overlay
+  the payload in place; it now moves the old install aside first, copies
+  into a fresh directory, and restores the old install when the copy fails
+  — the update can no longer leave a half-swapped install behind. Both
+  failure paths (backup rename, robocopy) write an `update-failed.txt`
+  marker that the next launch surfaces once and deletes.
+- **Staged rollout is real.** The updater config carried a hardcoded bucket
+  0 with a "ships to everyone today" comment; the bucket is now generated
+  once per machine (`crypto-random-bytes` — racket/base's fixed-seed PRNG
+  would put every fresh install in the same lockstep bucket) and persisted
+  in bootstrap.json, so a manifest can narrow its rollout without any
+  client change.
+- **Diagnostics land in a file.** Rivet's diagnostic sink wrote to stderr,
+  which on a Windows GUI process means a black console window and then the
+  void. Diagnostics now append as JSONL to `<data-dir>/diagnostics.log` —
+  a bug report starts from the copyable failure text and can attach real
+  backend records.
+- **Host-side download watchdog.** The backend's watchdog (stall 120 s /
+  total 30 min) already bounded every download; each host now also holds a
+  30-minute ceiling of its own, so even a wedged backend can never leave
+  the UI resting on an endless progress bar.
+
+### Changed
+
+- **macOS: the menu bar shows the droplet icon** — a template image that
+  follows light/dark — instead of the "MoveBit" text label the app's own
+  copy never mentioned. Tray menu labels now swap in place on pause instead
+  of rebuilding the status item.
+- **The macOS DMG is the branded one.** The release leg used to hand-roll
+  `hdiutil create`, leaving the declared `dmg-background` artwork unused;
+  it now runs the same `raco rivet release` the other legs use, so the DMG
+  ships the background artwork and icon layout. The release validator also
+  refuses to start without the update signing secret — a missing key stops
+  the pipeline with a readable reason, not a garbled DER failure three jobs
+  later.
 
 ### Fixed
 
@@ -20,13 +79,6 @@
   standard menu bar (app/edit/window, localized) is rebuilt in AppKit to
   keep Cmd+Q, the selectable update-failure text (Cmd+C), and Cmd+W/M
   working.
-
-### Changed
-
-- **macOS: the menu bar shows the droplet icon** — a template image that
-  follows light/dark — instead of the "MoveBit" text label the app's own
-  copy never mentioned. Tray menu labels now swap in place on pause instead
-  of rebuilding the status item.
 
 ## [0.4.0] - 2026-10-15
 
