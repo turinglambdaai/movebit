@@ -58,3 +58,9 @@ raco rivet acceptance --json # 当前平台的打包产品验收
 ├── windows/            WinUI3 宿主
 └── linux/              GTK4 宿主
 ```
+
+## 组合定位（Portfolio placement）
+
+- 轨道与授权：轨道 4 社区引流；授权形态：MIT；商业归属：永久免费。
+- 组合归属唯一权威：[PORTFOLIO.md](https://github.com/turinglambdaai/turinglambdaai.github.io/blob/master/PORTFOLIO.md)（turinglambdaai.github.io 仓库）。改归属/授权先改权威档，再同步本节。
+- 纪律：价格只进本仓 `PRICING.md`，且收费开始时才发布；README 与产品站不做价格预告。
