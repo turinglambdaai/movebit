@@ -16,6 +16,7 @@
          racket/bool
          racket/file
          racket/runtime-path
+         racket/port
          racket/string
          rivet/backend
          rivet/protocol
@@ -245,6 +246,27 @@
 (define persisted-config
   (call-with-input-file (build-path tmp-dir "config.json") read-json))
 (check-equal? (hash-ref persisted-config 'WaterReminderMinutes) 180)
+
+;; --- diagnostics: JSONL into the data dir --------------------------------------
+;;
+;; The sink is the Windows console-avoidance contract: diagnostics append as
+;; JSONL to <data-dir>/diagnostics.log, never stderr, so a bug report can
+;; carry real backend records alongside the copyable failure text.
+
+(let ([log (build-path tmp-dir "diagnostics.log")])
+  (when (file-exists? log) (delete-file log))
+  (parameterize ([current-data-dir tmp-dir])
+    (movebit-diagnostic-sink (hasheq 'event "server-test" 'message "first"))
+    (movebit-diagnostic-sink (hasheq 'event "server-test" 'message "second")))
+  (define lines
+    (call-with-input-file log
+      (lambda (in)
+        (for/list ([l (in-lines in)] #:unless (string=? l "")) l))))
+  (check-equal? (length lines) 2 "each sink call appends exactly one line")
+  (for ([l (in-list lines)])
+    (define doc (with-input-from-string l read-json))
+    (check-equal? (hash-ref doc 'event) "server-test")
+    (check-true (string? (hash-ref doc 'ts)) "every record carries a timestamp")))
 
 ;; --- shutdown ----------------------------------------------------------------
 

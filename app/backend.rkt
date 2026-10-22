@@ -17,6 +17,8 @@
 ;; float); durations are Int64 milliseconds and stats are Int64 minutes.
 
 (require rivet/backend
+         json
+         racket/date
          racket/file
          racket/format
          racket/path
@@ -38,6 +40,7 @@
          current-now-ms
          current-idle-provider
          current-data-dir
+         movebit-diagnostic-sink
          ;; RPC handlers, exported for the server-level tests
          initialize
          check-updates)
@@ -52,6 +55,55 @@
      (with-handlers ([exn:fail? (lambda (_) (make-null-idle-provider))])
        (make-platform-idle-provider)))))
 (define current-data-dir (make-parameter (movebit-data-dir)))
+
+;; --- Diagnostics: JSONL file, not stderr ----------------------------------
+;;
+;; Rivet's diagnostic sink defaults to current-error-port. A Windows
+;; GUI-subsystem process has no console, and the embedded Chez runtime
+;; lazily allocates one on the first stderr write — a black console window
+;; streaming RVT1 protocol records. Diagnostics keep their value as JSONL
+;; appended to <data-dir>/diagnostics.log instead (survives the process, so
+;; a bug report can carry real backend records alongside the copyable
+;; update-failure text); stderr is never touched, so no console is ever
+;; allocated. Rivet already swallows sink exceptions, so an unwritable path
+;; drops records rather than failing the backend. The data dir follows the
+;; runtime's injectable parameter, so tests and custom data dirs agree.
+(define diagnostics-port (box #f))
+(define diagnostics-lock (make-semaphore 1))
+
+(define (diagnostic-timestamp)
+  ;; Local ISO-8601 (no zone suffix): machine-sortable, human-readable.
+  (define d (seconds->date (current-seconds) #f))
+  (format "~a-~a-~aT~a:~a:~a"
+          (date-year d)
+          (~r (date-month d) #:min-width 2 #:pad-string "0")
+          (~r (date-day d) #:min-width 2 #:pad-string "0")
+          (~r (date-hour d) #:min-width 2 #:pad-string "0")
+          (~r (date-minute d) #:min-width 2 #:pad-string "0")
+          (~r (date-second d) #:min-width 2 #:pad-string "0")))
+
+(define (movebit-diagnostic-sink record)
+  (call-with-semaphore
+   diagnostics-lock
+   (lambda ()
+     (define out
+       (or (unbox diagnostics-port)
+           (let ([port
+                  (begin
+                    (with-handlers ([exn:fail? void])
+                      (make-directory* (current-data-dir)))
+                    (open-output-file (build-path (current-data-dir)
+                                                  "diagnostics.log")
+                                      #:exists 'append))])
+             (set-box! diagnostics-port port)
+             port)))
+     (write-json (hash-set record 'ts (diagnostic-timestamp)) out)
+     (newline out)
+     (flush-output out))))
+
+;; Module top level: runs on the boot thread that later invokes `start`, so
+;; serve-fds picks this sink up as its default.
+(current-rivet-diagnostic-sink movebit-diagnostic-sink)
 
 ;; --- Typed surface --------------------------------------------------------
 
@@ -507,6 +559,10 @@
 (define-rpc (check-updates : UpdateCheck)
   (hasheq->update-check (perform-check! default-update-base-url)))
 
+;; Doubles as the cancel gesture (the taskly toggle contract): calling it
+;; while a download runs cancels that download — no extra RPC, the schema
+;; stays put. The backend lands the phase back on idle, so a host's Cancel
+;; button calls this same RPC and watches the state it already polls.
 (define-rpc (start-update-download : Void)
   (start-download! (runtime-data-dir (require-runtime)))
   (void))
