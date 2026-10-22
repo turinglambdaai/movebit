@@ -372,6 +372,200 @@
   ;; the stamp is untouched — the next launch retries instead of waiting
   (check-equal? (hash-ref (load-bootstrap) 'last-update-check) before))
 
+;; ---- sticky rollout bucket --------------------------------------------------------
+
+(test-case "the rollout bucket is sticky, in range, and self-heals"
+  ;; No bucket yet: one is generated, lands in 0..99, and persists.
+  (save-bootstrap (hash-set (load-bootstrap) 'rollout-bucket #f))
+  (define bucket (upd:rollout-bucket))
+  (check-true (and (exact-integer? bucket) (<= 0 bucket 99)))
+  (check-equal? (hash-ref (load-bootstrap) 'rollout-bucket) bucket)
+  ;; A persisted bucket wins over generation — the cohort is sticky.
+  (save-bootstrap (hash-set (load-bootstrap) 'rollout-bucket 42))
+  (check-equal? (upd:rollout-bucket) 42)
+  ;; A corrupt (out-of-range) bucket regenerates instead of poisoning every
+  ;; future check.
+  (save-bootstrap (hash-set (load-bootstrap) 'rollout-bucket 100))
+  (define healed (upd:rollout-bucket))
+  (check-true (and (exact-integer? healed) (<= 0 healed 99))))
+
+;; ---- install shape ------------------------------------------------------------------
+
+(test-case "the install kind follows the platform and the Program Files signal"
+  ;; macOS zips are portable; Linux stays unfiltered; Windows decides below.
+  (case (upd:platform-symbol)
+    [(macos) (check-equal? (upd:install-kind) 'portable)]
+    [(linux) (check-false (upd:install-kind))]
+    [else (check-true (memq (upd:install-kind) '(msi portable)))])
+  ;; The Program Files prefix decision (pure): with ProgramFiles set, an
+  ;; install under it is the MSI shape and one beside it is not.
+  (dynamic-wind
+    (lambda () (putenv "ProgramFiles" "C:\\Program Files"))
+    (lambda ()
+      (check-true (upd:install-dir-under-program-files?
+                   "C:\\Program Files\\MoveBit"))
+      (check-true (upd:install-dir-under-program-files?
+                   "C:\\Program Files\\MoveBit\\"))
+      (check-false (upd:install-dir-under-program-files?
+                    "C:\\Program Files (other)\\MoveBit"))
+      (check-false (upd:install-dir-under-program-files?
+                    "D:\\Apps\\MoveBit")))
+    (lambda () (putenv "ProgramFiles" "")))
+  ;; A dangling env var means no signal at all.
+  (check-false (upd:install-dir-under-program-files?
+                "C:\\Program Files\\MoveBit")))
+
+(test-case "select-update splits the windows feed by install kind"
+  ;; The feed carries both windows installables; the kind picks one.
+  (define config
+    (apply updater-config "site.jrtx.movebit" "0.0.1" 'stable
+           'windows 'x64
+           pub "movebit-test" 50 download-limit
+           component-tail))
+  (define manifest
+    (update-manifest
+     "site.jrtx.movebit" "9.9.9" 7 'stable
+     "2026-10-10T00:00:00Z" "0.0.0" #f #t 100
+     (list (apply update-artifact 'windows 'x64
+                  "https://dl.example/movebit-9.9.9-windows-x64.zip"
+                  payload-sha256 (file-size payload-zip) 'zip '()
+                  component-tail)
+           (apply update-artifact 'windows 'x64
+                  "https://dl.example/movebit-9.9.9-windows-x64.msi"
+                  payload-sha256 (file-size payload-zip) 'msi '()
+                  component-tail))))
+  (define msi (select-update config manifest #:install-kind 'msi))
+  (check-equal?
+   (update-artifact-installer (update-candidate-artifact msi)) 'msi)
+  (define portable (select-update config manifest #:install-kind 'portable))
+  (check-equal?
+   (update-artifact-installer (update-candidate-artifact portable)) 'zip)
+  ;; Unfiltered (Linux's posture) keeps matching the plain first entry.
+  (check-true (update-candidate? (select-update config manifest))))
+
+;; ---- windows apply helpers (pure script recipes) -----------------------------------
+
+(test-case "the zip swap script backs up, rolls back, and marks failures"
+  (define script (upd:zip-apply-script "C:\\Apps\\MoveBit" "C:\\stage" 4242))
+  ;; wait for the exact PID, then move the old install aside FIRST
+  (check-true (string-contains? script "PID eq 4242"))
+  (check-true (string-contains? script "ren \"C:\\Apps\\MoveBit\" \"MoveBit.old\""))
+  (check-true (string-contains? script "robocopy \"C:\\stage\" \"C:\\Apps\\MoveBit\""))
+  ;; a failed copy restores the .old and relaunches the old exe — the
+  ;; update never strands the user without a working install
+  (check-true (string-contains? script ":rollback"))
+  (check-true (string-contains? script "ren \"C:\\Apps\\MoveBit.old\" \"MoveBit\""))
+  ;; a failed rename also relaunches the untouched old install
+  (check-true (string-contains? script ":renamefail"))
+  ;; both failure paths leave the marker the next launch surfaces once
+  (check-equal? (length (regexp-match* #rx"update-failed\\.txt" script)) 2))
+
+(test-case "the msi handoff script runs one passive msiexec upgrade"
+  (define script
+    (upd:msi-apply-script "C:\\Program Files\\MoveBit"
+                          "C:\\data\\updates\\movebit-9.9.9-windows-x64.msi"
+                          "C:\\data\\updates\\msiexec.log" 7))
+  (check-true (string-contains?
+               script "msiexec /passive /norestart /i \"C:\\data\\updates\\movebit-9.9.9-windows-x64.msi\""))
+  ;; the log lands beside the helper; a failure relaunches the old install
+  (check-true (string-contains? script "/l* \"C:\\data\\updates\\msiexec.log\""))
+  (check-true (string-contains? script ":fail"))
+  (check-true (string-contains? script "update-failed.txt"))
+  (check-true (string-contains?
+               script "start \"\" \"C:\\Program Files\\MoveBit\\RivetHost.exe\"")))
+
+;; ---- cancel (the start gesture toggles) ---------------------------------------------
+
+;; A server that dribbles the body a few KB at a time — slow enough that the
+;; cancel gesture lands mid-flight, deterministic enough for CI.
+(define (serve-dribble! total-bytes)
+  (define listener (tcp-listen 0 16 #f "127.0.0.1"))
+  (define-values (_bind-host port-number _peer-host _peer-port)
+    (tcp-addresses listener #t))
+  (define server
+    (thread
+     (lambda ()
+       (let accept-loop ()
+         (define-values (in out) (tcp-accept listener))
+         (thread
+          (lambda ()
+            (define request-line (read-line in 'return-linefeed))
+            (let drain ()
+              (define line (read-line in 'return-linefeed))
+              (unless (or (eof-object? line) (equal? line "") (equal? line "\r"))
+                (drain)))
+            (write-string
+             (format "HTTP/1.0 200 OK\r\nContent-Length: ~a\r\n\r\n" total-bytes)
+             out)
+            (flush-output out)
+            (define chunk (make-bytes 16384 9))
+            (let send ([sent 0])
+              (when (< sent total-bytes)
+                (with-handlers ([exn:fail? void])  ; the cancel closed it
+                  (write-bytes chunk out)
+                  (flush-output out)
+                  (sleep 0.02)
+                  (send (+ sent (bytes-length chunk))))))
+            (close-output-port out)
+            (close-input-port in)))
+         (accept-loop)))))
+  (values port-number
+          (lambda ()
+            (kill-thread server)
+            (tcp-close listener))))
+
+(test-case "starting a download while one runs cancels it, phase returns to idle"
+  ;; The cancel path needs a worker genuinely mid-download: a dribbling
+  ;; server keeps the read loop busy while the toggle breaks it (~2 MB at
+  ;; 16 KB / 20 ms is a few seconds — fast enough for CI, slow enough to
+  ;; cancel mid-flight).
+  (define total (* 2 1024 1024))
+  (define payload-sha (bytes->hex-string (sha256-bytes (make-bytes total 9))))
+  (define-values (port-number stop-server!) (serve-dribble! total))
+  (define config
+    (apply updater-config "site.jrtx.movebit" "0.1.0" 'stable
+           (upd:platform-symbol) (upd:architecture-symbol)
+           pub "movebit-test" 0 download-limit
+           component-tail))
+  (define candidate
+    (select-update config
+                   (update-manifest
+                    "site.jrtx.movebit" "9.9.9" 7 'stable
+                    "2026-10-10T00:00:00Z" "0.0.0" #f #t 100
+                    (list (apply update-artifact
+                                 (upd:platform-symbol) (upd:architecture-symbol)
+                                 (format "http://127.0.0.1:~a/movebit-9.9.9.zip"
+                                         port-number)
+                                 payload-sha total
+                                 'zip '()
+                                 component-tail)))))
+  (check-true (update-candidate? candidate))
+  (parameterize ([upd:current-install-dir test-data-dir])
+    (upd:reset-update-state!)
+    (upd:set-candidate! candidate)
+    (upd:start-download! test-data-dir)
+    (sleep 0.3)  ; let the worker get mid-flight
+    (check-equal? (hash-ref (upd:update-state-snapshot) 'phase) "downloading")
+    ;; the toggle: a second start IS the cancel
+    (upd:start-download! test-data-dir)
+    (let loop ([deadline (+ (current-seconds) 10)])
+      (define phase (hash-ref (upd:update-state-snapshot) 'phase))
+      (cond
+        [(equal? phase "idle") (void)]
+        [(> (current-seconds) deadline)
+         (fail "cancel never landed the phase on idle")]
+        [else (sleep 0.05) (loop deadline)]))
+    (check-false (hash-ref (upd:update-state-snapshot) 'downloadedPath #f))
+    ;; the candidate survives the cancel — the update stays one click away
+    (check-equal? (hash-ref (upd:update-state-snapshot) 'availableVersion)
+                  "9.9.9")
+    ;; and a fresh start after the cancel runs to completion
+    (upd:start-download! test-data-dir)
+    (define phase (wait-for-terminal-phase! 300))
+    (check-equal? phase "downloaded"
+                  (format "~s" (hash-ref (upd:update-state-snapshot) 'message))))
+  (stop-server!))
+
 ;; ---- state box contract ----------------------------------------------------------
 
 ;; The hosts' poll loop relies on these exact keys (phase/percent/message/

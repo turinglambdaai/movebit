@@ -16,9 +16,12 @@
 ;; published to a state box that the UI polls through the `get-update-state`
 ;; RPC (RVT1 events are thread-local, so a background thread cannot emit
 ;; them directly). The feed serves portable archives per platform:
-;;   Windows — the zip IS the install layout: `prepare-install!` extracts the
-;;     verified archive into a staging directory and writes a helper script
-;;     that waits for the app to exit, swaps the payload, and relaunches.
+;;   Windows — per-user / portable installs: the zip IS the install layout,
+;;     `prepare-install!` extracts the verified archive into a staging
+;;     directory and writes a helper script that waits for the app to exit,
+;;     moves the old install aside, swaps the payload (restoring the old
+;;     install when the copy fails), and relaunches. MSI installs (Program
+;;     Files) take the feed's signed .msi and hand off to msiexec instead.
 ;;   macOS — same shape as Windows: the zip carries movebit.app, the helper
 ;;     swaps the bundle with a backup + rollback rename and relaunches.
 ;;   Linux — AppImage installs update through the sibling .AppImage release
@@ -34,6 +37,7 @@
          racket/list
          racket/path
          racket/port
+         racket/random
          racket/string
          racket/system
          ffi/unsafe
@@ -50,16 +54,22 @@
          movebit-update-configured?
          platform-symbol
          architecture-symbol
+         install-kind
+         install-dir-under-program-files?
          update-state-snapshot
          reset-update-state!
          perform-check!
          update-check-throttle-seconds
          update-check-throttled?
          record-update-check-stamp!
+         rollout-bucket
          start-download!
+         cancel-download!
          prepare-install!
          appimage-flavor?
          appimage-asset-name
+         zip-apply-script
+         msi-apply-script
          ;; test seams: drive the download paths against a local server
          ;; without a network check (the threadly test-suite shape)
          set-candidate!
@@ -141,6 +151,21 @@
 (define component-tail
   (if (equal? (procedure-arity updater-config) 10) (list #f) '()))
 
+;; Sticky rollout bucket, 0..99: a manifest rolling out to N matches only
+;; buckets below N, so a bad build can be stopped from spreading while the
+;; feed is fixed. Generated once per machine (crypto-random-bytes, NOT
+;; racket/base's `random` — its fixed seed would put every fresh install in
+;; the same lockstep bucket, the trap taskly's updater documents) and
+;; persisted in bootstrap.json next to the per-machine throttle stamp.
+(define (rollout-bucket)
+  (define existing (hash-ref (load-bootstrap) 'rollout-bucket #f))
+  (if (and (exact-integer? existing) (<= 0 existing 99))
+      existing
+      (let ([fresh (modulo (integer-bytes->integer (crypto-random-bytes 4) #t #t)
+                           100)])
+        (save-bootstrap (hash-set (load-bootstrap) 'rollout-bucket fresh))
+        fresh)))
+
 (define (updater-config* maximum-bytes)
   (apply updater-config
          "site.jrtx.movebit"
@@ -150,14 +175,52 @@
          (architecture-symbol)
          (current-update-public-key)
          update-key-id
-         ;; Rollout 0 always matches a manifest rolling out to 100;
-         ;; MoveBit ships to everyone today (bucket 0..99 < 100).
-         ;; When a sticky rollout ships, replace this with the
-         ;; persisted real bucket (threadly's updater-state.json
-         ;; one-key whitelist pattern).
-         0
+         ;; The persisted bucket: today the manifest rolls out to 100, so
+         ;; every bucket matches; a partial rollout narrows the cohort
+         ;; without any client change.
+         (rollout-bucket)
          maximum-bytes
          component-tail))
+
+;; ---------- install shape (which feed entry this install may apply) ----------
+;;
+;; select-update's install-kind picks between the feed's installables for
+;; this platform. The MSI lands under Program Files (rivet's perMachine
+;; scope), where the in-place zip swap has no write access — those installs
+;; take the signed .msi artifact and hand off to msiexec (one UAC consent);
+;; per-user / portable installs keep the automatic zip swap. macOS zips are
+;; portable. Linux stays unfiltered: the feed entry is the tarball (the
+;; AppImage swaps the sibling asset at download time; deb/rpm/tarball
+;; installs get guidance, never a download). Same ProgramFiles* prefix
+;; signal taskly's IsMsiInstall uses.
+
+;; Pure over current-install-dir so tests can pin the decision.
+(define (install-dir-under-program-files? install-string)
+  (define install
+    (string-downcase
+     (regexp-replace #rx"[/\\]+$" install-string "")))
+  (for/or ([variable (in-list '("ProgramFiles"
+                                "ProgramFiles(x86)"
+                                "ProgramW6432"))])
+    (define value (getenv variable))
+    (and value
+         (not (string=? value ""))
+         (let ([prefix (string-downcase
+                        (regexp-replace #rx"[/\\]+$" value ""))])
+           (and (not (string=? prefix ""))
+                (or (string=? install prefix)
+                    (string-prefix? install (string-append prefix "\\"))))))))
+
+(define (install-kind)
+  (case (platform-symbol)
+    [(macos) 'portable]
+    [(windows)
+     (if (install-dir-under-program-files?
+          (path->string (current-install-dir)))
+         'msi
+         'portable)]
+    ;; Linux: unfiltered — the only linux artifact is the tarball.
+    [else #f]))
 
 ;; ---------- shared update state (UI-visible) ----------
 
@@ -257,7 +320,9 @@
           (current-update-public-key)
           #:key-id update-key-id
           #:maximum-bytes (* 4 1024 1024)))
-       (define candidate (select-update (updater-config* (* 4 1024 1024)) manifest))
+       (define candidate
+         (select-update (updater-config* (* 4 1024 1024)) manifest
+                        #:install-kind (install-kind)))
        (cond
          [candidate
           (set-box! candidate-box candidate)
@@ -471,81 +536,113 @@
     (rename-file-or-directory temporary self #t)
     self))
 
+;; A cancelled download is not a failure: the broken worker lands the phase
+;; back on idle with the candidate intact, so the UI returns to the
+;; available state and another start is one click away.
+(define cancel-requested-box (box #f))
+
+(define (download-running?)
+  (define worker (unbox worker-thread-box))
+  (and worker (thread-running? worker)))
+
+(define (cancel-download!)
+  (when (download-running?)
+    (set-box! cancel-requested-box #t)
+    (break-thread (unbox worker-thread-box)))
+  (void))
+
 ;; Runs on a backend worker thread; the host follows progress via the
 ;; update-state RPC. Never raises: failures surface through the phase.
+;; Doubles as the cancel gesture (the taskly toggle contract): the start
+;; gesture while a download runs IS the cancel — no second RPC, the schema
+;; stays put and every host's Cancel button just calls this again.
 (define (start-download! data-dir)
-  (define worker (unbox worker-thread-box))
-  (when (and worker (thread-running? worker))
-    (error 'start-download! "an update download is already running"))
-  (define candidate (unbox candidate-box))
-  (unless candidate
-    (error 'start-download! "no update is available; run a check first"))
-  (state-set! 'phase "downloading")
-  (state-set! 'percent 0)
-  (state-set! 'message (void))
-  (state-set! 'availableVersion
-              (update-manifest-version (update-candidate-manifest candidate)))
-  (define destination
-    (build-path (updates-dir data-dir) (artifact-file-name candidate)))
-  (set-box! last-progress-seconds (current-seconds))
-  (define worker-thread
-    (thread
-     (lambda ()
-       ;; The watchdog breaks a stalled worker; exn:break is not an
-       ;; exn:fail, so it needs its own arm — either way rivet's partial
-       ;; cleanup removes the .partial and the phase lands on error
-       ;; (never mid-flight).
-       (with-handlers
-           ([(lambda (e) (or (exn:fail? e) (exn:break? e)))
-             (lambda (e)
-               (state-set! 'phase "error")
-               (state-set! 'message
-                           (if (exn:break? e)
-                               "update download stalled or timed out"
-                               (exn-message e))))])
-         (define path
-           (if (appimage-flavor?)
-               ;; AppImage: the sibling asset is sidecar-checked and swapped
-               ;; over the running image in place; downloadedPath IS the
-               ;; image path.
-               (download-appimage-with-progress! candidate)
-               (download-with-progress! candidate destination)))
-         (state-set! 'phase "downloaded")
-         (state-set! 'percent 100)
-         (state-set! 'availableVersion
-                     (update-manifest-version
-                      (update-candidate-manifest candidate)))
-         (state-set! 'downloadedPath (path->string path))))))
-  (set-box! worker-thread-box worker-thread)
-  ;; Watchdog: exits once the worker finishes on its own; otherwise a stall
-  ;; (no byte progress) or the total wall-clock limit breaks the worker so
-  ;; phase never rests on "downloading" indefinitely.
-  (define download-started (current-seconds))
-  (thread
-   (lambda ()
-     (let loop ()
-       (cond
-         [(sync/timeout download-stall-limit-seconds
-                        (thread-dead-evt worker-thread))
-          (void)]
-         [(> (- (current-seconds) (unbox last-progress-seconds))
-             download-stall-limit-seconds)
-          (break-thread worker-thread)]
-         [(> (- (current-seconds) download-started)
-             download-total-limit-seconds)
-          (break-thread worker-thread)]
-         [else (loop)]))))
+  (cond
+    [(download-running?)
+     (cancel-download!)]
+    [else
+     (define candidate (unbox candidate-box))
+     (unless candidate
+       (error 'start-download! "no update is available; run a check first"))
+     (set-box! cancel-requested-box #f)
+     (state-set! 'phase "downloading")
+     (state-set! 'percent 0)
+     (state-set! 'message (void))
+     (state-set! 'availableVersion
+                 (update-manifest-version (update-candidate-manifest candidate)))
+     (define destination
+       (build-path (updates-dir data-dir) (artifact-file-name candidate)))
+     (set-box! last-progress-seconds (current-seconds))
+     (define worker-thread
+       (thread
+        (lambda ()
+          ;; The watchdog breaks a stalled worker and the cancel gesture
+          ;; breaks an in-flight one; exn:break is not an exn:fail, so each
+          ;; needs its own arm — either way rivet's partial cleanup removes
+          ;; the .partial and the phase lands on a terminal state (never
+          ;; mid-flight).
+          (with-handlers
+              ([(lambda (e) (or (exn:fail? e) (exn:break? e)))
+                (lambda (e)
+                  (cond
+                    [(unbox cancel-requested-box)
+                     (set-box! cancel-requested-box #f)
+                     (state-set! 'phase "idle")
+                     (state-set! 'percent 0)
+                     (state-set! 'message #f)
+                     (state-set! 'downloadedPath #f)]
+                    [(exn:break? e)
+                     (state-set! 'phase "error")
+                     (state-set! 'message "update download stalled or timed out")]
+                    [else
+                     (state-set! 'phase "error")
+                     (state-set! 'message (exn-message e))]))])
+            (define path
+              (if (appimage-flavor?)
+                  ;; AppImage: the sibling asset is sidecar-checked and swapped
+                  ;; over the running image in place; downloadedPath IS the
+                  ;; image path.
+                  (download-appimage-with-progress! candidate)
+                  (download-with-progress! candidate destination)))
+            (state-set! 'phase "downloaded")
+            (state-set! 'percent 100)
+            (state-set! 'availableVersion
+                        (update-manifest-version
+                         (update-candidate-manifest candidate)))
+            (state-set! 'downloadedPath (path->string path))))))
+     (set-box! worker-thread-box worker-thread)
+     ;; Watchdog: exits once the worker finishes on its own; otherwise a stall
+     ;; (no byte progress) or the total wall-clock limit breaks the worker so
+     ;; phase never rests on "downloading" indefinitely.
+     (define download-started (current-seconds))
+     (thread
+      (lambda ()
+        (let loop ()
+          (cond
+            [(sync/timeout download-stall-limit-seconds
+                           (thread-dead-evt worker-thread))
+             (void)]
+            [(> (- (current-seconds) (unbox last-progress-seconds))
+                download-stall-limit-seconds)
+             (break-thread worker-thread)]
+            [(> (- (current-seconds) download-started)
+                download-total-limit-seconds)
+             (break-thread worker-thread)]
+            [else (loop)]))))])
   (void))
 
 ;; ---------- install preparation (Windows / macOS) ----------
 ;;
 ;; The verified archive is staged and an apply-helper script is written; the
 ;; host exits and the detached helper finishes the swap:
-;;   Windows — the zip IS the install layout. Extract into
-;;     <data-dir>/updates/staged/ and write apply-update.cmd: the helper
-;;     waits for the running app to exit, robocopys the staged payload over
-;;     the install directory, relaunches, and removes itself. Extract runs
-;;     on the caller's thread (the prepare-update-install RPC worker).
+;;   Windows — per-user / portable installs: the zip IS the install layout.
+;;     Extract into <data-dir>/updates/staged/ and write apply-update.cmd:
+;;     the helper waits for the running app to exit, moves the install
+;;     directory aside, robocopys the staged payload over a fresh install
+;;     directory (restoring the old one when the copy fails), relaunches,
+;;     and removes itself. MSI installs (Program Files) skip all of that:
+;;     the helper runs one passive msiexec upgrade instead — msiexec
+;;     elevates, so the unwritable install directory is not an obstacle.
 ;;   macOS — the zip carries movebit.app. Extract the same way (bsdtar reads
 ;;     zip on macOS too), then apply-update.sh copies the staged bundle onto
 ;;     the install volume and swaps it with a backup + rollback rename
@@ -602,6 +699,65 @@
     (error 'prepare-install!
            "staged payload is incomplete (no update payload)")))
 
+;; The install directory's base name — `ren` takes the NEW name as a bare
+;; token, never a path. Split on BOTH separators by hand: the script text is
+;; generated on every platform (tests included), and simple-form-path's
+;; separators are the generating platform's — on unix a Windows path stays
+;; one element and the rename would lose the .old suffix.
+(define (install-base-name install-string)
+  (define trimmed (regexp-replace #rx"[/\\]+$" install-string ""))
+  (last (regexp-split #rx"[/\\]" trimmed)))
+
+;; Pure so tests on every platform can pin the swap recipe. Safety shape
+;; (the taskly handoff): move the old install aside FIRST, robocopy the
+;; staged payload into the fresh directory, roll the rename back when the
+;; copy fails — the old version survives every failure path and the batch
+;; relaunches it. The update-failed.txt marker tells the next launch to
+;; surface the failure once. `cd /d` first: the helper inherits the app's
+;; working directory, and a cmd whose cwd sits inside a directory being
+;; renamed would hold it open.
+(define (zip-apply-script install staged pid)
+  (define old (string-append install ".old"))
+  (string-append
+   "@echo off\r\n"
+   "set TRACE=%~dp0apply-update-trace.txt\r\n"
+   "cd /d \"%~dp0\"\r\n"
+   "echo [%date% %time%] helper started, waiting for PID "
+   (number->string pid) " > \"%TRACE%\"\r\n"
+   ":waitloop\r\n"
+   "tasklist /FI \"PID eq " (number->string pid) "\" | find \""
+   (number->string pid) "\" >nul\r\n"
+   "if not errorlevel 1 (\r\n"
+   "  timeout /t 1 /nobreak >nul\r\n"
+   "  goto waitloop\r\n"
+   ")\r\n"
+   "echo [%time%] app exited, backing up the old install >> \"%TRACE%\"\r\n"
+   "ren \"" install "\" \"" (install-base-name install) ".old\"\r\n"
+   "if errorlevel 1 goto :renamefail\r\n"
+   "echo [%time%] swapping payload >> \"%TRACE%\"\r\n"
+   "robocopy \"" staged "\" \"" install "\" /E /NFL /NDL /NJH /NJS >> \"%TRACE%\" 2>&1\r\n"
+   "echo [%time%] robocopy exit %errorlevel% >> \"%TRACE%\"\r\n"
+   "if errorlevel 8 goto :rollback\r\n"
+   "start \"\" \"" install "\\RivetHost.exe\"\r\n"
+   "echo [%time%] relaunched, retiring backup >> \"%TRACE%\"\r\n"
+   ;; A lingering .old (a file briefly held by antivirus) must not fail the
+   ;; update that already succeeded — best effort only.
+   "rmdir /s /q \"" old "\" >nul 2>&1\r\n"
+   "del \"%~f0\"\r\n"
+   "exit /b 0\r\n"
+   ":rollback\r\n"
+   "echo [%time%] FAILED swap, restoring the old install >> \"%TRACE%\"\r\n"
+   "rmdir /s /q \"" install "\" >nul 2>&1\r\n"
+   "ren \"" old "\" \"" (install-base-name install) "\"\r\n"
+   "> \"%~dp0update-failed.txt\" echo robocopy failed (%errorlevel%)\r\n"
+   "start \"\" \"" install "\\RivetHost.exe\"\r\n"
+   "exit /b 1\r\n"
+   ":renamefail\r\n"
+   "echo [%time%] FAILED backup rename >> \"%TRACE%\"\r\n"
+   "> \"%~dp0update-failed.txt\" echo backup rename failed\r\n"
+   "start \"\" \"" install "\\RivetHost.exe\"\r\n"
+   "exit /b 1\r\n"))
+
 (define (write-apply-helper! data-dir pid)
   (define staged (staged-dir data-dir))
   ;; A trailing separator inside the quoted path reads as an escaped quote
@@ -610,31 +766,55 @@
     (regexp-replace #rx"[/\\]+$" (path->string (current-install-dir)) ""))
   (define helper
     (build-path (updates-dir data-dir) "apply-update.cmd"))
+  (call-with-output-file helper
+    (lambda (out) (display (zip-apply-script install (path->string staged) pid) out))
+    #:exists 'replace)
+  helper)
+
+;; Pure: the MSI handoff (the taskly shape). MSI installs upgrade in place:
+;; wait for this process to exit, then one passive msiexec run — per-machine
+;; installs surface a single UAC consent (unavoidable under /passive). A
+;; failure keeps the old install working: the batch relaunches it and leaves
+;; the failure marker for the next launch to surface once.
+(define (msi-apply-script install msi-path log-path pid)
+  (string-append
+   "@echo off\r\n"
+   "set TRACE=%~dp0apply-update-trace.txt\r\n"
+   "cd /d \"%~dp0\"\r\n"
+   "echo [%date% %time%] msi helper started, waiting for PID "
+   (number->string pid) " > \"%TRACE%\"\r\n"
+   ":waitloop\r\n"
+   "tasklist /FI \"PID eq " (number->string pid) "\" | find \""
+   (number->string pid) "\" >nul\r\n"
+   "if not errorlevel 1 (\r\n"
+   "  timeout /t 1 /nobreak >nul\r\n"
+   "  goto waitloop\r\n"
+   ")\r\n"
+   "echo [%time%] app exited, running msiexec >> \"%TRACE%\"\r\n"
+   "msiexec /passive /norestart /i \"" msi-path "\" /l* \"" log-path "\"\r\n"
+   "echo [%time%] msiexec exit %errorlevel% >> \"%TRACE%\"\r\n"
+   "if errorlevel 1 goto :fail\r\n"
+   "start \"\" \"" install "\\RivetHost.exe\"\r\n"
+   "echo [%time%] relaunched >> \"%TRACE%\"\r\n"
+   "del \"%~f0\"\r\n"
+   "exit /b 0\r\n"
+   ":fail\r\n"
+   "> \"%~dp0update-failed.txt\" echo msiexec failed (%errorlevel%)\r\n"
+   "start \"\" \"" install "\\RivetHost.exe\"\r\n"
+   "exit /b 1\r\n"))
+
+(define (write-apply-helper-msi! data-dir pid)
+  (define downloaded
+    (hash-ref (update-state-snapshot) 'downloadedPath #f))
+  (define install
+    (regexp-replace #rx"[/\\]+$" (path->string (current-install-dir)) ""))
+  (define updates (updates-dir data-dir))
+  (define helper (build-path updates "apply-update.cmd"))
   (define script
-    (string-append
-     "@echo off\r\n"
-     "set TRACE=%~dp0apply-update-trace.txt\r\n"
-     "echo [%date% %time%] helper started, waiting for PID "
-     (number->string pid) " > \"%TRACE%\"\r\n"
-     ":waitloop\r\n"
-     "tasklist /FI \"PID eq " (number->string pid) "\" | find \""
-     (number->string pid) "\" >nul\r\n"
-     "if not errorlevel 1 (\r\n"
-     "  timeout /t 1 /nobreak >nul\r\n"
-     "  goto waitloop\r\n"
-     ")\r\n"
-     "echo [%time%] app exited, swapping payload >> \"%TRACE%\"\r\n"
-     "robocopy \"" (path->string staged) "\" \""
-     install "\" /E /NFL /NDL /NJH /NJS >> \"%TRACE%\" 2>&1\r\n"
-     "echo [%time%] robocopy exit %errorlevel% >> \"%TRACE%\"\r\n"
-     "if errorlevel 8 goto :fail\r\n"
-     "start \"\" \"" (path->string (build-path install "RivetHost.exe")) "\"\r\n"
-     "echo [%time%] relaunched >> \"%TRACE%\"\r\n"
-     "del \"%~f0\"\r\n"
-     "exit /b 0\r\n"
-     ":fail\r\n"
-     "echo [%time%] FAILED >> \"%TRACE%\"\r\n"
-     "exit /b 1\r\n"))
+    (msi-apply-script install
+                      (path->string (string->path downloaded))
+                      (path->string (build-path updates "msiexec.log"))
+                      pid))
   (call-with-output-file helper
     (lambda (out) (display script out))
     #:exists 'replace)
@@ -713,17 +893,26 @@
        (hash-ref (update-state-snapshot) 'downloadedPath #f))
      (unless (and downloaded (file-exists? downloaded))
        (error 'prepare-install! "no downloaded update; run a download first"))
-     (assert-install-writable!)
-     (define staged (staged-dir data-dir))
-     (when (directory-exists? staged)
-       (delete-directory/files staged))
-     (extract-zip! (string->path downloaded) staged)
-     (define helper
-       (if (eq? (platform-symbol) 'macos)
-           (write-apply-helper-mac! data-dir (getpid))
-           (write-apply-helper! data-dir (getpid))))
-     (state-set! 'phase "ready-to-apply")
-     (path->string helper)]))
+     (cond
+       [(eq? (install-kind) 'msi)
+        ;; The MSI shape is DEFINED by an install directory we cannot
+        ;; write: no staging, no writability probe — msiexec elevates
+        ;; itself, and the verified .msi downloads straight from the feed.
+        (define helper (write-apply-helper-msi! data-dir (getpid)))
+        (state-set! 'phase "ready-to-apply")
+        (path->string helper)]
+       [else
+        (assert-install-writable!)
+        (define staged (staged-dir data-dir))
+        (when (directory-exists? staged)
+          (delete-directory/files staged))
+        (extract-zip! (string->path downloaded) staged)
+        (define helper
+          (if (eq? (platform-symbol) 'macos)
+              (write-apply-helper-mac! data-dir (getpid))
+              (write-apply-helper! data-dir (getpid))))
+        (state-set! 'phase "ready-to-apply")
+        (path->string helper)])]))
 
 ;; The apply helper waits on the precise PID of the exiting app, so a stray
 ;; RivetHost.exe from another install can never hold the swap open. The
