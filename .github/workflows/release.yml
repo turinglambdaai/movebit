@@ -100,7 +100,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.arch }}
-          path: dist/movebit-*
+          path: movebit-*
           if-no-files-found: error
 
   windows:
