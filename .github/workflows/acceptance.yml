@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: Bogdanp/setup-racket@v1.15
+      - uses: Bogdanp/setup-racket@v1.16
         with: {version: '9.3', architecture: x64, distribution: full, variant: CS}
       - run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#$env:RIVET_PIN"
         shell: pwsh
@@ -35,7 +35,7 @@ jobs:
           - {runner: macos-15-intel, arch: x64}
     steps:
       - uses: actions/checkout@v4
-      - uses: Bogdanp/setup-racket@v1.15
+      - uses: Bogdanp/setup-racket@v1.16
         with: {version: '9.3', architecture: '${{ matrix.arch }}', distribution: full, variant: CS}
       - run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_PIN}"
       - run: raco rivet acceptance --json
@@ -48,7 +48,7 @@ jobs:
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
-      - uses: Bogdanp/setup-racket@v1.15
+      - uses: Bogdanp/setup-racket@v1.16
         with: {version: '9.3', architecture: x64, distribution: full, variant: CS}
       - run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config libgtk-4-dev libjson-glib-dev libglib2.0-dev libsecret-1-dev liblz4-dev zlib1g-dev libncurses-dev libx11-dev libxtst-dev weston at-spi2-core python3-pyatspi
       - run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_PIN}"
