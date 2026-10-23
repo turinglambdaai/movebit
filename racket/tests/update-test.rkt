@@ -411,9 +411,23 @@
       (check-false (upd:install-dir-under-program-files?
                     "D:\\Apps\\MoveBit")))
     (lambda () (putenv "ProgramFiles" "")))
-  ;; A dangling env var means no signal at all.
-  (check-false (upd:install-dir-under-program-files?
-                "C:\\Program Files\\MoveBit")))
+  ;; A dangling signal means no signal at all: NONE of the three variables
+  ;; may contribute a prefix (on real Windows runners ProgramFiles(x86) and
+  ;; ProgramW6432 exist alongside ProgramFiles — clearing one is not
+  ;; clearing the signal). putenv with an empty value unsets on Windows and
+  ;; sets an empty string elsewhere; both read back as "no signal".
+  (dynamic-wind
+    (lambda ()
+      (putenv "ProgramFiles" "")
+      (putenv "ProgramFiles(x86)" "")
+      (putenv "ProgramW6432" ""))
+    (lambda ()
+      (check-false (upd:install-dir-under-program-files?
+                    "C:\\Program Files\\MoveBit")))
+    (lambda ()
+      (putenv "ProgramFiles" "")
+      (putenv "ProgramFiles(x86)" "")
+      (putenv "ProgramW6432" ""))))
 
 (test-case "select-update splits the windows feed by install kind"
   ;; The feed carries both windows installables; the kind picks one.

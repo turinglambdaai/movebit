@@ -151,11 +151,14 @@ MainWindow::MainWindow() {
       auto future = api_->flush_now();
       (void)future.wait_for(std::chrono::seconds(1));
     }
-    // A real close IS the quit: end the message loop explicitly instead of
-    // hoping last-window teardown ends the process (the taskly handoff
-    // exits the same way). Reaching this handler means the close was not
-    // cancelled — hiding to the tray never gets here.
-    winrt::Microsoft::UI::Xaml::Application::Current().Exit();
+    // A real close IS the quit, and it must be UNCONDITIONAL: the packaged
+    // acceptance repeatedly caught the backend cleanly shut down (its own
+    // shutdown frame recorded) with the UI gone, yet the process lingering
+    // past the e2e's 30 s exit budget — some stray message source kept the
+    // loop alive. Everything worth a graceful teardown has already happened
+    // above (tray detached, day flushed, backend stopped); hiding to the
+    // tray cancels the close upstream and never reaches this handler.
+    ::ExitProcess(0);
   });
   InitTray();
   ApplyTexts();
