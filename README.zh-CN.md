@@ -62,7 +62,7 @@ Racket 运行时静态链接进宿主——不依赖外部解释器、没有 .NE
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` · `.zip` | `movebit-<version>-linux-x64.deb` · `-x86_64.rpm` · `.AppImage` |
 | Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` · `.zip` | `movebit-<version>-linux-arm64.deb` · `-aarch64.rpm` |
 
-资产遵循统一的小写命名 `movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.3.1-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还提供 `SHA256SUMS` 与 Ed25519 签名的 `update-manifest.json`。
+资产遵循统一的小写命名 `movebit-<version>-<os>-<arch>.<ext>`（例如 `movebit-0.5.0-macos-arm64.dmg`）。每个资产都有对应的 `.sha256` 文件，每个发布还提供 `SHA256SUMS` 与 Ed25519 签名的 `update-manifest.json`。
 
 平台说明：
 
@@ -128,11 +128,12 @@ Linux 打包脚本（deb / rpm / AppImage）在 `packaging/linux/` 下，作用�
 
 ## 路线图
 
-- [ ] Windows 托盘图标与快捷操作（打开 / 暂停 / 退出）
-- [x] 当前源码已实现原生宿主的签名清单更新流程。
-- [ ] 发布收尾前，记录每种安装形态 N→N+1、取消、拒绝错误签名与恢复的证据。
+- [x] Windows 托盘图标与快捷操作（打开 / 暂停 / 退出）
+- [x] 三端应用内签名清单更新已随 [0.5.0](https://github.com/turinglambdaai/movebit/releases/tag/v0.5.0) 发布：下载可取消、Windows MSI 经被动 msiexec 交接自更新、zip 换装带备份与回滚。
+- [x] 取消、拒绝错误签名与回滚的测试级证据（`racket/tests/update-test.rkt`，CI 上运行）。
+- [ ] 每种安装形态的实测 N→N+1 更新证据（更新器测试已证明机制本身；逐形态的真实更新记录仍未做）。
 - [ ] Windows 代码签名与 macOS 签名/公证
-- **不做移动端（iOS / iPadOS / Android）与 watchOS。** MoveBit 解决的是桌面办公时的长时间久坐；手机和平板的使用姿态是站着、走动、躺着，久坐问题不成立。产品定位就是桌面跨平台：macOS、Windows、Linux。
+- **不做移动端（iOS / iPadOS / Android）与 watchOS.** MoveBit 解决的是桌面办公时的长时间久坐；手机和平板的使用姿态是站着、走动、躺着，久坐问题不成立。产品定位就是桌面跨平台：macOS、Windows、Linux。
 
 ## 许可
 

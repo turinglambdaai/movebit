@@ -62,7 +62,7 @@ Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releas
 | Linux x64 | `movebit-<version>-linux-x64.tar.gz` · `.zip` | `movebit-<version>-linux-x64.deb` · `-x86_64.rpm` · `.AppImage` |
 | Linux arm64 | `movebit-<version>-linux-arm64.tar.gz` · `.zip` | `movebit-<version>-linux-arm64.deb` · `-aarch64.rpm` |
 
-Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.3.1-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json`.
+Assets follow one lowercase scheme, `movebit-<version>-<os>-<arch>.<ext>` (for example `movebit-0.5.0-macos-arm64.dmg`). Every asset has a matching `.sha256` sidecar, and each release publishes a `SHA256SUMS` manifest plus the Ed25519-signed `update-manifest.json`.
 
 Platform notes:
 
@@ -128,9 +128,10 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 
 ## Roadmap
 
-- [ ] Tray icon with quick actions (open / pause / exit) on Windows
-- [x] Native-host signed-manifest update flow is implemented in the current source.
-- [ ] Record N→N+1, cancellation, rejection and recovery evidence for every supported install shape before release closeout.
+- [x] Tray icon with quick actions (open / pause / exit) on Windows
+- [x] In-app signed-manifest updates shipped on all three hosts ([0.5.0](https://github.com/turinglambdaai/movebit/releases/tag/v0.5.0)): cancellable downloads, Windows MSI self-update through a passive msiexec handoff, and backup + rollback around the zip swap.
+- [x] Cancellation, signature-rejection and rollback evidence at the updater test level (`racket/tests/update-test.rkt`, runs on CI).
+- [ ] Live N→N+1 update evidence recorded for every supported install shape (the updater tests prove the mechanics; a recorded real update per shape is still to do).
 - [ ] Windows code signing and macOS signing/notarization
 - **Not planned: mobile (iOS / iPadOS / Android) and watchOS.** MoveBit guards against long uninterrupted sitting at a desk — a problem that only exists where people work at a computer for hours. On phones and tablets people stand, walk, or recline, so there is nothing to guard against. The product is desktop cross-platform by design: macOS, Windows, and Linux.
 
