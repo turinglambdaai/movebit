@@ -123,10 +123,19 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 ## Roadmap
 
 - [ ] Tray icon with quick actions (open / pause / exit) on Windows
-- [ ] In-app update flow on the native hosts, consuming the signed `update-manifest.json` feed
+- [x] Native-host signed-manifest update flow is implemented in the current source.
+- [ ] Record N→N+1, cancellation, rejection and recovery evidence for every supported install shape before release closeout.
 - [ ] Windows code signing and macOS signing/notarization
 - **Not planned: mobile (iOS / iPadOS / Android) and watchOS.** MoveBit guards against long uninterrupted sitting at a desk — a problem that only exists where people work at a computer for hours. On phones and tablets people stand, walk, or recline, so there is nothing to guard against. The product is desktop cross-platform by design: macOS, Windows, and Linux.
 
 ## License
 
 [MIT](LICENSE)
+
+## Delivery priorities (2026-10-23)
+
+The current product review issue linked from AGENTS owns the next bounded slice and its acceptance scenarios. Follow the existing product specification and the [family delivery standard](https://github.com/turinglambdaai/turinglambdaai.github.io/blob/master/docs/PRODUCT-STANDARD.md). Hardware, native-platform and live-payment gates remain explicit; this documentation update does not claim they passed.
+
+## Feedback and diagnostics
+
+Report reproducible bugs and feature requests through [GitHub Issues](https://github.com/turinglambdaai/movebit/issues). Include the release, OS/architecture and steps; inspect and redact diagnostics before sharing. Do not post API keys, license files, vault contents or private documents. For sensitive security reports, follow SECURITY.md when present; otherwise request a private contact route without disclosing sensitive details. Nothing is uploaded automatically.
