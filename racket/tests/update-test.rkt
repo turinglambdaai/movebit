@@ -396,7 +396,7 @@
   (case (upd:platform-symbol)
     [(macos) (check-equal? (upd:install-kind) 'portable)]
     [(linux) (check-false (upd:install-kind))]
-    [else (check-true (memq (upd:install-kind) '(msi portable)))])
+    [else (check-not-false (memq (upd:install-kind) '(msi portable)))])
   ;; The Program Files prefix decision (pure): with ProgramFiles set, an
   ;; install under it is the MSI shape and one beside it is not.
   (dynamic-wind

@@ -653,8 +653,7 @@ void MainWindow::HandleUpdateFailureMarker() {
                                std::istreambuf_iterator<char>());
             std::filesystem::remove(marker, ec);
             w->ShowUpdateErrorHint(winrt::to_hstring(
-                l10n::t("UpdFailed") + L" (" + winrt::to_hstring(reason) +
-                L")"));
+                l10n::t("UpdFailed") + " (" + reason + ")"));
           } catch (std::exception const& e) {
             w->SetStatus(e.what());
           } catch (...) {
