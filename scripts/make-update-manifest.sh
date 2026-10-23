@@ -62,16 +62,28 @@ cat > "$SCRIPT" <<RKT
 (define key-id "$KEY_ID")
 (define build (hash-ref (file->value (build-path (path->complete-path "$ROOT") "rivet.rktd")) 'build))
 
+;; Rivet main added a trailing component discriminator to update-artifact
+;; (rivet/distribution/manifest.rkt): one feed may carry several installables
+;; per platform, and the client selects by component. MoveBit ships plain
+;; component-less artifacts, so append #f when the linked rivet's constructor
+;; takes it (the v0.12.0 pin does; older pins predate the field) — the same
+;; arity branch racket/movebit/update.rkt makes for updater-config. No
+;; backticks in this comment: this block lives inside a bash heredoc, where
+;; they are command substitution, not quoting.
+(define artifact-tail
+  (if (equal? (procedure-arity update-artifact) 8) (list #f) '()))
+
 (define (artifact platform architecture file installer)
   (define path (build-path dist file))
   (unless (file-exists? path)
     (error 'make-update-manifest "missing installer: ~a" path))
-  (update-artifact platform architecture
+  (apply update-artifact platform architecture
                    (string-append base-url "/" file)
                    (sha256-file/hex path)
                    (file-size path)
                    installer
-                   '()))
+                   '()
+                   artifact-tail))
 
 (define manifest
   (update-manifest "site.jrtx.movebit"
