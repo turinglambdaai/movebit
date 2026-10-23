@@ -6,6 +6,12 @@ A desktop health companion that watches how long you **actually work** and gets 
 
 **English** · [中文](README.zh-CN.md)
 
+## Start here
+
+Free community application under MIT; no commercial activation or subscription. Desktop previews for macOS, Windows and Linux. Idle detection depends on the desktop session; unsupported Wayland sessions fall back to elapsed time.
+
+[Installation, first use, privacy, backup and recovery](docs/USER-GUIDE.md) · [简体中文](docs/USER-GUIDE.zh-CN.md)
+
 ## Why
 
 Most reminder tools lose the moment the notification becomes easy to dismiss. MoveBit is designed around a stronger contract:
@@ -131,15 +137,3 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 ## License
 
 [MIT](LICENSE)
-
-## Delivery priorities (2026-10-23)
-
-The current product review issue linked from AGENTS owns the next bounded slice and its acceptance scenarios. Follow the existing product specification and the [family delivery standard](https://github.com/turinglambdaai/turinglambdaai.github.io/blob/master/docs/PRODUCT-STANDARD.md). Hardware, native-platform and live-payment gates remain explicit; this documentation update does not claim they passed.
-
-## Feedback and diagnostics
-
-Report reproducible bugs and feature requests through [GitHub Issues](https://github.com/turinglambdaai/movebit/issues). Include the release, OS/architecture and steps; inspect and redact diagnostics before sharing. Do not post API keys, license files, vault contents or private documents. For sensitive security reports, follow SECURITY.md when present; otherwise request a private contact route without disclosing sensitive details. Nothing is uploaded automatically.
-
-## Product & pricing
-
-Free community utility. Read the complete [English pricing and product policy](PRICING.md) or [简体中文](PRICING.zh-CN.md) for target prices, free/paid boundaries and launch gates. This is a launch design, not a live offer; this documentation does not add payment restrictions to current development builds.
