@@ -151,6 +151,11 @@ MainWindow::MainWindow() {
       auto future = api_->flush_now();
       (void)future.wait_for(std::chrono::seconds(1));
     }
+    // A real close IS the quit: end the message loop explicitly instead of
+    // hoping last-window teardown ends the process (the taskly handoff
+    // exits the same way). Reaching this handler means the close was not
+    // cancelled — hiding to the tray never gets here.
+    winrt::Microsoft::UI::Xaml::Application::Current().Exit();
   });
   InitTray();
   ApplyTexts();
