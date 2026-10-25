@@ -166,11 +166,15 @@ struct AppState {
   bool overlay_skip_available = false;
   bool overlay_goodbye = false;
   bool overlay_completed_nudged = false;
+  // An emergency exit whose skip RPC never reached the backend; flushed on
+  // the next live tick so the break ends without re-locking the monitors.
+  bool overlay_pending_skip = false;
   std::string overlay_hint;
   GtkDrawingArea* overlay_ring{nullptr};
   GtkLabel* overlay_emoji{nullptr};
   GtkLabel* overlay_title{nullptr};
   GtkLabel* overlay_hint_label{nullptr};
+  GtkButton* overlay_emergency_button{nullptr};
   GtkButton* overlay_skip_button{nullptr};
 
   // Toast (bottom reminder card).
@@ -192,7 +196,8 @@ struct AppState {
   // Onboarding wizard.
   GtkWindow* onboarding_window{nullptr};
   int onboarding_page = 0;
-  std::string onboarding_mode = "standard";
+  // Fresh profiles start gentle: the strong modes are an explicit opt-in.
+  std::string onboarding_mode = "gentle";
   std::int64_t onboarding_water = 30;
   bool onboarding_sound = true;
   GtkStack* onboarding_stack{nullptr};
@@ -1742,6 +1747,9 @@ void apply_global_css() {
     .overlay-caption { font-size: 12.5px; color: #6E6884; }
     .overlay-skip { font-size: 13.5px; color: #8A849E; background: transparent;
                     border: 1px solid #3A3550; border-radius: 8px; padding: 7px 16px; }
+    .overlay-emergency { font-size: 13.5px; font-weight: 600; color: #CFC8E4;
+                         background: #1A1730; border: 1px solid #5A527A;
+                         border-radius: 8px; padding: 7px 16px; }
     .toast-bg { background: #FFFDFB; border-radius: 14px; border: 1px solid #E2DCCC; }
     .toast-title { font-size: 17px; font-weight: 600; color: #26241F; }
     .toast-line { font-size: 13.5px; color: #6E6A5E; }
@@ -1792,7 +1800,25 @@ void overlay_close_all() {
   g_state.overlay_emoji = nullptr;
   g_state.overlay_title = nullptr;
   g_state.overlay_hint_label = nullptr;
+  g_state.overlay_emergency_button = nullptr;
   g_state.overlay_skip_button = nullptr;
+}
+
+/// Emergency exit: tear the cover down FIRST so usable windows are back on
+/// every monitor even if the backend never answers; the skip is then
+/// best-effort (refresh_states_after_tick reconciles a lost skip when the
+/// backend returns).
+void overlay_emergency_exit() {
+  if (g_state.overlay_goodbye || g_state.overlay_windows.empty()) return;
+  overlay_close_all();
+  if (g_state.api == nullptr) {
+    g_state.overlay_pending_skip = true;
+    return;
+  }
+  (void)g_state.api->skip_break_async([](rivet_app::Result<void> r) {
+    bool const failed = !r.succeeded();
+    dispatch_ui([failed] { g_state.overlay_pending_skip = failed; });
+  });
 }
 
 void overlay_finish(bool completed) {
@@ -1805,6 +1831,9 @@ void overlay_finish(bool completed) {
     gtk_label_set_text(g_state.overlay_emoji, "💪");
     gtk_label_set_text(g_state.overlay_title, l10n::t("BrkDone").c_str());
     gtk_label_set_text(g_state.overlay_hint_label, l10n::t("BrkGoodbye").c_str());
+    if (g_state.overlay_emergency_button != nullptr) {
+      gtk_widget_set_visible(GTK_WIDGET(g_state.overlay_emergency_button), FALSE);
+    }
     if (g_state.overlay_skip_button != nullptr) {
       gtk_widget_set_visible(GTK_WIDGET(g_state.overlay_skip_button), FALSE);
     }
@@ -1933,6 +1962,7 @@ bool overlay_show(rivet_app::BreakState const& state,
   g_state.overlay_skip_available = false;
   g_state.overlay_goodbye = false;
   g_state.overlay_completed_nudged = false;
+  g_state.overlay_pending_skip = false;  // a new break is a fresh cycle
   g_state.overlay_hint = l10n::pick("CopyBreakHintPool", 10);
 
   for (guint i = 0; i < count; ++i) {
@@ -1973,14 +2003,40 @@ bool overlay_show(rivet_app::BreakState const& state,
     gtk_widget_set_visible(skip, FALSE);
     g_signal_connect(skip, "clicked", G_CALLBACK(on_overlay_skip), nullptr);
 
+    // Immediate, visible, keyboard- and AT-reachable exit — independent of
+    // the backend connection.
+    auto* emergency = gtk_button_new_with_label(l10n::t("BrkEmergency").c_str());
+    gtk_widget_add_css_class(emergency, "overlay-emergency");
+    g_signal_connect(emergency, "clicked",
+                     G_CALLBACK(+[](GtkButton*, gpointer) { overlay_emergency_exit(); }),
+                     nullptr);
+
     box_append(GTK_BOX(root), emoji);
     box_append(GTK_BOX(root), title);
     box_append(GTK_BOX(root), ring);
     box_append(GTK_BOX(root), hint);
     box_append(GTK_BOX(root), caption);
+    box_append(GTK_BOX(root), emergency);
     box_append(GTK_BOX(root), skip);
     box_append(GTK_BOX(root), until);
     gtk_window_set_child(GTK_WINDOW(window), root);
+
+    // Escape exits immediately. The key controller lives on the window, so it
+    // fires no matter which child holds focus.
+    auto* exit_key = gtk_event_controller_key_new();
+    g_signal_connect(
+        exit_key, "key-pressed",
+        G_CALLBACK(+[](GtkEventControllerKey*, guint keyval, guint, GdkModifierType,
+                       gpointer) -> gboolean {
+          if (keyval == GDK_KEY_Escape) {
+            overlay_emergency_exit();
+            return TRUE;
+          }
+          return FALSE;
+        }),
+        nullptr);
+    gtk_widget_add_controller(GTK_WIDGET(window), exit_key);
+
     gtk_window_present(GTK_WINDOW(window));
 
     if (i == 0) {
@@ -1988,6 +2044,7 @@ bool overlay_show(rivet_app::BreakState const& state,
       g_state.overlay_emoji = GTK_LABEL(emoji);
       g_state.overlay_title = GTK_LABEL(title);
       g_state.overlay_hint_label = GTK_LABEL(hint);
+      g_state.overlay_emergency_button = GTK_BUTTON(emergency);
       g_state.overlay_skip_button = GTK_BUTTON(skip);
     }
     g_state.overlay_windows.push_back(GTK_WINDOW(window));
@@ -2320,6 +2377,26 @@ void refresh_states_after_tick() {
         on_result(std::move(r),
                   [](std::optional<rivet_app::BreakState> const& b) {
                     g_state.model.break_active = b;
+                    // A live tick proves the backend is back: finish a
+                    // remembered emergency exit — retry the skip while the
+                    // backend still holds the break, drop it once the break
+                    // ended on its own (a skip on no break is a harmless
+                    // backend no-op).
+                    if (g_state.overlay_pending_skip) {
+                      if (g_state.model.break_active.has_value()) {
+                        if (g_state.api != nullptr) {
+                          (void)g_state.api->skip_break_async(
+                              [](rivet_app::Result<void> r2) {
+                                bool const failed = !r2.succeeded();
+                                dispatch_ui([failed] {
+                                  g_state.overlay_pending_skip = failed;
+                                });
+                              });
+                        }
+                      } else {
+                        g_state.overlay_pending_skip = false;
+                      }
+                    }
                   });
       });
 }
@@ -2459,7 +2536,7 @@ void onboarding_show(GtkApplication* app) {
   }
   auto& s = g_state;
   s.onboarding_page = 0;
-  s.onboarding_mode = "standard";
+  s.onboarding_mode = "gentle";
   s.onboarding_water = 30;
   s.onboarding_sound = true;
 

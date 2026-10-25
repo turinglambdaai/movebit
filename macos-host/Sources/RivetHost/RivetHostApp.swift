@@ -289,6 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installOverlayControllers(model: MoveBitModel) {
         let overlays = BreakOverlayController()
         overlays.onSkip = { [weak self] in self?.model?.skipBreak() }
+        overlays.onEmergencyExit = { [weak self] in self?.model?.emergencySkipBreak() }
         overlays.onComplete = { [weak self] in self?.model?.completeBreak() }
         overlays.hintProvider = { L10n.pick(CopyPool.breakHints.0, CopyPool.breakHints.1) }
         overlayController = overlays

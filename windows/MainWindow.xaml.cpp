@@ -478,6 +478,15 @@ void MainWindow::HandleRemindersDue(rivet_app::RemindersDue const& due) {
       (void)self->api_->skip_break_async([](rivet_app::Result<void>) {});
     }
   };
+  overlay_.on_emergency_exit = [weak] {
+    if (auto self = weak.get()) {
+      if (self->api_ == nullptr) {
+        self->model_.pending_break_skip = true;
+      } else {
+        self->EmergencySkipBreak();
+      }
+    }
+  };
   overlay_.on_complete = [weak] {
     if (auto self = weak.get()) {
       (void)self->api_->complete_break_async([](rivet_app::Result<void>) {});
@@ -493,9 +502,50 @@ void MainWindow::HandleRemindersDue(rivet_app::RemindersDue const& due) {
   toast_.Show(title, lines, accent, due.kinds, model_.config.snooze_minutes);
 }
 
+void MainWindow::EmergencySkipBreak() {
+  auto const weak = get_weak();
+  (void)api_->skip_break_async([weak](rivet_app::Result<void> r) {
+    if (auto self = weak.get()) {
+      bool const failed = !r.succeeded();
+      self->dispatcher_.TryEnqueue([weak, failed] {
+        if (auto w = weak.get()) {
+          // The backend never heard about the exit; remember and reconcile.
+          w->model_.pending_break_skip = failed;
+        }
+      });
+    }
+  });
+}
+
+void MainWindow::ReconcilePendingBreakSkip() {
+  if (!model_.pending_break_skip) return;
+  if (model_.break_active.has_value()) {
+    // The backend still holds the break: finish the remembered exit so the
+    // sit cycle is snoozed instead of instantly re-locking the displays.
+    EmergencySkipBreak();
+  } else {
+    // The break already ended backend-side (expiry watchdog); nothing to do.
+    model_.pending_break_skip = false;
+  }
+}
+
 void MainWindow::RefreshStatesAfterTick() {
   if (api_ == nullptr) return;
   auto const weak = get_weak();
+  (void)api_->get_break_active_async(
+      [weak](rivet_app::Result<std::optional<rivet_app::BreakState>> r) {
+        if (auto self = weak.get()) {
+          self->dispatcher_.TryEnqueue([weak, r] {
+            if (auto w = weak.get()) {
+              try {
+                if (r.succeeded()) w->model_.break_active = r.get();
+              } catch (std::exception const&) {
+              }
+              w->ReconcilePendingBreakSkip();
+            }
+          });
+        }
+      });
   (void)api_->get_loops_async([weak](rivet_app::Result<
                                      std::vector<rivet_app::LoopInfo>> r) {
     if (auto self = weak.get()) {

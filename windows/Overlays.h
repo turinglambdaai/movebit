@@ -153,9 +153,13 @@ inline void apply_window_icon(Window const& window) {
 }  // namespace
 
 // ---- forced break overlay ----------------------------------------------------
-// One fullscreen dark window per display; countdown text + progress bar; the
-// delayed Skip is the only control. Completed runs the droplet goodbye; the
-// scheduler stays authoritative for break-ended (watchdog closes at +5 s).
+// One fullscreen dark window per display; countdown text + progress bar. Two
+// separate exits: an immediate emergency exit (Esc accelerator or the
+// always-visible button) that closes every window locally before the backend
+// hears about it — the cover never outlives the user's say-so, even with the
+// RPC connection gone — and the delayed ordinary Skip, which goes through the
+// backend as before. Completed runs the droplet goodbye; the scheduler stays
+// authoritative for break-ended (watchdog closes at +5 s).
 
 struct BreakOverlay {
   std::vector<Window> windows;
@@ -163,12 +167,14 @@ struct BreakOverlay {
   Controls::TextBlock hint_text{nullptr};
   Controls::TextBlock countdown_text{nullptr};
   Controls::ProgressBar ring_bar{nullptr};
+  Controls::Button emergency_button{nullptr};
   Controls::Button skip_button{nullptr};
   rivet_app::BreakState state{};
   std::int64_t total_sec = 0;
   bool completed_nudged = false;
   bool goodbye = false;
   std::function<void()> on_skip;
+  std::function<void()> on_emergency_exit;
   std::function<void()> on_complete;
   Microsoft::UI::Dispatching::DispatcherQueueTimer timer{nullptr};
   Microsoft::UI::Dispatching::DispatcherQueueTimer goodbye_timer{nullptr};
@@ -228,10 +234,33 @@ struct BreakOverlay {
         if (on_skip) on_skip();
       });
 
-      Controls::Grid bottom;
+      // Immediate, visible, keyboard- and AT-reachable exit — independent of
+      // the backend connection.
+      emergency_button = make_button(winrt::to_hstring(l10n::t("BrkEmergency")),
+                                     "#1A1730", "#CFC8E4", true);
+      emergency_button.BorderBrush(brush_from("#5A527A"));
+      emergency_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
+        EmergencyExit();
+      });
+
+      Controls::StackPanel bottom;
+      bottom.Orientation(Controls::Orientation::Horizontal);
       bottom.VerticalAlignment(VerticalAlignment::Bottom);
+      bottom.HorizontalAlignment(HorizontalAlignment::Center);
+      bottom.Spacing(12);
       bottom.Margin(Thickness{0, 0, 0, 48});
+      bottom.Children().Append(emergency_button);
       bottom.Children().Append(skip_button);
+
+      // Escape exits immediately, regardless of which element holds focus.
+      Controls::KeyboardAccelerator escape;
+      escape.Key(Windows::System::VirtualKey::Escape);
+      escape.Invoked([this](IInspectable const&,
+                            Controls::KeyboardAcceleratorInvokedEventArgs const& args) {
+        args.Handled(true);
+        EmergencyExit();
+      });
+      root.KeyboardAccelerators().Append(escape);
 
       root.Children().Append(center);
       root.Children().Append(bottom);
@@ -245,6 +274,15 @@ struct BreakOverlay {
     timer = make_timer(std::chrono::milliseconds(500), true, [this] { Tick(); });
     timer.Start();
     return true;
+  }
+
+  /// Emergency exit: tear the cover down FIRST so usable windows are back on
+  /// every display even if the backend never answers; the skip is then
+  /// best-effort (MainWindow reconciles a lost skip when the backend returns).
+  void EmergencyExit() {
+    if (goodbye || windows.empty()) return;
+    CloseAll();
+    if (on_emergency_exit) on_emergency_exit();
   }
 
   void Tick() {
@@ -282,6 +320,7 @@ struct BreakOverlay {
     title_text.Text(winrt::to_hstring(l10n::t("BrkDone")));
     hint_text.Text(winrt::to_hstring(l10n::t("BrkGoodbye")));
     countdown_text.Text(L"💪");
+    emergency_button.Visibility(Visibility::Collapsed);
     skip_button.Visibility(Visibility::Collapsed);
     ring_bar.Opacity(0.35);
     goodbye_timer = make_timer(std::chrono::milliseconds(950), false,
@@ -300,6 +339,7 @@ struct BreakOverlay {
     hint_text = {nullptr};
     countdown_text = {nullptr};
     ring_bar = {nullptr};
+    emergency_button = {nullptr};
     skip_button = {nullptr};
   }
 };

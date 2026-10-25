@@ -25,7 +25,7 @@
   (sit-reminder-minutes      ; 45 (10-240, UI step 5)
    water-reminder-minutes    ; 30 (5-180, UI step 5)
    away-reset-minutes        ; 5  (1-60)
-   force-break-enabled       ; #t
+   force-break-enabled       ; #f — opt-in: fresh profiles start gentle
    break-duration-minutes    ; 5  (1-30)
    skip-after-seconds        ; 20 (0-120, UI step 5)
    snooze-minutes            ; 10 (5-60, UI step 5)
@@ -38,8 +38,11 @@
    language)                 ; "auto" | "zh" | "en"
   #:transparent)
 
+;; A fresh profile never starts in an unescapable fullscreen mode: gentle,
+;; non-blocking reminders until the user explicitly opts into forced breaks
+;; (onboarding strong-mode cards or the settings switch).
 (define (default-config)
-  (reminder-config 45 30 5 #t 5 20 10 #t 30 20 #t #t #f "auto"))
+  (reminder-config 45 30 5 #f 5 20 10 #t 30 20 #t #t #f "auto"))
 
 (define (clamp v lo hi) (min (max v lo) hi))
 
@@ -101,7 +104,10 @@
       (int-field 'SitReminderMinutes 45 10 240)
       (int-field 'WaterReminderMinutes 30 5 180)
       (int-field 'AwayResetMinutes 5 1 60)
-      (bool-field 'ForceBreakEnabled #t)
+      ;; Missing key = never seen a choice: default gentle. A persisted file
+      ;; always carries the key explicitly (config->jsexpr writes every field),
+      ;; so an upgrade never silently flips an existing preference.
+      (bool-field 'ForceBreakEnabled #f)
       (int-field 'BreakDurationMinutes 5 1 30)
       (int-field 'SkipAfterSeconds 20 0 120)
       (int-field 'SnoozeMinutes 10 5 60)

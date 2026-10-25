@@ -19,7 +19,9 @@ using namespace winrt::Microsoft::UI::Xaml;
 struct OnboardingWizard {
   Window window{nullptr};
   int page = 0;
-  std::string mode = "standard";
+  // Fresh profiles start gentle: the strong modes are an explicit opt-in
+  // (selecting the Standard/Strict card), never a silent default.
+  std::string mode = "gentle";
   std::int64_t water = 30;
   bool sound = true;
 
@@ -332,7 +334,8 @@ struct OnboardingWizard {
   }
 
   void SkipToDefaults() {
-    mode = "standard";
+    // Skip = the gentle shipped defaults; fullscreen breaks stay opt-in.
+    mode = "gentle";
     water = 30;
     sound = true;
     finished_ = true;

@@ -41,16 +41,18 @@
            (remove* en-keys zh-keys)
            (remove* zh-keys en-keys)))
 
-;; Contract: 180 keys = the 179 UI strings plus one structured `copy` section
+;; Contract: 182 keys = the 181 UI strings plus one structured `copy` section
 ;; holding the BreakCopy pools verbatim. (The count had drifted — the
 ;; foundation round's About/copy-error keys landed without bumping 156;
 ;; re-pinned alongside the update-flow keys; the AppKit main-menu keys
-;; re-pinned it again.)
+;; re-pinned it again; the update-flow keys drifted it once more unnoticed
+;; because nothing invokes this check in CI; brk.emergency, issue 49,
+;; re-pinned it to the counted truth.)
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
-(unless (= (length ui-keys) 179)
+(unless (= (length ui-keys) 181)
   (set! failed? #t)
-  (eprintf "expected 179 UI keys, got ~a~n" (length ui-keys)))
+  (eprintf "expected 181 UI keys, got ~a~n" (length ui-keys)))
 (unless (and (>= (length copy-keys) 7)
              (hash-has-key? (hash-ref zh 'copy) 'celebrateAt))
   (set! failed? #t)
@@ -78,4 +80,4 @@
     (eprintf "copy.celebrateAt must be [3, 5, 8]~n")))
 
 (when failed? (exit 1))
-(printf "i18n OK: 180 contract keys (179 UI + copy), pools verbatim, zh/en parity~n")
+(printf "i18n OK: 182 contract keys (181 UI + copy), pools verbatim, zh/en parity~n")

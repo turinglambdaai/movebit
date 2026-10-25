@@ -84,6 +84,18 @@
   (check-equal? (oh-reminders oh) '()) ; water due the same tick was swallowed
   (check-true (orchestrator-break-active? (orch-harness-o oh))))
 
+;; A FRESH profile (the shipped default-config, no user choice yet) never
+;; enters the fullscreen mode: sit due lands as an ordinary toast.
+(let ([oh (make-oh)]
+      [fresh (default-config)])
+  (check-false (reminder-config-force-break-enabled fresh))
+  (set-scheduler-config! (h-scheduler (orch-harness-h oh)) fresh)
+  (oh-step-minutes! oh 45) ; water+micro merge at 30, sit at 45 — no lock
+  (check-equal? (oh-breaks-started oh) '())
+  (check-false (orchestrator-break-active? (orch-harness-o oh)))
+  (check-equal? (oh-reminders oh)
+                (list (cons '(water micro) #t) (cons '(sit) #f))))
+
 ;; break-started carries the configured duration and skip delay.
 (let ([oh (make-oh #:sit 10 #:force-break #t #:break-duration 7 #:skip-after 30)])
   (oh-step-minutes! oh 10)

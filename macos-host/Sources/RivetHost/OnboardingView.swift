@@ -6,7 +6,9 @@ import AppKit
 @MainActor
 final class OnboardingState: ObservableObject {
     @Published var page = 0
-    @Published var mode = "standard"
+    /// Fresh profiles start gentle: the strong modes are an explicit opt-in
+    /// (selecting the Standard/Strict card), never a silent default.
+    @Published var mode = "gentle"
     @Published var water: Int64 = 30
     @Published var sound = true
     var finished = false
@@ -249,9 +251,10 @@ struct OnboardingView: View {
         }
     }
 
-    /// Skip = plain defaults, as if the user never touched anything.
+    /// Skip = the gentle shipped defaults, as if the user opted out of
+    /// everything non-blocking. Fullscreen breaks stay opt-in.
     private func skipToDefaults() {
-        state.mode = "standard"
+        state.mode = "gentle"
         state.water = 30
         state.sound = true
         finish()
