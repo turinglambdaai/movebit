@@ -253,10 +253,11 @@ struct BreakOverlay {
       bottom.Children().Append(skip_button);
 
       // Escape exits immediately, regardless of which element holds focus.
-      Controls::KeyboardAccelerator escape;
+      // KeyboardAccelerator lives in Xaml::Input in WinUI 3.
+      Input::KeyboardAccelerator escape;
       escape.Key(Windows::System::VirtualKey::Escape);
       escape.Invoked([this](IInspectable const&,
-                            Controls::KeyboardAcceleratorInvokedEventArgs const& args) {
+                            Input::KeyboardAcceleratorInvokedEventArgs const& args) {
         args.Handled(true);
         EmergencyExit();
       });
