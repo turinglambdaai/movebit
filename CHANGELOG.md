@@ -1,5 +1,53 @@
 # Changelog
 
+## [Unreleased]
+
+**Rollout note: this is the interaction-contract slice (issue #49) — user
+control comes first, then the health reminder.** Fresh profiles no longer
+start in the fullscreen mode, a strong-mode break can always be left
+immediately by keyboard, and leaving one never re-locks the displays.
+
+### Changed
+
+- **Fresh profiles start gentle.** `default-config` ships
+  `force-break-enabled = false`, and a config file with no recorded
+  `ForceBreakEnabled` choice now also falls back to gentle — fullscreen
+  breaks are an explicit opt-in through the onboarding cards or the settings
+  switch. A persisted explicit choice is never silently overwritten (files
+  written by any earlier version carry the key, so upgrades keep their
+  preference). The first-run wizard starts on the gentle card, and
+  "Skip, use defaults" now means the gentle defaults; the Standard/Strict
+  cards say "Opt in" and explain the fullscreen contract plus the Esc exit.
+- **Every fullscreen break has an immediate emergency exit.** All three
+  hosts grew an always-visible "Emergency exit" button and an Escape key
+  path that tear the cover down locally first, so usable windows are back
+  on every display even when the backend never answers; the delayed
+  ordinary Skip stays a separate control. The macOS overlay installs local
+  and global key monitors (it never steals focus, so Esc is caught wherever
+  focus lives), Windows binds an Escape keyboard accelerator on the overlay
+  root, and the GTK overlay puts a key controller on every overlay window.
+- **Leaving a break reconciles without instant re-locking.** An emergency
+  exit that the backend missed (skip RPC failed or the engine was
+  unreachable) is remembered as a pending skip and flushed on the next live
+  tick: retried while the backend still holds the break, dropped once the
+  break has expired on its own. Skip semantics remain "snooze the sit
+  cycle", so nothing re-locks the moment the engine returns.
+
+### Added
+
+- **Reduced-motion and screen-reader handling on the macOS break cover.**
+  The decorative halo pulse and the goodbye transition honor
+  accessibilityDisplayShouldReduceMotion, and the decorative ring is hidden
+  from assistive tech; both overlay buttons keep their ordinary accessible
+  labels. The Windows and Linux covers carry no self-initiated motion.
+- **User-guide contract for break screens.** The paired USER-GUIDE
+  documents the gentle default, the opt-in strong modes, the always-on
+  emergency exit, backend-failure behavior and reduced motion
+  (USER-GUIDE.md / USER-GUIDE.zh-CN.md).
+- The i18n single-source checker's drifted UI-key pin is re-pinned to the
+  counted truth (181 UI keys, `brk.emergency` included); nothing invoked
+  the checker in CI, so a 0.5.0-era key had landed unnoticed.
+
 ## [0.5.0] - 2026-10-22
 
 **Rollout note: this is the release where in-app updates meet every install

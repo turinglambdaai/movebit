@@ -88,6 +88,10 @@ struct MainWindow : MainWindowT<MainWindow> {
   void HandleRemindersDue(rivet_app::RemindersDue const& due);
   void ApplyConfig(rivet_app::ReminderConfig const& changed, bool announce);
   void RefreshStatesAfterTick();
+  // Emergency exit reconciliation: the skip RPC failed backend-side, so the
+  // intent is retried on live ticks until the break ends without re-locking.
+  void EmergencySkipBreak();
+  void ReconcilePendingBreakSkip();
   void ReloadHistory();
   void ReloadAutostart();
   void ReloadDataDir();

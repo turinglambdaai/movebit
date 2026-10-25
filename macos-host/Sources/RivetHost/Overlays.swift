@@ -2,9 +2,11 @@ import SwiftUI
 import AppKit
 
 // MARK: - forced break overlay
-// One fullscreen window per screen at screenSaver level; the only user-facing
-// control is the delayed Skip button. No Esc/keyboard cancel (the overlay is
-// the point).
+// One fullscreen window per screen at screenSaver level. Two separate exits:
+// an immediate emergency exit (Esc or the always-visible button) that tears
+// the cover down locally before the backend hears about it — the cover never
+// outlives the user's say-so, even with the RPC connection gone — and the
+// delayed ordinary Skip, which goes through the backend as before.
 
 @MainActor
 final class BreakOverlayController: ObservableObject {
@@ -15,10 +17,12 @@ final class BreakOverlayController: ObservableObject {
     @Published var hint = ""
 
     var onSkip: (() -> Void)?
+    var onEmergencyExit: (() -> Void)?
     var onComplete: (() -> Void)?
     var hintProvider: (() -> String)?
 
     private var windows: [NSWindow] = []
+    private var keyMonitors: [Any] = []
     private var state: BreakState?
     private var running = false
     private var completedNudged = false
@@ -62,7 +66,52 @@ final class BreakOverlayController: ObservableObject {
             window.orderFrontRegardless()
             windows.append(window)
         }
+        installKeyMonitors()
         return true
+    }
+
+    /// Emergency exit: tear the cover down FIRST so usable windows are back on
+    /// every display even if the backend never answers; the skip is then
+    /// best-effort (the model reconciles a lost skip when the backend returns).
+    func emergencyExit() {
+        guard running, !windows.isEmpty else { return }
+        closeAll()
+        onEmergencyExit?()
+    }
+
+    /// Escape works whether or not the overlay holds key focus: the local
+    /// monitor covers events addressed to this app, the global one covers
+    /// keys sent to whatever app held focus when the cover appeared (this
+    /// overlay never steals focus). Secure Input elsewhere suppresses global
+    /// delivery — the always-visible emergency button stays as the fallback.
+    private func installKeyMonitors() {
+        removeKeyMonitors()
+        if let local = NSEvent.addLocalMonitorForEvents(matching: .keyDown,
+                                                        handler: { [weak self] event in
+            guard event.keyCode == 53 else { return event } // Escape
+            if let self {
+                MainActor.assumeIsolated { self.emergencyExit() }
+            }
+            return nil
+        }) {
+            keyMonitors.append(local)
+        }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: .keyDown,
+                                                          handler: { [weak self] event in
+            guard event.keyCode == 53 else { return }
+            if let self {
+                MainActor.assumeIsolated { self.emergencyExit() }
+            }
+        }) {
+            keyMonitors.append(global)
+        }
+    }
+
+    private func removeKeyMonitors() {
+        for monitor in keyMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        keyMonitors.removeAll()
     }
 
     /// Break ended: completed runs the droplet goodbye, skip just closes.
@@ -80,6 +129,7 @@ final class BreakOverlayController: ObservableObject {
     }
 
     func closeAll() {
+        removeKeyMonitors()
         for window in windows {
             window.orderOut(nil)
         }
@@ -142,7 +192,9 @@ private struct BreakOverlayContent: View {
                     .font(.system(size: controller.goodbye ? 56 : 64))
                     .opacity(controller.goodbye ? 0 : 1)
                     .offset(y: controller.goodbye ? -60 : 0)
-                    .animation(.easeIn(duration: 0.6), value: controller.goodbye)
+                    .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                            ? nil : .easeIn(duration: 0.6),
+                        value: controller.goodbye)
                 Text(controller.goodbye ? L10n.t("BrkDone") : L10n.t("BrkTitle"))
                     .font(.system(size: 30, weight: .semibold))
                     .foregroundColor(Color(hex: "#F0EEE6"))
@@ -156,20 +208,33 @@ private struct BreakOverlayContent: View {
                     .foregroundColor(Color(hex: "#6E6884"))
             }
 
-            if controller.skipAvailable && !controller.goodbye {
+            if !controller.goodbye {
                 VStack {
                     Spacer()
-                    Button(L10n.t("BrkSkip", "\(snoozeMinutes)")) { controller.onSkip?() }
+                    // Immediate, visible, keyboard- and AT-reachable exit —
+                    // independent of the backend connection.
+                    Button(L10n.t("BrkEmergency")) { controller.emergencyExit() }
                         .buttonStyle(.plain)
-                        .font(.system(size: 13.5))
-                        .foregroundColor(Color(hex: "#8A849E"))
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundColor(Color(hex: "#CFC8E4"))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 7)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color(hex: "#3A3550"), lineWidth: 1))
-                        .padding(.bottom, 48)
+                                .strokeBorder(Color(hex: "#5A527A"), lineWidth: 1))
+                    if controller.skipAvailable {
+                        Button(L10n.t("BrkSkip", "\(snoozeMinutes)")) { controller.onSkip?() }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 13.5))
+                            .foregroundColor(Color(hex: "#8A849E"))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 7)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(Color(hex: "#3A3550"), lineWidth: 1))
+                    }
                 }
+                .padding(.bottom, 48)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -180,12 +245,13 @@ private struct BreakOverlayContent: View {
         let fraction = controller.totalSec > 0
             ? Double(controller.remainingSec) / Double(controller.totalSec) : 0
         let sand = Color(hex: "#E8B77A")
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         return ZStack {
             Circle()
                 .stroke(sand.opacity(haloPulse ? 1 : 0.35), lineWidth: 2)
                 .frame(width: 300, height: 300)
-                .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true),
-                           value: haloPulse)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 2)
+                    .repeatForever(autoreverses: true), value: haloPulse)
             Circle()
                 .stroke(Color(hex: "#2A2840"), lineWidth: 10)
                 .frame(width: 270, height: 270)
@@ -213,7 +279,9 @@ private struct BreakOverlayContent: View {
                 .opacity(controller.goodbye ? 0 : 1)
         }
         .frame(width: 300, height: 300)
-        .onAppear { haloPulse = true }
+        // The pulsing halo is decorative; reduced motion keeps the ring static.
+        .onAppear { haloPulse = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+        .accessibilityHidden(true)
     }
 
     private func timeString(_ seconds: Int) -> String {

@@ -17,7 +17,7 @@ Free community application under MIT; no commercial activation or subscription. 
 Most reminder tools lose the moment the notification becomes easy to dismiss. MoveBit is designed around a stronger contract:
 
 - **Track active work instead of blindly counting wall-clock time.** Session-wide idle detection is available on Windows, macOS, Linux/X11, and mainstream Wayland sessions. Wayland uses GNOME/Mutter IdleMonitor or the freedesktop ScreenSaver session-bus API when the desktop exposes one; otherwise MoveBit deliberately falls back to elapsed time instead of inventing idle data.
-- **Make long breaks intentional.** Sit reminders can cover every connected display with a topmost countdown. The skip button appears only after a configurable delay (20 seconds by default).
+- **Make long breaks intentional, and never inescapable.** Fullscreen breaks are an explicit opt-in — fresh profiles start with gentle toasts — and every break cover carries an immediately available emergency exit (<kbd>Esc</kbd> or a visible button) that restores all displays even if the reminder engine is unreachable. The ordinary skip stays delayed (20 seconds by default).
 - **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return. Completing a forced break does the same, and the break itself is never counted as active work.
 - **Show patterns, not just today's number.** The main window can switch between 7-day and 30-day activity history and tracks continuous-work streaks, recent longest sessions, active-day averages, and the busiest recent day.
 - **Ship native installers and portable archives for every supported desktop.** Windows gets an MSI plus a portable ZIP, macOS gets a DMG plus a portable ZIP on both Apple silicon and Intel, and Linux gets a portable tar.gz and zip plus a deb, an rpm, and an AppImage.
@@ -37,13 +37,13 @@ The Racket runtime is statically linked into each host — no external interpret
 ## Features
 
 - ⏱️ **Active-work monitoring** — Windows `GetLastInputInfo`, macOS CoreGraphics, Linux/X11 XScreenSaver, Wayland session-bus backends where available
-- 🚨 **Forced breaks** — full-screen, multi-monitor break cover with countdown; delayed skip
+- 🚨 **Forced breaks** — opt-in full-screen, multi-monitor break cover with countdown; delayed skip plus an immediate <kbd>Esc</kbd> emergency exit
 - 👀 **Micro breaks** — short screen-center "stand up / look far away" nudges, no lock and no sound
 - 💧 **Water reminders** — lightweight toasts on their own interval
 - 📊 **7 / 30-day history** — switchable activity chart backed by up to 370 days of persisted history
 - 🧠 **Work-pattern insights** — current continuous session, today's/recent longest session, active-day average, busiest recent day
 - 🌓 **中文 / English** — switched in app or resolved from the system UI language
-- 🧙 **First-run onboarding** — choose gentle / standard / strict behavior before forced breaks are enabled
+- 🧙 **First-run onboarding** — gentle by default; Standard / Strict cards are the explicit opt-in to fullscreen breaks
 - 🔁 **Autostart on login** — Windows registry / macOS LaunchAgent / Linux XDG autostart, owned by the backend
 - ⏸️ **Pause for one hour** — with exact pause-expiry accounting
 - 🔒 **Single-instance activation** — relaunching surfaces the existing instance instead of duplicating it
@@ -95,7 +95,7 @@ Settings live in `%APPDATA%\movebit\config.json` on Windows or the platform appl
 | Sit reminder interval | 45 | 10–240 min |
 | Water reminder interval | 30 | 5–180 min |
 | Away reset | 5 | 1–60 min |
-| Force break | on | — |
+| Force break | off (opt-in) | — |
 | Break duration | 5 | 1–30 min |
 | Skip delay | 20 | 0–120 s |
 | Snooze | 10 | 5–60 min |

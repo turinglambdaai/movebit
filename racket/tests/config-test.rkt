@@ -75,8 +75,46 @@
   (check-equal? (reminder-config-sit-reminder-minutes actual) 45)
   (check-equal? (reminder-config-water-reminder-minutes actual) 30)
   (check-equal? (reminder-config-snooze-minutes actual) 10)
-  (check-true (reminder-config-force-break-enabled actual))
+  (check-false (reminder-config-force-break-enabled actual))
   (check-true (reminder-config-auto-check-updates actual))
+  (delete-directory/files dir))
+
+;; Fresh_profile_defaults_to_gentle_no_forced_breaks
+(let* ([dir (make-temp-dir "fresh")]
+       [fresh (default-config)])
+  (check-false (reminder-config-force-break-enabled fresh))
+  (save-config dir fresh)
+  ;; A round-tripped fresh profile keeps force-break off.
+  (check-false (reminder-config-force-break-enabled (load-config dir)))
+  (delete-directory/files dir))
+
+;; Partial_legacy_file_without_force_key_stays_gentle
+(let* ([dir (make-temp-dir "noforcekey")]
+       [path (build-path dir "config.json")])
+  (display-to-file #<<EOF
+{
+  "SitReminderMinutes": 60,
+  "WelcomeShown": true
+}
+EOF
+                   path)
+  ;; No ForceBreakEnabled key = no recorded choice; the gentle default wins.
+  (check-false (reminder-config-force-break-enabled (load-config dir)))
+  (delete-directory/files dir))
+
+;; Explicit_opt_in_survives_upgrade
+(let* ([dir (make-temp-dir "optin")]
+       [path (build-path dir "config.json")])
+  (display-to-file #<<EOF
+{
+  "SitReminderMinutes": 45,
+  "ForceBreakEnabled": true,
+  "WelcomeShown": true
+}
+EOF
+                   path)
+  ;; A recorded preference is never silently overwritten.
+  (check-true (reminder-config-force-break-enabled (load-config dir)))
   (delete-directory/files dir))
 
 ;; Config_from_before_snooze_setting_uses_default_delay

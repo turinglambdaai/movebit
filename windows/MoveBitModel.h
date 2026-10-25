@@ -179,8 +179,11 @@ inline InsightSummary insight_summary(Slices const& slices) {
 }
 
 struct Model {
+  // Pre-bootstrap placeholder = the gentle shipped default; the backend
+  // overwrites it with the real persisted config right after init.
   rivet_app::ReminderConfig config{
-      45, 30, 5, true, 5, 20, 10, true, 30, 20, true, true, false, "auto"};
+      45, 30, 5, false, 5, 20, 10, true, 30, 20, true, true, false, "auto"};
+  bool pending_break_skip = false;
   rivet_app::DayStats today{"", 0, 0, 0, 0, 0};
   rivet_app::PauseState paused{false, std::nullopt};
   std::vector<rivet_app::LoopInfo> loops;

@@ -90,7 +90,9 @@ final class MoveBitModel: ObservableObject {
                                     longest_session_mins: 0)
     @Published var config = ReminderConfig(
         sit_reminder_minutes: 45, water_reminder_minutes: 30, away_reset_minutes: 5,
-        force_break_enabled: true, break_duration_minutes: 5, skip_after_seconds: 20,
+        // Pre-bootstrap placeholder = the gentle shipped default; the backend
+        // overwrites it with the real persisted config right after init.
+        force_break_enabled: false, break_duration_minutes: 5, skip_after_seconds: 20,
         snooze_minutes: 10, micro_break_enabled: true, micro_break_interval_minutes: 30,
         micro_break_duration_seconds: 20, sound_enabled: true, auto_check_updates: true,
         welcome_shown: false, language: "auto")
@@ -116,6 +118,9 @@ final class MoveBitModel: ObservableObject {
 
     private var backend: EmbeddedRacketBackend?
     private var language = "auto"
+    /// An emergency exit whose skip RPC never reached the backend; flushed on
+    /// the next live tick so the break ends without re-locking the displays.
+    private var pendingBreakSkip = false
 
     var resolvedLanguage: String {
         if language == "auto" {
@@ -216,6 +221,7 @@ final class MoveBitModel: ObservableObject {
                     if let l = try? await api.get_loops() { loops = l }
                     if let p = try? await api.get_paused() { paused = p }
                     if let b = try? await api.get_break_active() { breakActive = b }
+                    reconcilePendingBreakSkip()
                 }
             }
         case .reminders_due(let due):
@@ -323,6 +329,40 @@ final class MoveBitModel: ObservableObject {
     func skipBreak() {
         guard let api = api() else { return }
         Task { try? await api.skip_break() }
+    }
+
+    /// Emergency exit: the host already tore the cover down locally, so the
+    /// displays are usable no matter what happens here. This only tells the
+    /// backend (skip semantics = snooze sit, no instant re-lock); when the
+    /// backend is unreachable the intent is remembered and flushed by the
+    /// next live tick (reconcilePendingBreakSkip).
+    func emergencySkipBreak() {
+        guard let api = api() else {
+            pendingBreakSkip = true
+            return
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await api.skip_break()
+                self.pendingBreakSkip = false
+            } catch {
+                self.pendingBreakSkip = true
+            }
+        }
+    }
+
+    /// A live tick proves the backend is back: finish a remembered emergency
+    /// exit — retry the skip while the backend still holds the break, drop it
+    /// once the break has ended on its own. Skip on a finished break is a
+    /// harmless no-op backend-side.
+    private func reconcilePendingBreakSkip() {
+        guard pendingBreakSkip else { return }
+        if breakActive != nil {
+            emergencySkipBreak()
+        } else {
+            pendingBreakSkip = false
+        }
     }
 
     /// Host countdown reached zero: the scheduler stays authoritative, this only
