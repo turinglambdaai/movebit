@@ -297,12 +297,14 @@ struct MubiCompanion {
       cup.Children().Append(
           path_shape(L"M -4.6 -6.5 L 4.4 -6.5 L 3.6 1.5 L -4 1.5 Z",
                      solid("#8FCBFF", 0.85)));
-      cup.RenderTransform(Media::CompositeTransform{}
-                              .TranslateX(97)
-                              .TranslateY(51)
-                              .Rotation(-10)
-                              .ScaleX(0.9)
-                              .ScaleY(0.9));
+      // WinRT setters return void — compose the transform explicitly.
+      auto cup_transform = Media::CompositeTransform{};
+      cup_transform.TranslateX(97);
+      cup_transform.TranslateY(51);
+      cup_transform.Rotation(-10);
+      cup_transform.ScaleX(0.9);
+      cup_transform.ScaleY(0.9);
+      cup.RenderTransform(cup_transform);
       canvas.Children().Append(cup);
     } else if (state == MubiState::Stand) {
       canvas.Children().Append(
