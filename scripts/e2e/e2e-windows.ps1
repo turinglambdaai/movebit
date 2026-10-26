@@ -14,6 +14,11 @@ function Save-Snapshot($Root,[string]$Path) { $nodes=$Root.FindAll([System.Windo
 $process=$null;$oldData=$env:MOVEBIT_DATA_DIR;$oldBootstrap=$env:MOVEBIT_BOOTSTRAP_DIR;$oldAcceptance=$env:MOVEBIT_ACCEPTANCE
 try { $env:MOVEBIT_DATA_DIR=$data;$env:MOVEBIT_BOOTSTRAP_DIR=$data;$env:MOVEBIT_ACCEPTANCE='1';$process=Start-Process -FilePath $exe.FullName -PassThru -WorkingDirectory $repo
   $desktop=[System.Windows.Automation.AutomationElement]::RootElement;$window=Wait-Until 'MoveBit window' { $c=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$process.Id);$desktop.FindFirst([System.Windows.Automation.TreeScope]::Children,$c) }
+  # The v1 app owns several windows (the pointer-through Mubi card, the main
+  # window, transient cue cards); probe EVERY process window for the backend
+  # state instead of assuming the first one is the main one.
+  # Acceptance mode creates exactly ONE window (the companion is gated off
+  # headless), so the R1-era probe on the first window is the proven form.
   try { [void](Wait-Until 'backend activity state' { Contains-Text $window 'Active today' }) } catch { Save-Snapshot $window (Join-Path $output 'accessibility-failure.json');throw }
   Save-Snapshot $window (Join-Path $output 'accessibility.json');[ordered]@{platform='windows';actions=@('launch:isolated-config');assertions=@('packaged WinUI window activated','RVT1 backend activity state reached native accessibility tree')} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'interaction-trace.json') -Encoding utf8
   $pattern=$window.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern);([System.Windows.Automation.WindowPattern]$pattern).Close();[void](Wait-Until 'process exit' {$process.Refresh();$process.HasExited} 30)

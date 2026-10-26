@@ -31,6 +31,16 @@ struct TrayUi {
   std::function<void()> on_pause_toggle;
   std::function<void()> on_check_updates;
   std::function<void()> on_exit;
+  // Mandatory reminder controls (#54): the companion is pointer-through, so
+  // Done / Later / Hide / Focus live here. Actions act on the newest open
+  // cue; they are only meaningful while a cue exists but stay enabled for
+  // simplicity — an action on no cue is a backend no-op.
+  std::function<void()> on_cue_done;
+  std::function<void()> on_cue_later;
+  std::function<void()> on_cue_hide;
+  std::function<void()> on_focus_toggle;
+  bool cue_open = false;
+  bool quiet = false;
 
   void Attach(winrt::Microsoft::UI::Xaml::Window const& window) {
     paused_ = false;
@@ -50,6 +60,13 @@ struct TrayUi {
     if (controller_) controller_->SetMenu(BuildMenu());
   }
 
+  void RefreshCueState(bool cue_open, bool quiet) {
+    if (cue_open_ == cue_open && quiet_ == quiet) return;
+    cue_open_ = cue_open;
+    quiet_ = quiet;
+    if (controller_) controller_->SetMenu(BuildMenu());
+  }
+
   void SetTooltip(std::wstring const& tooltip) {
     if (controller_) controller_->SetTooltip(tooltip);
   }
@@ -65,10 +82,16 @@ struct TrayUi {
     kMenuOpen = 1,
     kMenuPauseToggle = 2,
     kMenuCheckUpdates = 3,
-    kMenuExit = 4
+    kMenuExit = 4,
+    kMenuCueDone = 5,
+    kMenuCueLater = 6,
+    kMenuCueHide = 7,
+    kMenuFocusToggle = 8
   };
 
   bool paused_ = false;
+  bool cue_open_ = false;
+  bool quiet_ = false;
   std::unique_ptr<rivet::system::TrayController> controller_;
 
   static HICON LoadAppIcon() {
@@ -92,19 +115,34 @@ struct TrayUi {
         if (action) action();
       };
     };
-    return {
+    std::vector<TrayMenuItem> items = {
         TrayMenuItem(kMenuOpen, tray_wide(l10n::t("TrayOpen")),
                      bind(on_open)),
-        TrayMenuItem(kMenuPauseToggle,
-                     tray_wide(l10n::t(paused_ ? "TrayResume" : "TrayPause")),
-                     bind(on_pause_toggle)),
-        TrayMenuItem(TrayMenuItem::Type::separator),
-        TrayMenuItem(kMenuCheckUpdates,
-                     tray_wide(l10n::t("TrayCheckUpdate")),
-                     bind(on_check_updates)),
-        TrayMenuItem(kMenuExit, tray_wide(l10n::t("TrayExit")),
-                     bind(on_exit)),
     };
+    if (cue_open_) {
+      items.push_back(TrayMenuItem(
+          kMenuCueDone, tray_wide(l10n::t("TrayCueDone")), bind(on_cue_done)));
+      items.push_back(TrayMenuItem(
+          kMenuCueLater, tray_wide(l10n::t("TrayCueLater")),
+          bind(on_cue_later)));
+      items.push_back(TrayMenuItem(
+          kMenuCueHide, tray_wide(l10n::t("TrayCueHide")), bind(on_cue_hide)));
+    }
+    items.push_back(TrayMenuItem(
+        kMenuPauseToggle,
+        tray_wide(l10n::t(paused_ ? "TrayResume" : "TrayPause")),
+        bind(on_pause_toggle)));
+    items.push_back(TrayMenuItem(
+        kMenuFocusToggle,
+        tray_wide(l10n::t(quiet_ ? "TrayFocusOff" : "TrayFocusOn")),
+        bind(on_focus_toggle)));
+    items.push_back(TrayMenuItem(TrayMenuItem::Type::separator));
+    items.push_back(TrayMenuItem(
+        kMenuCheckUpdates, tray_wide(l10n::t("TrayCheckUpdate")),
+        bind(on_check_updates)));
+    items.push_back(TrayMenuItem(kMenuExit, tray_wide(l10n::t("TrayExit")),
+                                 bind(on_exit)));
+    return items;
   }
 };
 

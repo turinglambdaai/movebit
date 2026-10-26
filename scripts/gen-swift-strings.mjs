@@ -50,9 +50,12 @@ const esc = (s) =>
     .replace(/\r/g, "\\r")
     .replace(/\t/g, "\\t");
 
+// Emit in sorted-key order so the generated file is byte-stable regardless
+// of the source JSON's key order (nested sections or a flat table).
 const table = (flat) =>
-  Object.entries(flat)
-    .map(([k, v]) => `    "${esc(swiftKey(k))}": "${esc(v)}",`)
+  Object.keys(flat)
+    .sort()
+    .map((k) => `    "${esc(swiftKey(k))}": "${esc(flat[k])}",`)
     .join("\n");
 
 const flatZh = {};

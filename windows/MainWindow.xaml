@@ -344,6 +344,69 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMubiSizeLabel"
+                                           Text="Mubi size" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ComboBox Grid.Column="1" x:Name="MubiSizeCombo"
+                                          Width="132" HorizontalAlignment="Right"
+                                          SelectionChanged="MubiSize_SelectionChanged">
+                                    <ComboBoxItem Content="S" />
+                                    <ComboBoxItem Content="M" />
+                                    <ComboBoxItem Content="L" />
+                                </ComboBox>
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMubiMotionLabel"
+                                           Text="Character motion" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ComboBox Grid.Column="1" x:Name="MubiMotionCombo"
+                                          Width="132" HorizontalAlignment="Right"
+                                          SelectionChanged="MubiMotion_SelectionChanged">
+                                    <ComboBoxItem Content="Still" />
+                                    <ComboBoxItem Content="Subtle" />
+                                    <ComboBoxItem Content="Lively" />
+                                </ComboBox>
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMubiDockLabel"
+                                           Text="Dock position" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ComboBox Grid.Column="1" x:Name="MubiDockCombo"
+                                          Width="132" HorizontalAlignment="Right"
+                                          SelectionChanged="MubiDock_SelectionChanged">
+                                    <ComboBoxItem Content="Bottom right" />
+                                    <ComboBoxItem Content="Bottom left" />
+                                    <ComboBoxItem Content="Top right" />
+                                </ComboBox>
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMubiLabelsLabel"
+                                           Text="Label" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ComboBox Grid.Column="1" x:Name="MubiLabelsCombo"
+                                          Width="132" HorizontalAlignment="Right"
+                                          SelectionChanged="MubiLabels_SelectionChanged">
+                                    <ComboBoxItem Content="During reminders" />
+                                    <ComboBoxItem Content="Always" />
+                                </ComboBox>
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" x:Name="SetMotionLabel"
                                            Text="Character motion" FontSize="13"
                                            Foreground="#26241F" />

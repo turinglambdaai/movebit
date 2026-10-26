@@ -4,6 +4,7 @@
 #include "MainWindow.g.h"
 #include "MoveBitModel.h"
 #include "Overlays.h"
+#include "Mubi.h"
 #include "Onboarding.h"
 #include "TrayIcon.h"
 
@@ -46,6 +47,18 @@ struct MainWindow : MainWindowT<MainWindow> {
                      Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void Motion_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
                       Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void MubiSize_SelectionChanged(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
+  void MubiMotion_SelectionChanged(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
+  void MubiDock_SelectionChanged(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
+  void MubiLabels_SelectionChanged(
+      winrt::Windows::Foundation::IInspectable const& sender,
+      Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const& args);
   void Sound_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
                      Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void Autostart_Toggled(
@@ -81,6 +94,8 @@ struct MainWindow : MainWindowT<MainWindow> {
   void HandleEvent(std::string const& name, rivet::Value const& value);
   void HandleHealthCue(rivet_app::HealthCue const& cue);
   void CueDisplayed(std::int64_t id);
+  void HandleCueAcknowledged(rivet_app::CueAcknowledged const& acked);
+  void RefreshTrayState();
   void ApplyConfig(rivet_app::ReminderConfig const& changed, bool announce);
   void RefreshStatesAfterTick();
   void ReloadHistory();
@@ -119,6 +134,7 @@ struct MainWindow : MainWindowT<MainWindow> {
 
   ToastCard toast_;
   MicroCard micro_;
+  MubiCompanion companion_;
   OnboardingWizard onboarding_;
   TrayUi tray_;
   bool really_quitting_ = false;

@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+**Rollout note: the v1 reboot's visual identity landed — Mubi（沐比）is the
+official companion (issue #56), and the repo is staged for the first real
+v1.0.0 release.**
+
+### Added
+
+- **Mubi（沐比）design system (issue #56 D1).** Original project-owned
+  character: warm-ivory water-bean with two leaf fins, frozen proportions
+  (120×140 canvas, 100×108 body, fixed 27-unit eye spacing), design tokens
+  (`assets/mubi/tokens.json`), a six-state vector master and contact sheet
+  regenerated from one generator (`scripts/gen-mubi-art.mjs`), and a
+  bilingual design-system doc with the host implementation contract.
+- **Mubi delivers the cues on all three hosts (D2).** macOS renders the
+  canonical Mubi free-floating (pointer-through panel); Windows renders it
+  on a compact rounded card (WinUI surfaces are opaque — documented
+  difference) that is fully pointer-through and never activates; Linux
+  renders it on X11 and **honestly reports no character capability on
+  Wayland**, where cues deliver as non-blocking notifications instead of a
+  compositor-placed pet.
+- **Companion settings in the v1 schema:** Mubi size S/M/L (body heights
+  60/78/104), motion still/subtle/lively, dock bottom-right/left/top-right,
+  label during-reminders/always — with tolerant defaults, live re-anchoring,
+  dark-mode art direction and health intervals kept more prominent than
+  character customization.
+- **Tray reminder controls + milestone cheers.** Done (advice-labelled) /
+  Later / Hide act on the newest open cue from the tray on every host, plus
+  the Focus toggle; self-reported sit acknowledgments cheer at 3/5/8 — a
+  cheer claims nothing clinical (#51).
+- **i18n: flat single source.** `shared/i18n/{zh,en}.json` is now a flat
+  dot-keyed table (the family convention rivet's release gate enforces);
+  generated tables are sorted and byte-stable, and rivet's own
+  `GeneratedI18n` artifacts are committed fresh. Host migration to rivet's
+  i18n pipeline is tracked for a follow-up slice.
+
+### Changed
+
+- **The first real v1.0.0 is staged:** `VERSION`/`rivet.rktd` now say
+  1.0.0. Publishing remains gated on the release checklist (see #55 R6);
+  no tag exists yet.
+
+**Previous slices (R1 cue engine, R2 macOS companion) below.**
+
 **Rollout note: this is the R1 cue-engine slice of the v1 reboot
 (owner decisions in issues #51/#54/#55) — the fullscreen forced-break
 contract is gone and the canonical reminder state machine now emits
