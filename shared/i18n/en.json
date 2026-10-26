@@ -134,7 +134,10 @@
     "paused": "MoveBit · {0}paused until {1:HH:mm}",
     "updatePrefix": "update {0} · ",
     "focusOn": "Turn on Focus",
-    "focusOff": "Turn off Focus"
+    "focusOff": "Turn off Focus",
+    "cueDone": "Done",
+    "cueLater": "Later",
+    "cueHide": "Hide"
   },
   "notif": {
     "windowTitle": "MoveBit reminder",
