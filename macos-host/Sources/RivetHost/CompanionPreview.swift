@@ -56,7 +56,7 @@ final class CompanionPreviewController: NSObject {
         present(.idle)
     }
 
-    /// Returns false if no screen is available; caller keeps the legacy cue.
+    /// Returns false if no screen is available; caller uses safe fallback.
     func show(_ due: RemindersDue) -> Bool {
         let gesture: CompanionPreviewGesture
         if due.kinds.contains(.sit) {
@@ -103,7 +103,7 @@ final class CompanionPreviewController: NSObject {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 98, height: 98),
+            contentRect: NSRect(x: 0, y: 0, width: 176, height: 130),
             styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered, defer: false)
         panel.isOpaque = false
@@ -181,6 +181,15 @@ private struct CompanionPreviewPetView: View {
                 .offset(y: 9)
 
             if gesture != .idle {
+                Text(gesture.accessibilityTitle)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .foregroundColor(Color(red: 0.18, green: 0.23, blue: 0.30))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.white.opacity(0.97)))
+                    .offset(y: 55)
+
                 Image(systemName: gesture.symbol)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color(red: 0.28, green: 0.52, blue: 0.72))
@@ -190,7 +199,7 @@ private struct CompanionPreviewPetView: View {
                     .accessibilityLabel(gesture.accessibilityTitle)
             }
         }
-        .frame(width: 98, height: 98)
+        .frame(width: 176, height: 130)
         .offset(y: perk ? -5 : 0)
         .onAppear {
             guard gesture != .idle, !reduceMotion else { return }
