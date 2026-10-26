@@ -64,6 +64,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ProcessInfo.processInfo.environment["MOVEBIT_COMPANION_PREVIEW"] == "1" &&
         ProcessInfo.processInfo.environment["MOVEBIT_ACCEPTANCE"] != "1"
     private var companionPreviewHidden = false
+    // Developer-preview-only latest outstanding reminder kinds. The v1 backend
+    // will own durable due/pending/acknowledgement semantics (see #55).
+    private var companionPendingKinds: [ReminderKind] = []
     private var companionPreviewController: CompanionPreviewController?
     // Retained for the process lifetime: dropping it releases the lease.
     private var instanceLease: RivetSingleInstance?
@@ -160,13 +163,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     handler: { [weak self] in self?.quit() }),
         ]
         if companionPreviewEnabled {
-            // Preview-only tray control: the non-interactive pet always has an
-            // immediate local Hide action, even if the backend is unavailable.
+            // The fully mouse-through surface cannot host clickable controls.
+            // Provide the health reminder actions in the native tray instead.
+            // They affect exactly the recorded kinds, including merged events.
             items.insert(.action(
                 label: companionPreviewHidden ? "🐾 Show preview pet" : "🐾 Hide preview pet",
                 identifier: "companion-preview-toggle",
                 handler: { [weak self] in self?.toggleCompanionPreview() }),
                 at: 2)
+            if !companionPendingKinds.isEmpty {
+                items.insert(.action(
+                    label: L10n.t("NotifGotIt"),
+                    identifier: "companion-preview-done",
+                    handler: { [weak self] in self?.acknowledgeCompanionPreview() }),
+                    at: 3)
+                items.insert(.action(
+                    label: L10n.t("NotifSnooze", "\(model.config.snooze_minutes)"),
+                    identifier: "companion-preview-later",
+                    handler: { [weak self] in self?.snoozeCompanionPreview() }),
+                    at: 4)
+            }
         }
         if let menuBar {
             menuBar.update(items: items)
@@ -183,6 +199,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if companionPreviewHidden {
             companionPreviewController?.hide()
         } else if model?.breakActive == nil {
+            _ = companionPreviewController?.showIdle()
+        }
+        rebuildMenuBar()
+    }
+
+    private func acknowledgeCompanionPreview() {
+        // "Got it" is only acknowledgement, never proof of actual hydration.
+        // A durable backend acknowledgement RPC is part of the v1 reboot.
+        companionPendingKinds.removeAll()
+        if companionPreviewEnabled && !companionPreviewHidden {
+            _ = companionPreviewController?.showIdle()
+        }
+        rebuildMenuBar()
+    }
+
+    private func snoozeCompanionPreview() {
+        guard !companionPendingKinds.isEmpty else { return }
+        let kinds = companionPendingKinds
+        // Current backend API follows the existing toast's best-effort
+        // per-kind snooze. Durable, explicitly acknowledged deferral replaces
+        // this in #55; do not describe this preview as production-reliable.
+        model?.snooze(kinds)
+        companionPendingKinds.removeAll()
+        if !companionPreviewHidden {
             _ = companionPreviewController?.showIdle()
         }
         rebuildMenuBar()
@@ -256,6 +296,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // hidden or cannot find a usable display.
         if companionPreviewEnabled && !companionPreviewHidden &&
             companionPreviewController?.show(due) == true {
+            // Keep all kinds of concurrent health advice actionable from tray.
+            // The UI only shows one gesture; this is not another scheduler.
+            for kind in due.kinds where !companionPendingKinds.contains(kind) {
+                companionPendingKinds.append(kind)
+            }
+            rebuildMenuBar()
             return
         }
         if due.kinds == [.micro] {
