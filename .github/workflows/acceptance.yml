@@ -20,7 +20,7 @@ jobs:
       - run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#$env:RIVET_PIN"
         shell: pwsh
       - run: raco rivet acceptance --json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: {name: movebit-acceptance-windows, path: .rivet/acceptance/, if-no-files-found: warn}
   macos:
@@ -39,7 +39,7 @@ jobs:
         with: {version: '9.3', architecture: '${{ matrix.arch }}', distribution: full, variant: CS}
       - run: raco pkg install --auto --no-docs "https://github.com/turinglambdaai/rivet.git#${RIVET_PIN}"
       - run: raco rivet acceptance --json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: {name: 'movebit-acceptance-macos-${{ matrix.arch }}', path: .rivet/acceptance/, if-no-files-found: warn}
   linux:
@@ -55,6 +55,6 @@ jobs:
       - run: echo "FULL_RACKET_BIN=$(dirname "$(command -v raco)")" >> "$GITHUB_ENV"
       - uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@9d766b4acab672844093204cb4845ef4ef933d2c
       - run: PATH="$FULL_RACKET_BIN:$PATH" dbus-run-session -- raco rivet acceptance --json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: {name: movebit-acceptance-linux, path: .rivet/acceptance/, if-no-files-found: warn}
