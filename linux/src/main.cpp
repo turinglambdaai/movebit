@@ -12,6 +12,10 @@
 //   • Toast/micro cards are frameless keep-above windows; GTK4 removed
 //     toplevel positioning, so the WM chooses placement.
 #include <gtk/gtk.h>
+#ifdef GDK_WINDOWING_X11
+#include <gdk/x11/gdkx.h>
+#include <X11/Xlib.h>
+#endif
 #include <pango/pangocairo.h>
 
 #include <algorithm>
@@ -137,6 +141,9 @@ struct Model {
 struct AppState {
   GtkWindow* window{nullptr};
   GtkApplication* app{nullptr};
+  // Headless packaged acceptance: skip the companion so the UIA/AT-SPI
+  // probe sees exactly the main window (mirrors the macOS posture).
+  bool acceptance{false};
   GtkButton* pause_button{nullptr};
   GtkBox* content_root{nullptr};  // cleared + rebuilt on language change
 
@@ -2137,6 +2144,7 @@ void refresh_label() {
 
 void present(int state, std::string const& message, GtkApplication* app) {
   if (!g_state.mubi_x11) return;  // Wayland: notification fallback only
+  if (g_state.acceptance) return;  // headless probe sees the main window only
   if (app == nullptr) app = g_state.app;
   if (app == nullptr) return;
   auto& s = g_state;
@@ -2168,9 +2176,11 @@ void present(int state, std::string const& message, GtkApplication* app) {
     gtk_widget_set_margin_end(body_box, 12);
 
     auto* canvas = GTK_DRAWING_AREA(gtk_drawing_area_new());
-    gtk_drawing_area_set_content_size(
-        canvas, static_cast<int>(120 * scale),
-        static_cast<int>(140 * scale));
+    // gtk_drawing_area_set_content_size is 4.12+; a size request is the
+    // portable form and identical here (no other children compete).
+    gtk_widget_set_size_request(GTK_WIDGET(canvas),
+                                static_cast<int>(120 * scale),
+                                static_cast<int>(140 * scale));
     gtk_drawing_area_set_draw_func(canvas, draw, nullptr, nullptr);
     box_append(GTK_BOX(body_box), GTK_WIDGET(canvas));
     s.mubi_canvas = canvas;
@@ -2186,9 +2196,9 @@ void present(int state, std::string const& message, GtkApplication* app) {
 
     gtk_window_set_child(GTK_WINDOW(window), body_box);
   } else {
-    gtk_drawing_area_set_content_size(
-        s.mubi_canvas, static_cast<int>(120 * scale),
-        static_cast<int>(140 * scale));
+    gtk_widget_set_size_request(GTK_WIDGET(s.mubi_canvas),
+                                static_cast<int>(120 * scale),
+                                static_cast<int>(140 * scale));
   }
 
   refresh_label();
@@ -2199,11 +2209,16 @@ void present(int state, std::string const& message, GtkApplication* app) {
   gtk_window_set_default_size(s.mubi_window, win_w, win_h);
   gtk_window_present(s.mubi_window);
 
-  // Dock inside the monitor work area (X11 honors the move request).
+  // Dock inside the monitor work area. GTK4 has no gtk_window_move; on
+  // X11 position through Xlib against the monitor's work area.
+#ifdef GDK_WINDOWING_X11
   if (auto* surface = gtk_native_get_surface(GTK_NATIVE(s.mubi_window))) {
     if (GDK_IS_X11_SURFACE(surface)) {
-      GdkMonitor* monitor = gdk_display_get_monitor_at_surface(
-          gdk_display_get_default(), surface);
+      auto* display = gdk_display_get_default();
+      Display* xdisplay = gdk_x11_display_get_xdisplay(display);
+      Window xid = gdk_x11_surface_get_xid(surface);
+      GdkMonitor* monitor =
+          gdk_display_get_monitor_at_surface(display, surface);
       GdkRectangle work{};
       gdk_monitor_get_workarea(monitor, &work);
       int const clearance = 16;
@@ -2214,9 +2229,11 @@ void present(int state, std::string const& message, GtkApplication* app) {
       } else if (s.mubi_dock == "top-right") {
         y = work.y + clearance;
       }
-      gtk_window_move(s.mubi_window, x, y);
+      XMoveWindow(xdisplay, xid, x, y);
+      XFlush(xdisplay);
     }
   }
+#endif
 
   // The label reads ~5 s, then the card returns to its calm pose. The cue
   // itself stays open in the backend ledger (#56: label fade is not Done).
@@ -3250,6 +3267,10 @@ void on_activate(GtkApplication* app, gpointer) {
 
   g_state.window = GTK_WINDOW(window);
   g_state.app = app;
+  {
+    char const* acc = g_getenv("MOVEBIT_ACCEPTANCE");
+    g_state.acceptance = acc && *acc == '1';
+  }
   apply_global_css();
   gtk_window_present(GTK_WINDOW(window));
   start_backend(app);

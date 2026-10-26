@@ -139,6 +139,18 @@ inline Shapes::Path stroke_shape(wchar_t const* d, Media::Brush const& brush,
 
 // ---- the character card ----------------------------------------------------
 
+// Headless packaged acceptance skips the companion so the UIA probe sees
+// exactly the main window (mirrors the macOS acceptance posture).
+inline bool acceptance_mode() {
+  static bool const value = [] {
+    char buffer[16] = {};
+    size_t size = 0;
+    getenv_s(&size, buffer, sizeof(buffer), "MOVEBIT_ACCEPTANCE");
+    return size > 0 && buffer[0] == '1';
+  }();
+  return value;
+}
+
 struct MubiCompanion {
   Window window{nullptr};
   Controls::Canvas canvas{nullptr};
@@ -182,6 +194,7 @@ struct MubiCompanion {
   enum class MubiState { Idle, Water, Stand, Eyes, Ack, Focus };
 
   void Show(MubiState state, std::wstring const& message) {
+    if (acceptance_mode()) return;
     EnsureWindow();
     Rebuild(state, message);
     Position();
