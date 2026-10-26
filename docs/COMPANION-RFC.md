@@ -1,5 +1,12 @@
 # Health reminder UX contract — companion-style cues (RFC / implementation baseline)
 
+> **V1 reset, approved 2026-10-26:** The owner confirms v0.x was an experiment with **no real users**. The next release is the first real health-reminder product; clean-slate UX, RPC, settings and data schemas are explicitly allowed. No migration, legacy presentation opt-in or mandatory backwards compatibility. Execution: [#55](https://github.com/turinglambdaai/movebit/issues/55). This document defines the **target** experience, not already shipped behavior.
+
+**New product default:** small character delivers concise water, stand-up and eye-rest cues; if the native surface cannot be input-safe, use a non-blocking native notification/tray fallback. **Remove** fullscreen forced-break / delayed skip / strict onboarding / previous popup modes from v1. Existing published v0.x releases remain historical; do not overwrite version tags.
+
+**Semantic health message first:** cue includes due kinds, suggested action (drink-water / stand-and-stretch / rest-eyes), and visual gesture; Done is self-reported acknowledgement, Later defers by backend policy. Quiet/presentation suppression must not manufacture completion or drop a pending event. See #55 for the due → pending → acknowledged/snoozed/expired state-machine task.
+
+
 Status: **implementation direction approved; native companion NOT shipped**. Product implementation tracker: [#51](https://github.com/turinglambdaai/movebit/issues/51). Related user-control fix: [#49](https://github.com/turinglambdaai/movebit/issues/49), [#50](https://github.com/turinglambdaai/movebit/pull/50).
 
 [中文](COMPANION-RFC.zh-CN.md) · English
@@ -14,7 +21,7 @@ Status: **implementation direction approved; native companion NOT shipped**. Pro
 
 ## Non-negotiable design rules
 
-1. **User stays in control.** Companion is opt-in for existing installs; gentle reminders remain available. The persisted strong-break preference is left alone; forced fullscreen break stays separately opt-in with the unconditional emergency exit.
+1. **User stays in control.** Character-delivered health reminders are the v1 default; no old-user opt-in/migration or legacy forced-break mode. The user can acknowledge, snooze, hide and choose Focus; keyboard/tray fallback stays accessible.
 2. **Zero interaction interception outside the pet.** No invisible input-taking rectangular overlay, no keyboard focus theft; native pointer hit-testing or explicit fallback. User can hide/quit even when the backend cannot respond.
 3. **Edge-docked by default.** Movement is small and bounded. Never cross central content autonomously during normal work. Presentation/Focus mode stops movement and cueing; automated suppression must be based on actually available OS signals, backed by manual control.
 4. **One reminder moment, one cue.** The Racket orchestrator already coalesces due sit, water and micro events; a single cue may retain multiple kinds for correct snooze semantics. Do not create extra reminders from the animation lifecycle.
@@ -43,11 +50,11 @@ Modes for MVP: `idle`, `water`, `stretch` (sit), `blink` (micro), `quiet`, `stat
 ## Engineering boundaries
 
 - Shared `racket/movebit/` domain logic owns cycle timing, coalescing, silence/presentation policy and allowed cue intent; no new UI-only health scheduler.
-- The first foundation is `racket/movebit/companion-cue.rkt`, a **pure, currently unwired** intent mapper from already-merged kinds to `legacy | quiet | companion` delivery and gesture. Default = legacy. Tests pin deterministic merging and non-animated silent/reduced-motion modes. It does **not** implement cue cooldowns, detection or presentation reliability yet.
+- The first foundation is `racket/movebit/companion-cue.rkt`, a **pure, currently unwired** semantic health cue mapper from already-merged kinds to a suggested health action, gesture and `character | notification | quiet` delivery. Default = character; unsafe host capability = non-blocking notification; Focus = quiet (not completion). Full pending/expiry lifecycle is a separate Racket task in #55.
 - `macos-host/`, `windows/`, `linux/` implement local native pet surfaces, input regions/transparent hit-testing, docking, pointer drag and animations. Each platform must document reliable capabilities; **do not pretend Wayland can position arbitrary top-level windows or expose reliable system-wide hit testing**.
-- Existing `rivet-schema.json`, generated clients, user config/history and release acceptance remain the single authoritative contract. Additive RPC changes must be coordinated across three hosts, generated clients and wire/schema tests.
+- A new clean-install v1 schema is allowed to break v0.x config/history/RPC. Coordinate **breaking** API/schema changes across three native hosts, generated clients, wire/schema tests and packaged acceptance in coherent slices; no v0.x compatibility shims required.
 - No new screen-recording/accessibility permission request to detect meetings. Privacy stays local. Degrade to a small static companion/tray or the existing gentle toast if safe overlay behavior is unavailable.
-- Both native old UX and new companion must be selectable until migration is verified, including app upgrades.
+- The old toast/micro/force-cover presentation is to be retired for v1; keep only safe native-notification/tray fallback on platforms where character windows cannot be implemented without obstructing work. No side-by-side legacy product mode.
 
 ## Delivery / verification
 
