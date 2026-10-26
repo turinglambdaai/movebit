@@ -1,8 +1,8 @@
 # MoveBit
 
-> **Product reboot in progress (2026-10-26):** All existing v0.x builds were experiments with no real users. MoveBit is being rebuilt as a **water / stand-up / eye-rest reminder app**, using an expressive, non-obstructive desktop character as its delivery interface. The **new v1 is not released yet**; existing installation and full-screen descriptions below document the old experimental v0.5.0 behavior, not the new product direction. The v1 plan explicitly removes forced full-screen breaks, old strict-mode onboarding and legacy migration requirements. See [v1 implementation #55](https://github.com/turinglambdaai/movebit/issues/55) and [interaction contract](docs/COMPANION-RFC.md).
+> **v0.0.1 — the fresh start (2026-10-27).** The rebooted MoveBit ships as version 0.0.1 by owner decision: a deliberate restart of the version line for the first real product. The old experimental v0.5.0 line (with its fullscreen forced breaks) is retired history — v0.0.1 contains no fullscreen break anywhere and no migration path from v0.5.
 
-A desktop health companion that watches how long you **actually work** and gets you out of the chair — sit reminders can cover **every monitor** with a countdown break screen, while water reminders stay lightweight. One Racket domain core drives first-party native hosts on Windows, macOS, and Linux over [Rivet](https://github.com/turinglambdaai/rivet)'s typed RPC.
+A desktop health reminder app: water, stand-up and eye-rest cues delivered by **Mubi（沐比）**, a small original character docked at the edge of your screen — never a fullscreen cover, never stolen focus, never intercepted input. One Racket domain core (the canonical reminder state machine) drives first-party native hosts on Windows, macOS, and Linux over [Rivet](https://github.com/turinglambdaai/rivet)'s typed RPC.
 
 [![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turinglambdaai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -16,12 +16,13 @@ Free community application under MIT; no commercial activation or subscription. 
 
 ## Why
 
-Most reminder tools lose the moment the notification becomes easy to dismiss. MoveBit is designed around a stronger contract:
+Most reminder tools lose the moment the notification becomes easy to dismiss — or they overcorrect with a fullscreen takeover. MoveBit is designed around a stronger contract:
 
-- **Track active work instead of blindly counting wall-clock time.** Session-wide idle detection is available on Windows, macOS, Linux/X11, and mainstream Wayland sessions. Wayland uses GNOME/Mutter IdleMonitor or the freedesktop ScreenSaver session-bus API when the desktop exposes one; otherwise MoveBit deliberately falls back to elapsed time instead of inventing idle data.
-- **Make long breaks intentional, and never inescapable.** Fullscreen breaks are an explicit opt-in — fresh profiles start with gentle toasts — and every break cover carries an immediately available emergency exit (<kbd>Esc</kbd> or a visible button) that restores all displays even if the reminder engine is unreachable. The ordinary skip stays delayed (20 seconds by default).
-- **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return. Completing a forced break does the same, and the break itself is never counted as active work.
-- **Show patterns, not just today's number.** The main window can switch between 7-day and 30-day activity history and tracks continuous-work streaks, recent longest sessions, active-day averages, and the busiest recent day.
+- **Track active work instead of blindly counting wall-clock time.** Session-wide idle detection is available on Windows, macOS, Linux/X11, and Wayland sessions that expose an idle API. Otherwise MoveBit deliberately falls back to elapsed time instead of inventing idle data.
+- **Deliver reminders you notice without being interrupted.** Mubi（沐比）, a small original character, docks at the screen edge and presents each cue with a clear health suggestion and explicit Done / Later / Hide controls. The panel is fully click-through, never activates, and never crosses your work.
+- **Stay honest about what a click means.** Done is a self-report, never a measurement. Silence never counts as completion; unanswered cues expire and the next reminder arrives on its normal schedule. Focus mode queues cues and returns one bounded summary — never a pile-up.
+- **Do not nag after a real break.** Being idle beyond the away threshold resets every reminder cycle when you return, and the break itself is never counted as active work.
+- **Show patterns, not just today's number.** 7-day and 30-day activity history tracks continuous-work streaks, recent longest sessions, active-day averages, and the busiest recent day.
 - **Ship native installers and portable archives for every supported desktop.** Windows gets an MSI plus a portable ZIP, macOS gets a DMG plus a portable ZIP on both Apple silicon and Intel, and Linux gets a portable tar.gz and zip plus a deb, an rpm, and an AppImage.
 
 ## Architecture
@@ -39,13 +40,13 @@ The Racket runtime is statically linked into each host — no external interpret
 ## Features
 
 - ⏱️ **Active-work monitoring** — Windows `GetLastInputInfo`, macOS CoreGraphics, Linux/X11 XScreenSaver, Wayland session-bus backends where available
-- 🚨 **Forced breaks** — opt-in full-screen, multi-monitor break cover with countdown; delayed skip plus an immediate <kbd>Esc</kbd> emergency exit
-- 👀 **Micro breaks** — short screen-center "stand up / look far away" nudges, no lock and no sound
-- 💧 **Water reminders** — lightweight toasts on their own interval
+- 🐹 **Mubi, the reminder character** — water cup, stretch and eye-rest gestures at the screen edge, with clear advice text, screen-reader labels and Reduce Motion support; S/M/L body sizes, still/subtle/lively motion, dock position and label visibility are settings
+- 💧 **Three independent cycles** — water, sit and eye rest, each with its own interval; several due reminders merge into one cue with every meaning preserved
+- ✅ **An honest cue lifecycle** — due → pending/displayed → acknowledged (self-reported) | snoozed | expired; ten-minute expiry with the next reminder on its normal schedule
+- 🎯 **Focus mode** — presentation silence that queues cues and returns one bounded summary; tray Done/Later/Hide stay reachable at all times
 - 📊 **7 / 30-day history** — switchable activity chart backed by up to 370 days of persisted history
 - 🧠 **Work-pattern insights** — current continuous session, today's/recent longest session, active-day average, busiest recent day
 - 🌓 **中文 / English** — switched in app or resolved from the system UI language
-- 🧙 **First-run onboarding** — gentle by default; Standard / Strict cards are the explicit opt-in to fullscreen breaks
 - 🔁 **Autostart on login** — Windows registry / macOS LaunchAgent / Linux XDG autostart, owned by the backend
 - ⏸️ **Pause for one hour** — with exact pause-expiry accounting
 - 🔒 **Single-instance activation** — relaunching surfaces the existing instance instead of duplicating it
@@ -78,15 +79,15 @@ Platform notes:
 
 Three independent cycles advance on a 30-second scheduler tick:
 
-- **Sit cycle** accumulates active work only. At the configured interval (45 minutes by default), it starts a full-screen break when forced breaks are enabled, otherwise a toast.
-- **Water cycle** runs independently (30 minutes by default).
-- **Micro-break cycle** runs independently (30 minutes / 20 seconds by default) and never replaces the longer sit-break cycle.
+- **Sit cycle** accumulates active work only. At the configured interval (45 minutes by default) it becomes a cue — Mubi stands up and invites a stretch.
+- **Water cycle** runs independently (30 minutes by default) — Mubi raises a cup.
+- **Eye-rest cycle** runs independently (30 minutes by default) — Mubi closes its eyes and suggests looking far away.
 
 Idle time at or above the away threshold (5 minutes by default) freezes accumulation. On return, all cycles restart from zero. Oversized clock jumps such as system sleep are clamped so stale reminders are not dumped after wake.
 
-A forced break is explicitly excluded from active-work time. When the countdown completes, all three cycles and the continuous-work session restart. Choosing "remind me later" on a toast or skipping a forced break schedules the same reminder after the configurable snooze delay (10 active minutes by default).
+Each due tick merges into ONE cue that moves through an explicit lifecycle: `due → pending/displayed → acknowledged | snoozed | expired`. Done is a self-report (never a measurement), Later defers every merged kind by the snooze delay (10 active minutes by default), Hide claims nothing, and unanswered cues expire after ten minutes with the next reminder arriving on its normal schedule. Focus mode queues cues silently and delivers one bounded summary when it ends.
 
-Daily stats are flushed to `history.json` every few minutes, archived across day boundaries, and pruned to the most recent 370 days.
+Daily stats are flushed to the history store every few minutes, archived across day boundaries, and pruned to the most recent 370 days.
 
 ## Configuration
 
@@ -97,14 +98,17 @@ Settings live in `%APPDATA%\movebit\config.json` on Windows or the platform appl
 | Sit reminder interval | 45 | 10–240 min |
 | Water reminder interval | 30 | 5–180 min |
 | Away reset | 5 | 1–60 min |
-| Force break | off (opt-in) | — |
-| Break duration | 5 | 1–30 min |
-| Skip delay | 20 | 0–120 s |
 | Snooze | 10 | 5–60 min |
-| Micro breaks | on | 10–60 min / 10–60 s |
+| Eye-rest cycle | on, 30 min | 10–60 min, 10–60 s duration |
+| Mubi size | M (78) | S (60) / M / L (104) body height |
+| Mubi motion | subtle | still / subtle / lively |
+| Mubi dock | bottom-right | bottom-right / bottom-left / top-right |
+| Mubi label | during reminders | cue-only / always |
 | Sound | on | — |
 | Auto update checks | on | — |
 | Language | auto | auto / zh / en |
+
+The on-disk config carries a `SchemaVersion` marker; a file without it (any v0.5 document) is foreign and falls back to defaults — v1 is clean-install only.
 
 ## Build from source
 
@@ -133,8 +137,10 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 - [x] Tray icon with quick actions (open / pause / exit) on Windows
 - [x] In-app signed-manifest updates shipped on all three hosts ([0.5.0](https://github.com/turinglambdaai/movebit/releases/tag/v0.5.0)): cancellable downloads, Windows MSI self-update through a passive msiexec handoff, and backup + rollback around the zip swap.
 - [x] Cancellation, signature-rejection and rollback evidence at the updater test level (`racket/tests/update-test.rkt`, runs on CI).
+- [x] v0.0.1 published as the fresh-start baseline with the signed update feed live (`update-manifest.json` on every release).
 - [ ] Live N→N+1 update evidence recorded for every supported install shape (the updater tests prove the mechanics; a recorded real update per shape is still to do).
 - [ ] Windows code signing and macOS signing/notarization
+- [ ] Windows/Linux gesture-motion polish measurements (packaged desktop review, #56 D4)
 - **Not planned: mobile (iOS / iPadOS / Android) and watchOS.** MoveBit guards against long uninterrupted sitting at a desk — a problem that only exists where people work at a computer for hours. On phones and tablets people stand, walk, or recline, so there is nothing to guard against. The product is desktop cross-platform by design: macOS, Windows, and Linux.
 
 ## License

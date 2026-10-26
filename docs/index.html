@@ -4,18 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MoveBit — 一个真正能让你离开椅子的休息提醒</title>
-  <meta name="description" content="MoveBit 是本地优先的跨平台桌面休息工具：统计真实电脑活跃时长、识别离席、在工作过久时锁定全部屏幕强制休息；Windows、macOS、Linux 均提供安装器与便携压缩包，发布附带 SHA-256 校验。">
+  <meta name="description" content="MoveBit 是本地优先的跨平台健康提醒工具：统计真实电脑活跃时长，久坐、喝水、护眼提醒由屏幕边缘的小家伙沐比温柔交付，永不锁屏、不打断；Windows、macOS、Linux 均提供安装器与便携压缩包，发布附带 SHA-256 校验。">
   <meta name="theme-color" content="#faf7f2">
   <meta name="color-scheme" content="light dark">
   <link rel="canonical" href="https://movebit.jrtx.site/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="MoveBit">
-  <meta property="og:title" content="MoveBit — 一个真正能让你离开椅子的休息提醒">
-  <meta property="og:description" content="统计真实活跃时长。该休息时，锁定全部屏幕。Windows、macOS、Linux 一次安装即可。">
+  <meta property="og:title" content="MoveBit — 久坐、喝水、护眼，由沐比温柔提醒">
+  <meta property="og:description" content="统计真实活跃时长。久坐、喝水、护眼，由沐比温柔提醒，永不打断。Windows、macOS、Linux 一次安装即可。">
   <meta property="og:url" content="https://movebit.jrtx.site/">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="MoveBit — 一个真正能让你离开椅子的休息提醒">
-  <meta name="twitter:description" content="统计真实活跃时长，识别离席，到点强制休息。">
+  <meta name="twitter:title" content="MoveBit — 久坐、喝水、护眼，由沐比温柔提醒">
+  <meta name="twitter:description" content="统计真实活跃时长，识别离席；喝水、起身、护眼由沐比温柔提醒。">
   <script>
     // Anti-flicker: resolve theme (and language) before first paint.
     (function () {
@@ -107,11 +107,11 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         <div class="hero-copy">
           <div class="eyebrow animate"><span class="eyebrow-dot"></span><span data-i18n="hero.eyebrow">开源 · 本地优先 · 跨平台</span></div>
           <h1 class="animate">
-            <span data-i18n="hero.h1a">一个真正能让你</span><br>
-            <span class="accent" data-i18n="hero.h1b">离开椅子的休息提醒。</span>
+            <span data-i18n="hero.h1a">久坐、喝水、护眼——</span><br>
+            <span class="accent" data-i18n="hero.h1b">由小家伙沐比温柔提醒。</span>
           </h1>
-<p class="reader-en product-availability" lang="en">Development preview. Free community application under MIT; no commercial activation or subscription.</p><p class="reader-zh product-availability" lang="zh">开发预览。MIT 许可的免费社区应用，不接商业激活或订阅。</p>
-          <p class="hero-lead animate" data-i18n="hero.lead">MoveBit 统计你真正操作电脑的活跃时长。工作太久，它会把全部屏幕锁定进入定时休息；你自己离开工位时，它也能识别。Windows、macOS、Linux 一次安装即可，每个发布都同时提供安装器与便携压缩包。</p>
+<p class="reader-en product-availability" lang="en">v0.0.1 — the fresh start. Free community application under MIT; no commercial activation or subscription.</p><p class="reader-zh product-availability" lang="zh">v0.0.1 —— 全新起点。MIT 许可的免费社区应用，不接商业激活或订阅。</p>
+          <p class="hero-lead animate" data-i18n="hero.lead">MoveBit 统计你真正操作电脑的活跃时长，到点由小家伙沐比在屏幕边缘温柔提醒：喝水、起身、让眼睛休息。它从不锁屏、不抢焦点、不打断输入；你真正离开工位时它也知道。Windows、macOS、Linux 一次安装即可，每个发布都同时提供安装器与便携压缩包。</p>
           <div class="hero-actions animate">
             <a class="btn btn-primary" id="hero-download" href="#download"><span data-i18n="hero.download">下载 MoveBit</span><span aria-hidden="true">↓</span></a>
             <a class="btn btn-secondary" href="manual.html"><span data-i18n="hero.manual">使用手册</span><span aria-hidden="true">→</span></a>
@@ -119,7 +119,7 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
           </div>
           <div class="trust-row animate" aria-label="Product characteristics">
             <span class="trust-chip" data-i18n="chip.account">无需账户</span>
-            <span class="trust-chip" data-i18n="chip.local">历史记录保存在本机</span>
+            <span class="trust-chip" data-i18n="chip.local">提醒记录保存在本机</span>
             <span class="trust-chip" data-i18n="chip.sha">SHA-256 校验发布</span>
             <span class="trust-chip" data-i18n="chip.mit">MIT 开源许可</span>
           </div>
@@ -136,8 +136,8 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
       <div class="container">
         <div class="center-head">
           <div class="section-kicker animate" data-i18n="why.kicker">核心差异</div>
-          <h2 class="section-title animate" data-i18n="why.title">不是又一个被你顺手关掉，却依然没有起身的计时器。</h2>
-          <p class="section-lead animate" data-i18n="why.lead">MoveBit 围绕三件事设计：只累计真正重要的活跃时间、识别你实际离开工位的休息、让关键的长休息变成一个需要认真对待的动作。</p>
+          <h2 class="section-title animate" data-i18n="why.title">不是又一个被你顺手关掉的计时器。</h2>
+          <p class="section-lead animate" data-i18n="why.lead">MoveBit 围绕三件事设计：只累计真正重要的活跃时间、让提醒以不被忽略又不打断的方式出现、识别你实际离开工位的休息。</p>
         </div>
 
         <div class="core-grid">
@@ -149,9 +149,9 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
           </article>
           <article class="core-card animate" data-step="02">
             <div class="core-icon" aria-hidden="true">▣</div>
-            <h3 data-i18n="why.c2.title">真正有分量的休息</h3>
-            <p data-i18n="why.c2.body">久坐周期到点后，MoveBit 会在所有已连接显示器上显示置顶的定时休息界面；跳过操作延迟出现。</p>
-            <div class="core-meta" data-i18n="why.c2.meta">覆盖每块显示器</div>
+            <h3 data-i18n="why.c2.title">角色交付 · 永不打断</h3>
+            <p data-i18n="why.c2.body">到点时，小家伙沐比在屏幕边缘带着明确的健康建议出现；Done / 稍后 / 隐藏 / 专注永远可从托盘触达。没有全屏遮罩，没有焦点抢夺。</p>
+            <div class="core-meta" data-i18n="why.c2.meta">提醒为本 · 角色为形</div>
           </article>
           <article class="core-card animate" data-step="03">
             <div class="core-icon" aria-hidden="true">◌</div>
@@ -201,15 +201,15 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
           <h2 class="section-title animate" data-i18n="feat.title">日常真正需要的细节，也已经补齐。</h2>
         </div>
         <div class="feature-grid">
-          <article class="feature animate"><div class="feature-symbol">20s</div><h3 data-i18n="feat.f1.title">微休息</h3><p data-i18n="feat.f1.body">屏幕中央的轻提示，不强制锁定，也不额外制造声音。</p></article>
-          <article class="feature animate"><div class="feature-symbol">H₂O</div><h3 data-i18n="feat.f2.title">喝水提醒</h3><p data-i18n="feat.f2.body">独立周期，以轻量 toast 出现，而不是把喝水也做成强制休息。</p></article>
-          <article class="feature animate"><div class="feature-symbol">7d</div><h3 data-i18n="feat.f3.title">工作历史</h3><p data-i18n="feat.f3.body">每日活跃分钟数与休息次数跨重启保存，并保留 370 天。</p></article>
+          <article class="feature animate"><div class="feature-symbol">👀</div><h3 data-i18n="feat.f1.title">护眼提醒</h3><p data-i18n="feat.f1.body">独立的护眼周期：沐比闭上眼睛，提示你看向远处休息片刻。</p></article>
+          <article class="feature animate"><div class="feature-symbol">H₂O</div><h3 data-i18n="feat.f2.title">喝水提醒</h3><p data-i18n="feat.f2.body">独立周期。沐比举起小蓝杯，把「喝点水吧」送到屏幕边缘。</p></article>
+          <article class="feature animate"><div class="feature-symbol">7d</div><h3 data-i18n="feat.f3.title">工作历史</h3><p data-i18n="feat.f3.body">每日活跃分钟数与提醒次数跨重启保存，并保留 370 天。</p></article>
           <article class="feature animate"><div class="feature-symbol">1h</div><h3 data-i18n="feat.f4.title">一键暂停</h3><p data-i18n="feat.f4.body">会议、演示或共享屏幕时，可从托盘快速暂停提醒一小时。</p></article>
           <article class="feature animate"><div class="feature-symbol">↻</div><h3 data-i18n="feat.f5.title">随系统启动</h3><p data-i18n="feat.f5.body">一个开关即可让 MoveBit 在 Windows、macOS 与 Linux 登录时启动。</p></article>
           <article class="feature animate"><div class="feature-symbol">↑</div><h3 data-i18n="feat.f6.title">检查更新</h3><p data-i18n="feat.f6.body">应用内下载、SHA-256 校验、「更新并重启」一步完成，全程对签名 feed 核对。</p></article>
           <article class="feature animate"><div class="feature-symbol">⊞</div><h3 data-i18n="feat.f7.title">Windows 安装版</h3><p data-i18n="feat.f7.body">运行 MSI 即可作为常规桌面应用安装；也可以把便携 ZIP 解压到任意目录使用。</p></article>
           <article class="feature animate"><div class="feature-symbol">1×</div><h3 data-i18n="feat.f8.title">单实例</h3><p data-i18n="feat.f8.body">重复启动时会唤起已有实例，不会再创建一套重复的提醒计时器。</p></article>
-          <article class="feature animate"><div class="feature-symbol">cfg</div><h3 data-i18n="feat.f9.title">可配置</h3><p data-i18n="feat.f9.body">提醒间隔、休息时长、离席阈值、跳过延迟、声音与自动检查更新均可调整。</p></article>
+          <article class="feature animate"><div class="feature-symbol">cfg</div><h3 data-i18n="feat.f9.title">可配置</h3><p data-i18n="feat.f9.body">三个提醒间隔、沐比的尺寸 S/M/L 与动效、停靠位置、声音与自动检查更新均可调整。</p></article>
         </div>
       </div>
     </section>
@@ -227,7 +227,7 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
           </article>
           <div class="privacy-list">
             <div class="privacy-item animate"><span class="check">✓</span><span><strong data-i18n="priv.p1.title">读取空闲时长，而不是按键内容</strong><small data-i18n="priv.p1.body">使用系统原生空闲 API 获取经过的空闲时间。</small></span></div>
-            <div class="privacy-item animate"><span class="check">✓</span><span><strong data-i18n="priv.p2.title">不做全局键鼠锁定</strong><small data-i18n="priv.p2.body">强制休息是置顶应用窗口，不是操作系统级输入钩子。</small></span></div>
+            <div class="privacy-item animate"><span class="check">✓</span><span><strong data-i18n="priv.p2.title">提醒界面不拦截任何输入</strong><small data-i18n="priv.p2.body">沐比的面板整体鼠标穿透，也没有全屏遮罩或系统级输入钩子。</small></span></div>
             <div class="privacy-item animate"><span class="check">✓</span><span><strong data-i18n="priv.p3.title">不静默强制安装更新</strong><small data-i18n="priv.p3.body">检查更新在你主动点击或明确允许时发生；替换程序文件只会经过你的确认。</small></span></div>
           </div>
         </div>
@@ -239,17 +239,17 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         <div class="center-head">
           <div class="section-kicker animate" data-i18n="plat.kicker">平台支持</div>
           <h2 class="section-title animate" data-i18n="plat.title">跨平台，但把不同平台的差异说清楚。</h2>
-          <p class="section-lead animate" data-i18n="plat.lead">当前正式发布支持 Windows x64（ARM64 Windows 通过模拟运行 x64 构建）、Apple silicon 与 Intel 的 macOS，以及 Linux x64 与 arm64。每个平台都有便携压缩包；Windows 与 macOS 额外提供 MSI/DMG 安装器，Linux 提供 deb（双架构）与 AppImage。Linux Wayland 下提醒仍能工作，但空闲检测会退化为自然时间。</p>
+          <p class="section-lead animate" data-i18n="plat.lead">当前正式发布支持 Windows x64（ARM64 Windows 通过模拟运行 x64 构建）、Apple silicon 与 Intel 的 macOS，以及 Linux x64 与 arm64。每个平台都有便携压缩包；Windows 与 macOS 额外提供 MSI/DMG 安装器，Linux 提供 deb、rpm 与 AppImage。Linux X11 下沐比角色卡可停靠显示；Wayland 会话诚实回退为系统通知。</p>
         </div>
 
         <div class="support-wrap animate">
           <table class="support-table">
-            <thead><tr><th data-i18n="plat.th1">平台</th><th data-i18n="plat.th2">空闲检测</th><th data-i18n="plat.th3">强制休息</th><th data-i18n="plat.th4">分发</th></tr></thead>
+            <thead><tr><th data-i18n="plat.th1">平台</th><th data-i18n="plat.th2">空闲检测</th><th data-i18n="plat.th3">角色交付</th><th data-i18n="plat.th4">分发</th></tr></thead>
             <tbody>
-              <tr><td><strong>Windows x64</strong></td><td><span class="status">GetLastInputInfo</span></td><td data-i18n="plat.all">所有显示器</td><td data-i18n="plat.dist.win">MSI + 便携 ZIP</td></tr>
-              <tr><td><strong>macOS arm64 / x64</strong></td><td><span class="status">CoreGraphics</span></td><td data-i18n="plat.all2">所有显示器</td><td data-i18n="plat.dist.mac">DMG + 便携 ZIP</td></tr>
-              <tr><td><strong>Linux x64 / arm64 · X11</strong></td><td><span class="status">XScreenSaver</span></td><td data-i18n="plat.all3">所有显示器</td><td data-i18n="plat.dist.linux">tar.gz + deb + rpm + AppImage + ZIP</td></tr>
-              <tr><td><strong>Linux x64 / arm64 · Wayland</strong></td><td><span class="status fallback" data-i18n="plat.fallback">自然时间降级</span></td><td data-i18n="plat.supported">支持</td><td data-i18n="plat.dist.linux2">tar.gz + deb + rpm + AppImage + ZIP</td></tr>
+              <tr><td><strong>Windows x64</strong></td><td><span class="status">GetLastInputInfo</span></td><td data-i18n="plat.all">角色卡</td><td data-i18n="plat.dist.win">MSI + 便携 ZIP</td></tr>
+              <tr><td><strong>macOS arm64 / x64</strong></td><td><span class="status">CoreGraphics</span></td><td data-i18n="plat.all2">角色卡</td><td data-i18n="plat.dist.mac">DMG + 便携 ZIP</td></tr>
+              <tr><td><strong>Linux x64 / arm64 · X11</strong></td><td><span class="status">XScreenSaver</span></td><td data-i18n="plat.all3">角色卡</td><td data-i18n="plat.dist.linux">tar.gz + deb + rpm + AppImage + ZIP</td></tr>
+              <tr><td><strong>Linux x64 / arm64 · Wayland</strong></td><td><span class="status fallback" data-i18n="plat.fallback">自然时间降级</span></td><td data-i18n="plat.supported">通知回退</td><td data-i18n="plat.dist.linux2">tar.gz + deb + rpm + AppImage + ZIP</td></tr>
             </tbody>
           </table>
         </div>
@@ -308,9 +308,9 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         <div class="faq">
           <details class="animate"><summary data-i18n="faq.q1">选安装版还是便携版？</summary><p data-i18n="faq.a1">日常长期使用推荐安装版：Windows MSI 或 macOS DMG。它给 MoveBit 一个稳定的位置、开始菜单/启动台入口和标准卸载。临时使用、U 盘、受管电脑不希望安装，或者你偏爱便携软件时再选便携 ZIP、Linux tar.gz 或 AppImage。</p></details>
           <details class="animate"><summary data-i18n="faq.q2">MoveBit 支持在线更新吗？</summary><p data-i18n="faq.a2">支持。「检查更新」读取 Ed25519 签名的 update-manifest.json，发现新版本后下载并做 SHA-256 校验，全部通过再由你点击「更新并重启」完成换新。任何一步校验失败都会中止，当前版本原封不动。</p></details>
-          <details class="animate"><summary data-i18n="faq.q3">强制休息等于锁死电脑吗？</summary><p data-i18n="faq.a3">不是。MoveBit 使用置顶的全屏应用窗口，不会安装全局键盘或鼠标钩子，因此应用异常退出也不会把系统输入留在全局禁用状态。</p></details>
+          <details class="animate"><summary data-i18n="faq.q3">还有全屏强制休息吗？</summary><p data-i18n="faq.a3">没有。v0.0.1 起全屏强制休息已从产品中移除：提醒由屏幕边缘的沐比角色或系统通知交付，永远不会遮盖屏幕、抢夺焦点或拦截输入。</p></details>
           <details class="animate"><summary data-i18n="faq.q4">MoveBit 会记录我输入或点击了什么吗？</summary><p data-i18n="faq.a4">不会。空闲检测模块只向操作系统询问距离上次用户输入过去了多久；提醒逻辑需要空闲时长，而不是按键、文档或点击内容。</p></details>
-          <details class="animate"><summary data-i18n="faq.q5">Linux Wayland 下会怎样？</summary><p data-i18n="faq.a5">无法获得受支持的全局空闲信息时，MoveBit 会退化为自然时间提醒。提醒与在线更新仍然工作，只是自动离席识别的精度会下降。</p></details>
+          <details class="animate"><summary data-i18n="faq.q5">Linux Wayland 下会怎样？</summary><p data-i18n="faq.a5">提醒与在线更新照常工作。Wayland 合成器不提供可靠的窗口定位与穿透保证，因此沐比角色卡在 X11 会话停靠，Wayland 会话诚实回退为系统通知。</p></details>
           <details class="animate"><summary data-i18n="faq.q6">需要另外安装别的运行时吗？</summary><p data-i18n="faq.a6">使用打包 Release 时不需要。MoveBit 自带所需的一切——Linux 上唯一的外部依赖是 GTK 4 及其系统库。</p></details>
           <details class="animate"><summary data-i18n="faq.q7">为什么 Windows 或 macOS 可能对下载文件发出警告？</summary><p data-i18n="faq.a7">当前社区构建尚未签名。代码签名 / 公证属于额外的发布者身份信号，也是下一项重要的分发体验改进。</p></details>
         </div>
@@ -321,7 +321,7 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
       <div class="container">
         <div class="final-card animate">
           <h2 data-i18n="cta.title">椅子不算健身计划。</h2>
-          <p data-i18n="cta.body">MoveBit 在你工作时保持安静，能识别你真正离开工位的休息，只在确实该休息的时候变得难以忽略——同时把启动和升级的麻烦尽量从日常使用里拿掉。</p>
+          <p data-i18n="cta.body">MoveBit 在你工作时保持安静，到点由沐比送上一句明确的健康建议——看一眼就懂，做不做由你；升级与启动的麻烦也从日常里拿掉了。</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#download"><span data-i18n="cta.get">获取 MoveBit</span></a>
             <a class="btn btn-secondary" href="manual.html"><span data-i18n="cta.manual">先看手册</span></a>
@@ -331,8 +331,7 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
       </div>
     </section>
   <section id="start-here" class="product-start" aria-label="Get started / 开始使用">
-<h2 class="reader-en " lang="en">Start with one useful session.</h2><h2 class="reader-zh " lang="zh">从一次有效使用开始。</h2><p class="reader-en start-status" lang="en">Free community application under MIT; no commercial activation or subscription.</p><p class="reader-zh start-status" lang="zh">MIT 许可的免费社区应用，不接商业激活或订阅。</p><p class="reader-en " lang="en">Desktop previews for macOS, Windows and Linux. Idle detection depends on the desktop session; unsupported Wayland sessions fall back to elapsed time.</p><p class="reader-zh " lang="zh">提供 macOS、Windows、Linux 桌面预览。空闲检测依赖桌面会话；不支持的 Wayland 会话会回退为经过时间计时。</p><div class="product-start-grid"><article><h3 class="reader-en " lang="en">01</h3><h3 class="reader-zh " lang="zh">01</h3><p class="reader-en " lang="en">Choose gentle behavior first and verify a short reminder cycle on your own displays.</p><p class="reader-zh " lang="zh">先选择温和模式，在自己的显示器上验证一个较短提醒周期。</p></article><article><h3 class="reader-en " lang="en">02</h3><h3 class="reader-zh " lang="zh">02</h3><p class="reader-en " lang="en">Test pause, snooze and the break-screen skip behavior before enabling stronger full-screen breaks.</p><p class="reader-zh " lang="zh">启用更强的全屏休息前，测试暂停、稍后提醒与休息屏跳过行为。</p></article><article><h3 class="reader-en " lang="en">03</h3><h3 class="reader-zh " lang="zh">03</h3><p class="reader-en " lang="en">Enable login startup only if you want background reminders. Review 7/30-day history as usage estimates, not health measurements.</p><p class="reader-zh " lang="zh">需要后台提醒时再启用登录自启；7/30 天历史属于使用估计，不是健康测量。</p></article></div><p class="reader-en start-limits" lang="en">Per-installation update recovery and full-screen keyboard/emergency-exit qualification remain tracked in <a href="https://github.com/turinglambdaai/movebit/issues/48">#48</a>. This tool provides reminders, not medical advice or a guaranteed way to prevent injury.</p><p class="reader-zh start-limits" lang="zh">各安装形态更新恢复、全屏键盘与紧急退出验收仍在 <a href="https://github.com/turinglambdaai/movebit/issues/48">#48</a> 跟进。本工具提供提醒，不提供医疗建议或预防损伤保证。</p><div class="start-links"><a class="reader-en" lang="en" href="https://github.com/turinglambdaai/movebit/blob/main/docs/USER-GUIDE.md">Installation, privacy &amp; recovery</a><a class="reader-zh" lang="zh" href="https://github.com/turinglambdaai/movebit/blob/main/docs/USER-GUIDE.zh-CN.md">安装、隐私与恢复</a><a href="https://github.com/turinglambdaai/movebit/issues"><span class="reader-en " lang="en">Get help</span><span class="reader-zh " lang="zh">反馈与帮助</span></a></div>
-</section>
+<h2 class="reader-en " lang="en">Start with one useful session.</h2><h2 class="reader-zh " lang="zh">从一次有效使用开始。</h2><p class="reader-en start-status" lang="en">v0.0.1 — free community application under MIT; no commercial activation or subscription.</p><p class="reader-zh start-status" lang="zh">v0.0.1 —— MIT 许可的免费社区应用，不接商业激活或订阅。</p><p class="reader-en " lang="en">Desktop reminders for macOS, Windows and Linux. Idle detection depends on the desktop session; unsupported Wayland sessions fall back to elapsed time, and the Mubi card docks on X11 while Wayland uses system notifications.</p><p class="reader-zh " lang="zh">提供 macOS、Windows、Linux 桌面提醒。空闲检测依赖桌面会话；不支持的 Wayland 会话回退为经过时间计时，沐比角色卡在 X11 停靠、Wayland 使用系统通知。</p><div class="product-start-grid"><article><h3 class="reader-en " lang="en">01</h3><h3 class="reader-zh " lang="zh">01</h3><p class="reader-en " lang="en">Install, pick your three intervals in the compact first-run flow, and let Mubi deliver the first cue.</p><p class="reader-zh " lang="zh">安装后在小巧的首启流程里定好三个间隔，让沐比送出第一条提醒。</p></article><article><h3 class="reader-en " lang="en">02</h3><h3 class="reader-zh " lang="zh">02</h3><p class="reader-en " lang="en">Use Done / Later / Hide from the tray, and Focus during presentations — reminders queue quietly and return as one bounded summary.</p><p class="reader-zh " lang="zh">从托盘使用做到 / 稍后 / 隐藏；演示时开专注——提醒安静排队，结束后合并为一条有界汇总。</p></article><article><h3 class="reader-en " lang="en">03</h3><h3 class="reader-zh " lang="zh">03</h3><p class="reader-en " lang="en">Personalize Mubi's size, motion and dock if you like. History is a usage estimate, not a health measurement.</p><p class="reader-zh " lang="zh">喜欢的话给沐比选尺寸、动效与停靠位。历史数据属于使用估计，不是健康测量。</p></article></div><p class="reader-en start-limits" lang="en">This tool provides reminders, not medical advice or a guaranteed way to prevent injury.</p><p class="reader-zh start-limits" lang="zh">本工具提供提醒，不提供医疗建议或预防损伤保证。</p><div class="start-links"><a class="reader-en" lang="en" href="https://github.com/turinglambdaai/movebit/blob/main/docs/USER-GUIDE.md">Installation, privacy &amp; recovery</a><a class="reader-zh" lang="zh" href="https://github.com/turinglambdaai/movebit/blob/main/docs/USER-GUIDE.zh-CN.md">安装、隐私与恢复</a><a href="https://github.com/turinglambdaai/movebit/issues"><span class="reader-en " lang="en">Get help</span><span class="reader-zh " lang="zh">反馈与帮助</span></a></div></section>
 </main>
 
   <footer class="footer">
@@ -355,17 +354,17 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         "nav.why": "为什么是 MoveBit", "nav.updates": "在线更新", "nav.privacy": "隐私",
         "nav.manual": "手册", "nav.download": "下载",
         "hero.eyebrow": "开源 · 本地优先 · 跨平台",
-        "hero.h1a": "一个真正能让你", "hero.h1b": "离开椅子的休息提醒。",
-        "hero.lead": "MoveBit 统计你真正操作电脑的活跃时长。工作太久，它会把全部屏幕锁定进入定时休息；你自己离开工位时，它也能识别。Windows、macOS、Linux 一次安装即可，每个发布都同时提供安装器与便携压缩包。",
+        "hero.h1a": "久坐、喝水、护眼——", "hero.h1b": "由小家伙沐比温柔提醒。",
+        "hero.lead": "MoveBit 统计你真正操作电脑的活跃时长，到点由小家伙沐比在屏幕边缘温柔提醒：喝水、起身、让眼睛休息。它从不锁屏、不抢焦点、不打断输入；你真正离开工位时它也知道。Windows、macOS、Linux 一次安装即可，每个发布都同时提供安装器与便携压缩包。",
         "hero.download": "下载 MoveBit", "hero.manual": "使用手册", "hero.source": "查看源码",
-        "chip.account": "无需账户", "chip.local": "历史记录保存在本机", "chip.sha": "SHA-256 校验发布", "chip.mit": "MIT 开源许可",
+        "chip.account": "无需账户", "chip.local": "提醒记录保存在本机", "chip.sha": "SHA-256 校验发布", "chip.mit": "MIT 开源许可",
         "shot.alt": "MoveBit 主窗口（macOS）：今日活跃、最近 7 天图表、工作模式洞察与提醒设置",
         "shot.caption": "MoveBit 主窗口（macOS 实拍）：左边是统计，右边是提醒设置。",
         "why.kicker": "核心差异",
-        "why.title": "不是又一个被你顺手关掉，却依然没有起身的计时器。",
-        "why.lead": "MoveBit 围绕三件事设计：只累计真正重要的活跃时间、识别你实际离开工位的休息、让关键的长休息变成一个需要认真对待的动作。",
+        "why.title": "不是又一个被你顺手关掉的计时器。",
+        "why.lead": "MoveBit 围绕三件事设计：只累计真正重要的活跃时间、让提醒以不被忽略又不打断的方式出现、识别你实际离开工位的休息。",
         "why.c1.title": "真实活跃时长", "why.c1.body": "提醒时钟参考整个桌面的键鼠空闲时长，而不是机械累计自然时间。", "why.c1.meta": "活跃时间 ≠ 自然时间",
-        "why.c2.title": "真正有分量的休息", "why.c2.body": "久坐周期到点后，MoveBit 会在所有已连接显示器上显示置顶的定时休息界面；跳过操作延迟出现。", "why.c2.meta": "覆盖每块显示器",
+        "why.c2.title": "角色交付 · 永不打断", "why.c2.body": "到点时，小家伙沐比在屏幕边缘带着明确的健康建议出现；Done / 稍后 / 隐藏 / 专注永远可从托盘触达。没有全屏遮罩，没有焦点抢夺。", "why.c2.meta": "提醒为本 · 角色为形",
         "why.c3.title": "聪明的离席识别", "why.c3.body": "空闲超过离席阈值后，MoveBit 会把这段时间视为一次真正的休息；回来后提醒周期重新开始。", "why.c3.meta": "离席 → 重置",
         "upd.kicker": "在线更新", "upd.title": "带签名的更新 feed，明确的更新动作。",
         "upd.lead": "每个发布都提供各平台的更新包、SHA-256 校验文件，以及 Ed25519 签名的 update-manifest.json。应用内「检查更新」负责发现、下载与校验；换成新版本永远经过你点击的「更新并重启」。",
@@ -373,28 +372,28 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         "upd.c2.title": "校验", "upd.c2.body": "下载完成后校验字节数与 SHA-256，全部对着 Ed25519 签名的 update-manifest.json 核对；任何不一致都会中止更新，不动任何文件。",
         "upd.c3.title": "更新并重启", "upd.c3.body": "校验通过后由你点击「更新并重启」：MoveBit 等自己退出后替换文件再启动。绝不静默安装；配置与历史保存在应用目录之外，升级不碰用户数据。", "upd.c3.meta": "绝不静默",
         "feat.kicker": "有用，但不喧宾夺主", "feat.title": "日常真正需要的细节，也已经补齐。",
-        "feat.f1.title": "微休息", "feat.f1.body": "屏幕中央的轻提示，不强制锁定，也不额外制造声音。",
-        "feat.f2.title": "喝水提醒", "feat.f2.body": "独立周期，以轻量 toast 出现，而不是把喝水也做成强制休息。",
-        "feat.f3.title": "工作历史", "feat.f3.body": "每日活跃分钟数与休息次数跨重启保存，并保留 370 天。",
+        "feat.f1.title": "护眼提醒", "feat.f1.body": "独立的护眼周期：沐比闭上眼睛，提示你看向远处休息片刻。",
+        "feat.f2.title": "喝水提醒", "feat.f2.body": "独立周期。沐比举起小蓝杯，把「喝点水吧」送到屏幕边缘。",
+        "feat.f3.title": "工作历史", "feat.f3.body": "每日活跃分钟数与提醒次数跨重启保存，并保留 370 天。",
         "feat.f4.title": "一键暂停", "feat.f4.body": "会议、演示或共享屏幕时，可从托盘快速暂停提醒一小时。",
         "feat.f5.title": "随系统启动", "feat.f5.body": "一个开关即可让 MoveBit 在 Windows、macOS 与 Linux 登录时启动。",
         "feat.f6.title": "检查更新", "feat.f6.body": "应用内下载、SHA-256 校验、「更新并重启」一步完成，全程对签名 feed 核对。",
         "feat.f7.title": "Windows 安装版", "feat.f7.body": "运行 MSI 即可作为常规桌面应用安装；也可以把便携 ZIP 解压到任意目录使用。",
         "feat.f8.title": "单实例", "feat.f8.body": "重复启动时会唤起已有实例，不会再创建一套重复的提醒计时器。",
-        "feat.f9.title": "可配置", "feat.f9.body": "提醒间隔、休息时长、离席阈值、跳过延迟、声音与自动检查更新均可调整。",
+        "feat.f9.title": "可配置", "feat.f9.body": "三个提醒间隔、沐比的尺寸 S/M/L 与动效、停靠位置、声音与自动检查更新均可调整。",
         "priv.kicker": "从设计上建立信任", "priv.title": "它关心的是你多久没动，而不是你在做什么。",
         "priv.lead": "一个健康工具不应该为了判断你是否坐得太久，就需要读取文档、记录按键内容，或者要求你注册在线账户。",
         "priv.main.title": "默认就是本地优先。", "priv.main.body": "配置与历史记录保存在你的机器上，提醒逻辑无需账户或云服务。更新检查只会访问 GitHub Releases，用于发现和下载公开发布文件。",
         "priv.p1.title": "读取空闲时长，而不是按键内容", "priv.p1.body": "使用系统原生空闲 API 获取经过的空闲时间。",
-        "priv.p2.title": "不做全局键鼠锁定", "priv.p2.body": "强制休息是置顶应用窗口，不是操作系统级输入钩子。",
+        "priv.p2.title": "提醒界面不拦截任何输入", "priv.p2.body": "沐比的面板整体鼠标穿透，也没有全屏遮罩或系统级输入钩子。",
         "priv.p3.title": "不静默强制安装更新", "priv.p3.body": "检查更新在你主动点击或明确允许时发生；替换程序文件只会经过你的确认。",
         "plat.kicker": "平台支持", "plat.title": "跨平台，但把不同平台的差异说清楚。",
-        "plat.lead": "当前正式发布支持 Windows x64（ARM64 Windows 通过模拟运行 x64 构建）、Apple silicon 与 Intel 的 macOS，以及 Linux x64 与 arm64。每个平台都有便携压缩包；Windows 与 macOS 额外提供 MSI/DMG 安装器，Linux 提供 deb（双架构）与 AppImage。Linux Wayland 下提醒仍能工作，但空闲检测会退化为自然时间。",
-        "plat.th1": "平台", "plat.th2": "空闲检测", "plat.th3": "强制休息", "plat.th4": "分发",
-        "plat.all": "所有显示器", "plat.all2": "所有显示器", "plat.all3": "所有显示器",
+        "plat.lead": "当前正式发布支持 Windows x64（ARM64 Windows 通过模拟运行 x64 构建）、Apple silicon 与 Intel 的 macOS，以及 Linux x64 与 arm64。每个平台都有便携压缩包；Windows 与 macOS 额外提供 MSI/DMG 安装器，Linux 提供 deb、rpm 与 AppImage。Linux X11 下沐比角色卡可停靠显示；Wayland 会话诚实回退为系统通知。",
+        "plat.th1": "平台", "plat.th2": "空闲检测", "plat.th3": "角色交付", "plat.th4": "分发",
+        "plat.all": "角色卡", "plat.all2": "角色卡", "plat.all3": "角色卡",
         "plat.dist.win": "MSI + 便携 ZIP", "plat.dist.mac": "DMG + 便携 ZIP",
         "plat.dist.linux": "tar.gz + deb + rpm + AppImage + ZIP", "plat.dist.linux2": "tar.gz + deb + rpm + AppImage + ZIP",
-        "plat.fallback": "自然时间降级", "plat.supported": "支持",
+        "plat.fallback": "自然时间降级", "plat.supported": "通知回退",
         "dl.kicker": "下载", "dl.title": "Windows 推荐安装；需要时，便携版一直都在。",
         "dl.lead": "Windows 用户通常选择 MSI 安装版；macOS 在 Apple silicon 和 Intel 上都提供 DMG，Linux 提供 deb 与 AppImage。下面的直链永远指向最新发布的文件，你所在平台的卡片会自动高亮；便携压缩包与其余格式都在 Releases 页。",
         "dl.badge.release": "最新版本", "dl.badge.feed": "更新 feed",
@@ -407,18 +406,18 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         "faq.a1": "日常长期使用推荐安装版：Windows MSI 或 macOS DMG。它给 MoveBit 一个稳定的位置、开始菜单/启动台入口和标准卸载。临时使用、U 盘、受管电脑不希望安装，或者你偏爱便携软件时再选便携 ZIP、Linux tar.gz 或 AppImage。",
         "faq.q2": "MoveBit 支持在线更新吗？",
         "faq.a2": "支持。「检查更新」读取 Ed25519 签名的 update-manifest.json，发现新版本后下载并做 SHA-256 校验，全部通过再由你点击「更新并重启」完成换新。任何一步校验失败都会中止，当前版本原封不动。",
-        "faq.q3": "强制休息等于锁死电脑吗？",
-        "faq.a3": "不是。MoveBit 使用置顶的全屏应用窗口，不会安装全局键盘或鼠标钩子，因此应用异常退出也不会把系统输入留在全局禁用状态。",
+        "faq.q3": "还有全屏强制休息吗？",
+        "faq.a3": "没有。v0.0.1 起全屏强制休息已从产品中移除：提醒由屏幕边缘的沐比角色或系统通知交付，永远不会遮盖屏幕、抢夺焦点或拦截输入。",
         "faq.q4": "MoveBit 会记录我输入或点击了什么吗？",
         "faq.a4": "不会。空闲检测模块只向操作系统询问距离上次用户输入过去了多久；提醒逻辑需要空闲时长，而不是按键、文档或点击内容。",
         "faq.q5": "Linux Wayland 下会怎样？",
-        "faq.a5": "无法获得受支持的全局空闲信息时，MoveBit 会退化为自然时间提醒。提醒与在线更新仍然工作，只是自动离席识别的精度会下降。",
+        "faq.a5": "提醒与在线更新照常工作。Wayland 合成器不提供可靠的窗口定位与穿透保证，因此沐比角色卡在 X11 会话停靠，Wayland 会话诚实回退为系统通知。",
         "faq.q6": "需要另外安装别的运行时吗？",
         "faq.a6": "使用打包 Release 时不需要。MoveBit 自带所需的一切——Linux 上唯一的外部依赖是 GTK 4 及其系统库。",
         "faq.q7": "为什么 Windows 或 macOS 可能对下载文件发出警告？",
         "faq.a7": "当前社区构建尚未签名。代码签名 / 公证属于额外的发布者身份信号，也是下一项重要的分发体验改进。",
         "cta.title": "椅子不算健身计划。",
-        "cta.body": "MoveBit 在你工作时保持安静，能识别你真正离开工位的休息，只在确实该休息的时候变得难以忽略——同时把启动和升级的麻烦尽量从日常使用里拿掉。",
+        "cta.body": "MoveBit 在你工作时保持安静，到点由沐比送上一句明确的健康建议——看一眼就懂，做不做由你；升级与启动的麻烦也从日常里拿掉了。",
         "cta.get": "获取 MoveBit", "cta.manual": "先看手册",
         "footer.manual": "手册", "footer.releases": "Releases"
       };
@@ -427,17 +426,17 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         "nav.why": "Why MoveBit", "nav.updates": "Updates", "nav.privacy": "Privacy",
         "nav.manual": "Manual", "nav.download": "Download",
         "hero.eyebrow": "Open source · Local-first · Cross-platform",
-        "hero.h1a": "Break reminders", "hero.h1b": "you can't ignore.",
-        "hero.lead": "MoveBit measures your actual active computer time. Work too long and it locks every display for a timed break. Step away on your own and the clock notices. Install once on Windows, macOS or Linux — installers and portable archives ship for every release.",
+        "hero.h1a": "Drink. Stand up. Rest your eyes.", "hero.h1b": "Mubi delivers it, gently.",
+        "hero.lead": "MoveBit counts the time you actually spend at the computer, and when a cycle is due, Mubi — a small original character — appears at the edge of your screen to suggest water, a stretch, or an eye rest. It never locks the screen, steals focus or blocks your typing, and it notices when you truly step away. Install once on Windows, macOS or Linux — installers and portable archives ship for every release.",
         "hero.download": "Download MoveBit", "hero.manual": "User manual", "hero.source": "View source",
-        "chip.account": "No account required", "chip.local": "History stays local", "chip.sha": "SHA-256 verified releases", "chip.mit": "MIT licensed",
+        "chip.account": "No account required", "chip.local": "Reminder history stays local", "chip.sha": "SHA-256 verified releases", "chip.mit": "MIT licensed",
         "shot.alt": "MoveBit main window on macOS: active time, 7-day chart, work-pattern insights and reminder settings",
         "shot.caption": "The real MoveBit main window (macOS): stats on the left, reminder settings on the right.",
         "why.kicker": "The difference",
         "why.title": "Not another timer you dismiss without moving.",
-        "why.lead": "MoveBit is built around three ideas: count the time that matters, recognize real time away from the desk, and make the important break deliberate.",
+        "why.lead": "MoveBit is built around three ideas: count the time that matters, deliver reminders in a way you notice without being interrupted, and recognize real time away from the desk.",
         "why.c1.title": "Actual work time", "why.c1.body": "The reminder clock follows keyboard and mouse idle time across the desktop instead of blindly counting wall-clock minutes.", "why.c1.meta": "ACTIVE ≠ ELAPSED",
-        "why.c2.title": "A break that has weight", "why.c2.body": "When the sit interval is reached, MoveBit places a topmost timed break view on every connected display. Skip appears only after a configurable delay.", "why.c2.meta": "EVERY DISPLAY",
+        "why.c2.title": "Delivered by Mubi · never intrusive", "why.c2.body": "When a cycle is due, Mubi appears at the screen edge with a clear health suggestion; Done / Later / Hide / Focus stay reachable from the tray. No fullscreen cover, no focus theft.", "why.c2.meta": "REMINDERS FIRST",
         "why.c3.title": "Smart away detection", "why.c3.body": "Stay idle beyond your away threshold and MoveBit treats that as a real break. When you return, reminder cycles restart.", "why.c3.meta": "AWAY → RESET",
         "upd.kicker": "Online updates", "upd.title": "A signed feed, an explicit update.",
         "upd.lead": "Every release publishes per-platform update packages with SHA-256 sidecars and an Ed25519-signed update-manifest.json. The in-app check discovers, downloads and verifies; switching to the new version always goes through the “Update & restart” button you click.",
@@ -445,28 +444,28 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         "upd.c2.title": "Verify", "upd.c2.body": "After download, size and SHA-256 are checked against the Ed25519-signed update-manifest.json. Any mismatch aborts before a single file is touched.",
         "upd.c3.title": "Update & restart", "upd.c3.body": "Once verified, you click “Update & restart”: MoveBit waits for itself to exit, swaps the payload and relaunches. Never silent; config and history live outside the app folder and upgrades never touch user data.", "upd.c3.meta": "NEVER SILENT",
         "feat.kicker": "Useful without becoming noisy", "feat.title": "The everyday details are already there.",
-        "feat.f1.title": "Micro breaks", "feat.f1.body": "A gentle center-screen prompt with no forced lock and no extra sound.",
-        "feat.f2.title": "Water reminders", "feat.f2.body": "An independent cycle shown as a small toast instead of a disruptive break.",
-        "feat.f3.title": "Work history", "feat.f3.body": "Daily active minutes and break counts survive restarts, with 370-day retention.",
+        "feat.f1.title": "Eye rest", "feat.f1.body": "An independent eye-rest cycle: Mubi closes its eyes and suggests looking away for a moment.",
+        "feat.f2.title": "Water reminders", "feat.f2.body": "An independent cycle. Mubi raises a little blue cup and brings \"drink some water\" to the screen edge.",
+        "feat.f3.title": "Work history", "feat.f3.body": "Daily active minutes and reminder counts survive restarts, with 370-day retention.",
         "feat.f4.title": "Quick pause", "feat.f4.body": "Pause reminders for an hour during meetings, presentations or screen sharing.",
         "feat.f5.title": "Autostart", "feat.f5.body": "One setting registers MoveBit with your login on Windows, macOS and Linux.",
         "feat.f6.title": "Update checks", "feat.f6.body": "In-app download, SHA-256 verification and “Update & restart” in one step, checked against the signed feed.",
         "feat.f7.title": "Windows installer", "feat.f7.body": "Run the MSI for a normal installed app, or unpack the portable ZIP anywhere you like.",
         "feat.f8.title": "Single instance", "feat.f8.body": "Launching MoveBit again activates the existing app instead of creating duplicate schedulers.",
-        "feat.f9.title": "Configurable", "feat.f9.body": "Intervals, duration, away threshold, skip delay, sound and automatic update checks are adjustable.",
+        "feat.f9.title": "Configurable", "feat.f9.body": "The three reminder intervals, Mubi's size (S/M/L) and motion, dock position, sound and automatic update checks are adjustable.",
         "priv.kicker": "Trust by design", "priv.title": "It watches the clock, not your work.",
         "priv.lead": "A health utility should not need your documents, keystroke contents or an online account just to know when you've been at the computer too long.",
         "priv.main.title": "Local-first by default.", "priv.main.body": "Configuration and history stay on your machine. Reminder logic works without an account or cloud service. Update checks contact GitHub Releases only to discover and download public release assets.",
         "priv.p1.title": "Idle duration, not key contents", "priv.p1.body": "Native platform idle APIs provide elapsed idle time.",
-        "priv.p2.title": "No global keyboard / mouse lock", "priv.p2.body": "The forced break is a topmost app window, not an OS input hook.",
+        "priv.p2.title": "Reminder surfaces never intercept input", "priv.p2.body": "Mubi's panel is fully click-through — no fullscreen cover, no OS input hooks.",
         "priv.p3.title": "No silent update install", "priv.p3.body": "Update checks happen when you ask or allow; file replacement starts only after your approval.",
         "plat.kicker": "Platform support", "plat.title": "Cross-platform, with the differences stated plainly.",
-        "plat.lead": "Official releases target Windows x64 (ARM64 Windows runs the x64 build via emulation), macOS on both Apple silicon and Intel, and Linux x64 and arm64. Every platform gets a portable archive; Windows and macOS additionally get an MSI/DMG installer, and Linux gets a deb (both architectures), rpm and an AppImage. Linux Wayland keeps reminders working but falls back to elapsed-time timing for idle detection.",
-        "plat.th1": "Platform", "plat.th2": "Idle detection", "plat.th3": "Forced break", "plat.th4": "Distribution",
-        "plat.all": "All displays", "plat.all2": "All displays", "plat.all3": "All displays",
+        "plat.lead": "Official releases target Windows x64 (ARM64 Windows runs the x64 build via emulation), macOS on both Apple silicon and Intel, and Linux x64 and arm64. Every platform gets a portable archive; Windows and macOS additionally get an MSI/DMG installer, and Linux gets a deb, rpm and an AppImage. On Linux X11 the Mubi card can dock; Wayland sessions honestly fall back to system notifications.",
+        "plat.th1": "Platform", "plat.th2": "Idle detection", "plat.th3": "Character delivery", "plat.th4": "Distribution",
+        "plat.all": "Character card", "plat.all2": "Character card", "plat.all3": "Character card",
         "plat.dist.win": "MSI + portable ZIP", "plat.dist.mac": "DMG + portable ZIP",
         "plat.dist.linux": "tar.gz + deb + rpm + AppImage + ZIP", "plat.dist.linux2": "tar.gz + deb + rpm + AppImage + ZIP",
-        "plat.fallback": "Elapsed-time fallback", "plat.supported": "Supported",
+        "plat.fallback": "Elapsed-time fallback", "plat.supported": "Notification fallback",
         "dl.kicker": "Download", "dl.title": "Install on Windows. Portable when you want it.",
         "dl.lead": "Windows users normally choose the MSI installer; macOS ships a DMG for Apple silicon and Intel, and Linux gets deb packages and an AppImage. The links below always point at the files of the latest release and the card for your platform is highlighted; portable archives and every other format live on the Releases page.",
         "dl.badge.release": "Latest release", "dl.badge.feed": "Update feed",
@@ -480,17 +479,17 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
         "faq.q2": "Does MoveBit update itself?",
         "faq.a2": "Yes. “Check for updates” reads the Ed25519-signed update-manifest.json, downloads the new version and verifies its SHA-256; only then does your click on “Update & restart” swap it in. Any failed check aborts and leaves the current version untouched.",
         "faq.q3": "Is a forced break the same as locking my computer?",
-        "faq.a3": "No. MoveBit uses topmost full-screen application windows. It does not install a global keyboard or mouse hook, so an app crash cannot leave system input globally disabled.",
+        "faq.a3": "No. As of v0.0.1 the fullscreen forced break is removed from the product: reminders arrive through the edge-docked Mubi character or a system notification, never covering the screen, stealing focus or intercepting input.",
         "faq.q4": "Does MoveBit record what I type or click?",
         "faq.a4": "No. Idle providers ask the operating system how long it has been since user input; reminder logic needs elapsed idle duration, not keystroke, document or click contents.",
         "faq.q5": "What happens on Linux Wayland?",
-        "faq.a5": "MoveBit falls back to elapsed-time reminders when a supported global idle source is unavailable. Reminders and online updates still work; only automatic away detection loses fidelity.",
+        "faq.a5": "Reminders and online updates work as usual. Wayland compositors provide no reliable window-placement or click-through guarantees, so the Mubi card docks on X11 sessions and Wayland sessions honestly fall back to system notifications.",
         "faq.q6": "Do I need to install anything else first?",
         "faq.a6": "No for packaged releases. MoveBit bundles everything it needs — on Linux, GTK 4 and its system libraries are the only external dependency.",
         "faq.q7": "Why might Windows or macOS warn about the download?",
         "faq.a7": "The current community builds are unsigned. Signing/notarization is an additional publisher-identity signal and remains the next major distribution improvement.",
         "cta.title": "Your chair is not a workout plan.",
-        "cta.body": "MoveBit stays quiet while you work, notices when you genuinely step away, becomes hard to ignore when a real break is due — and keeps launch and upgrade friction out of the way.",
+        "cta.body": "MoveBit stays quiet while you work and, when a cycle is due, Mubi delivers one clear health suggestion — readable at a glance, yours to act on. Startup and upgrade friction stays out of your way.",
         "cta.get": "Get MoveBit", "cta.manual": "Read the manual",
         "footer.manual": "Manual", "footer.releases": "Releases"
       };
@@ -531,9 +530,9 @@ html:lang(en) .reader-zh,html:lang(zh) .reader-en{display:none!important}@media(
           if (dict[akey]) alts[j].setAttribute("alt", dict[akey]);
         }
         var zhTitle = "MoveBit — 一个真正能让你离开椅子的休息提醒";
-        var zhDescription = "MoveBit 是本地优先的跨平台桌面休息工具：统计真实电脑活跃时长、识别离席、在工作过久时锁定全部屏幕强制休息；Windows、macOS、Linux 均提供安装器与便携压缩包，发布附带 SHA-256 校验。";
+        var zhDescription = "MoveBit 是本地优先的跨平台健康提醒工具：统计真实电脑活跃时长，久坐、喝水、护眼提醒由屏幕边缘的小家伙沐比温柔交付，永不锁屏、不打断；Windows、macOS、Linux 均提供安装器与便携压缩包，发布附带 SHA-256 校验。";
         var enTitle = "MoveBit — Break reminders you can't ignore";
-        var enDescription = "MoveBit is a local-first desktop break companion that tracks active computer time, recognizes when you step away, locks every display for a timed break, and ships installers and portable archives for Windows, macOS and Linux.";
+        var enDescription = "MoveBit is a local-first cross-platform health reminder: it counts real computer activity, and Mubi — a small character — gently delivers water, stretch and eye-rest cues at the screen edge. Never locks the screen. Installers and portable archives for Windows, macOS and Linux, SHA-256 verified.";
         var t = isZh ? zhTitle : enTitle, d = isZh ? zhDescription : enDescription;
         title.textContent = t;
         description.setAttribute("content", d);

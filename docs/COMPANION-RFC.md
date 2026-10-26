@@ -7,7 +7,7 @@
 **Semantic health message first:** cue includes due kinds, suggested action (drink-water / stand-and-stretch / rest-eyes), and visual gesture; Done is self-reported acknowledgement, Later defers by backend policy. Quiet/presentation suppression must not manufacture completion or drop a pending event. See #55 for the due → pending → acknowledged/snoozed/expired state-machine task.
 
 
-Status: **implementation direction approved; native companion NOT shipped**. Product implementation tracker: [#51](https://github.com/turinglambdaai/movebit/issues/51). Related user-control fix: [#49](https://github.com/turinglambdaai/movebit/issues/49), [#50](https://github.com/turinglambdaai/movebit/pull/50).
+Status: **SHIPPED in v0.0.1 (2026-10-27)** — the character-delivered cue lifecycle, tray Done/Later/Hide/Focus, quiet queuing with a bounded summary and the Mubi design system are live in the product. Product implementation tracker: [#51](https://github.com/turinglambdaai/movebit/issues/51). Desktop-session acceptance evidence is tracked in #56 D4 / #58.
 
 [中文](COMPANION-RFC.zh-CN.md) · English
 

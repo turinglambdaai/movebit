@@ -18,6 +18,7 @@
 
 (require rivet/backend
          json
+         racket/bool
          racket/date
          racket/file
          racket/format
@@ -616,12 +617,17 @@
 
 (define-rpc (get-update-state : UpdateState)
   (define snapshot (update-state-snapshot))
+  ;; Optional fields must carry (void) for "none" over the wire. The state
+  ;; hash uses #f for absent strings internally — #f is NOT a wire value
+  ;; (it fails the UpdateState type check, which surfaced as a failing
+  ;; get-update-state RPC in the packaged diagnostics).
+  (define (opt v) (if (false? v) (void) v))
   (UpdateState
    (hash-ref snapshot 'phase "idle")
    (hash-ref snapshot 'percent 0)
-   (hash-ref snapshot 'message (void))
-   (hash-ref snapshot 'availableVersion (void))
-   (hash-ref snapshot 'downloadedPath (void))))
+   (opt (hash-ref snapshot 'message (void)))
+   (opt (hash-ref snapshot 'availableVersion (void)))
+   (opt (hash-ref snapshot 'downloadedPath (void)))))
 
 (define-rpc (set-install-dir [path : String] : Void)
   (current-install-dir (simple-form-path (string-trim path)))
