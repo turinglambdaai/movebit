@@ -1,5 +1,16 @@
 # AGENTS.md
 
+## Highest-priority product direction — MoveBit v1 reboot (owner approval 2026-10-26)
+
+**This repository's v0.x releases were experiments with no real users.** The owner has explicitly authorized a breaking clean-slate **first real v1**. Source of truth: [#55](https://github.com/turinglambdaai/movebit/issues/55) (execution/old-feature retirement), [#51](https://github.com/turinglambdaai/movebit/issues/51) (product charter), [#54](https://github.com/turinglambdaai/movebit/issues/54) (focus and input safety). Earlier lines in old releases, docs, tests and agent notes that require preserving experimental full-screen/strict-mode UX, backward-compatible config/history, v0.x migration, or side-by-side legacy reminder paths **are superseded**. Do not rebuild legacy compatibility without a newly discovered concrete user need.
+
+**What we are building:** a hydration / stand-up / eye-rest desktop reminder app, with an original small expressive character as the default, **non-blocking delivery mechanism**, not as an independent pet/companionship product. No forced full-screen/multi-monitor cover or delayed skip in v1. Explicit reminders must be clear and actionable (Done / Later / Hide / Focus), no focus theft or broad invisible hit-catching window. No feeding/mood/play loops, paid gating, accounts or AI chat.
+
+**Allowed:** remove experimental features, replace onboarding/settings/UI and API/config schemas, delete/rewrite obsolete legacy tests, start the new release at a distinct version (target v1.0.0 once verified) without supporting v0.x upgrade migration. **Keep:** sound engineering and safety: Racket as canonical scheduler, one Rivet contract for all native hosts, accessibility, local privacy, packaging/update signature integrity, real CI/native acceptance and reproducible tests. Never reuse/delete historical published Git tags or mark an unshipped redesign released.
+
+**Execution order:** remove strong-break architecture and legacy UX with cross-host changes; wire semantic due/pending/ack/snooze cues through the backend, implement character-style native reminders and safe notification fallback on each host, simplify fresh-install settings/onboarding, then test and release. Each PR owns one bounded feature slice and includes CI + actual host verification. Screenshot or a green domain unit suite alone is not sufficient.
+
+
 ## Authorization decision before implementation
 
 Decision `2026-10-auth-1`: No commercial Permit credentials, Commerce checkout or licensing account. Read the complete [local authorization decision](PRICING.md#authorization-decision-for-implementation) and its Chinese counterpart before commercial, trial, update-eligibility or credential work. Record this decision revision and the source/policy SHAs actually read in the PR/handoff. Refresh at each bounded slice; existing agent conversations do not receive this change automatically. Follow the existing product contract and implementation issue; do not activate a payment gate merely because a plan exists.
@@ -38,14 +49,13 @@ raco rivet acceptance --json # 当前平台的打包产品验收
 
 - GUI 功能必须通过 `raco rivet acceptance --json`：领域契约、真实 RVT1、
   原生宿主、可分发包以及打包后的原生 UI 操作缺一不可。
-- 默认验收使用隔离配置启动打包应用，并确认后端发布的 `Active today`
-  状态进入原生可访问性树；只构建成功、只截图或只打开空窗口不算完成。
+- 默认验收使用隔离配置启动打包应用，确认真实后端工作状态以及**喝水 / 久坐活动 / 护眼健康提醒动作**能被原生可访问性树与用户操作覆盖；只构建成功、只截图或只打开空窗口不算完成。旧版仅验证 `Active today` 的验收不再足够。
 - 跨平台交互要同步 macOS、Windows、Linux，或明确记录真实平台边界。
 - 不得用 `continue-on-error`、空测试、跳过 UI 或强杀进程作为成功证据。
 
 ## 契约（不要破坏）
 
-- **数据路径与格式与旧版完全一致**（drop-in 迁移）：config.json / history.json（按日 DayRecord，保留 370 天），目录 macOS ~/Library/Application Support/movebit · Linux ~/.config/movebit · Windows %APPDATA%/movebit
+- **v1 数据契约可全新定义**：没有真实用户，无需兼容旧版 `config.json`、`history.json`、旧字段或迁移旧路径。新格式必须有确定的 fresh-install 默认值、schema 版本、读写容错、隐私与测试；同一 v1 版本在 macOS / Linux / Windows 之间保持一致。保留本地数据优先。
 - **i18n 单源**：`shared/i18n/{zh,en}.json`，平台副本必须逐字节一致；zh 为默认
 - **RPC 面**：`app/backend.rkt` 的 define-rpc 是宿主唯一数据通道；改签名 = 各端宿主 + 生成客户端同步改
 - **宿主只做渲染与交互**：业务一律走 RPC；定时器/调度/HTTP/存储都在 Racket 后端
@@ -72,7 +82,7 @@ raco rivet acceptance --json # 当前平台的打包产品验收
 ## 产品交付与下一步（2026-10-23）
 
 - 家族[交付标准](https://github.com/turinglambdaai/turinglambdaai.github.io/blob/master/docs/PRODUCT-STANDARD.md)与[组合策略](https://github.com/turinglambdaai/turinglambdaai.github.io/blob/master/PORTFOLIO.md)是共用政策；本仓具体行为以 `README.md` 为准，不复制五库依赖图。
-- 当前执行入口：[产品审查 issue](https://github.com/turinglambdaai/movebit/issues/48)。先补每个安装形态的 N→N+1、取消、验签失败和恢复证据，及全屏提醒的键盘/紧急退出场景；保持 MIT 永久免费。
+- 当前**产品实施优先入口**：[v1 重启与旧功能退役 #55](https://github.com/turinglambdaai/movebit/issues/55)。健康提醒产品目标见 [#51](https://github.com/turinglambdaai/movebit/issues/51)，原生交互安全见 [#54](https://github.com/turinglambdaai/movebit/issues/54)。旧版全屏强制休息已决定从 v1 移除；#48 属于旧版交付收尾历史，不阻塞新产品的代码重构。仍须通过新版本真实打包验收，保持 MIT 免费。
 - 开工先检查干净工作树与远端，以 fast-forward-only 更新并记录 SHA；共享文件一次一个写入者，保留其他 checkout 的未提交工作。
 - 每次只完成一个可验收切片，记录 owned files、依赖 pin、命令/平台/产物证据和回滚。已实现、已发布、实机验收分别陈述；不修改 requirements 或复用旧证据来制造通过。
 
