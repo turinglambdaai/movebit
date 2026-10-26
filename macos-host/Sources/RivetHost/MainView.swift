@@ -65,7 +65,11 @@ extension ReminderConfig {
         sound_enabled: Bool? = nil,
         auto_check_updates: Bool? = nil,
         welcome_shown: Bool? = nil,
-        language: String? = nil
+        language: String? = nil,
+        companion_size: String? = nil,
+        companion_motion: String? = nil,
+        companion_dock: String? = nil,
+        companion_labels: String? = nil
     ) -> ReminderConfig {
         ReminderConfig(
             sit_reminder_minutes: sit_reminder_minutes ?? self.sit_reminder_minutes,
@@ -79,7 +83,11 @@ extension ReminderConfig {
             sound_enabled: sound_enabled ?? self.sound_enabled,
             auto_check_updates: auto_check_updates ?? self.auto_check_updates,
             welcome_shown: welcome_shown ?? self.welcome_shown,
-            language: language ?? self.language)
+            language: language ?? self.language,
+            companion_size: companion_size ?? self.companion_size,
+            companion_motion: companion_motion ?? self.companion_motion,
+            companion_dock: companion_dock ?? self.companion_dock,
+            companion_labels: companion_labels ?? self.companion_labels)
     }
 }
 

@@ -150,10 +150,17 @@
 ;; --- 2. the lifecycle over the wire -----------------------------------------
 
 ;; Host reports the sit cue visible, then the user acknowledges it (Done).
+;; The Done carries the milestone signal: cue-acknowledged(sit, 1).
 (define-values (disp-result disp-ev) (call "cue-displayed" (list-ref sc 0)))
 (check-true (void? disp-result))
 (define-values (ack-result ack-ev) (call "acknowledge-cue" (list-ref sc 0)))
 (check-true (void? ack-result))
+(define ack-event
+  (for/first ([e (in-list ack-ev)] #:when (string=? (car e) "cue-acknowledged"))
+    e))
+(check-true (pair? ack-event) "acknowledging a sit cue fires cue-acknowledged")
+(check-equal? (list-ref (list-ref ack-event 1) 0) "sit")
+(check-equal? (list-ref (list-ref ack-event 1) 1) 1)
 ;; today's state counts FIRED reminders — a click is never a completion
 (define today-after-ack (get-state "today"))
 (check-equal? (list-ref today-after-ack 2) 1)  ; sit-breaks (fired)

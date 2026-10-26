@@ -107,7 +107,8 @@ std::string day_key(std::int64_t epoch_ms) {
 
 struct Model {
   rivet_app::ReminderConfig config{
-      45, 30, 5, 10, true, 30, 20, true, true, true, false, "auto"};
+      45, 30, 5, 10, true, 30, 20, true, true, true, false, "auto",
+      "M", "subtle", "bottom-right", "cue"};
   rivet_app::DayStats today{"", 0, 0, 0, 0, 0};
   rivet_app::PauseState paused{false, std::nullopt};
   std::vector<rivet_app::LoopInfo> loops;

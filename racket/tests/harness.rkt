@@ -50,7 +50,8 @@
   (define fired-box (box '()))
   (define day-completed-box (box '()))
   ;; Tests opt in to micro breaks explicitly; disabled keeps legacy cases clean.
-  (define config (reminder-config sit water away snooze #f 30 20 #t #t #t #f "auto"))
+  (define config (reminder-config sit water away snooze #f 30 20 #t #t #t #f "auto"
+                                  "M" "subtle" "bottom-right" "cue"))
   (define s
     (make-scheduler config
                     (lambda () (unbox clock))
@@ -122,7 +123,11 @@
     (reminder-config-sound-enabled base)
     (reminder-config-auto-check-updates base)
     (reminder-config-welcome-shown base)
-    (reminder-config-language base))))
+    (reminder-config-language base)
+    (reminder-config-companion-size base)
+    (reminder-config-companion-motion base)
+    (reminder-config-companion-dock base)
+    (reminder-config-companion-labels base))))
 
 (define (h-scheduler h) (harness-scheduler h))
 (define (h-sit-cycle-ms h) (scheduler-sit-cycle-elapsed-ms (harness-scheduler h)))

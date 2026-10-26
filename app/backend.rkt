@@ -138,7 +138,11 @@
    [sound-enabled : Bool]
    [auto-check-updates : Bool]
    [welcome-shown : Bool]
-   [language : String]))
+   [language : String]
+   [companion-size : String]
+   [companion-motion : String]
+   [companion-dock : String]
+   [companion-labels : String]))
 
 (define-record DayStats
   ([date : String]
@@ -156,6 +160,13 @@
   ([kind : ReminderKind]
    [due-in-active-mins : (Optional Int64)]
    [accumulated-mins : Int64]))
+
+;; Fired when the user acknowledges a cue claiming a sit break: hosts cheer
+;; at milestone counts (3/5/8). The count is SELF-REPORTED acknowledgments,
+;; never proof of actual breaks.
+(define-record CueAcknowledged
+  ([kind : ReminderKind]
+   [count-today : Int64]))
 
 (define-record RuntimeInfo
   ([data-dir : String]
@@ -211,7 +222,11 @@
    (reminder-config-sound-enabled c)
    (reminder-config-auto-check-updates c)
    (reminder-config-welcome-shown c)
-   (reminder-config-language c)))
+   (reminder-config-language c)
+   (reminder-config-companion-size c)
+   (reminder-config-companion-motion c)
+   (reminder-config-companion-dock c)
+   (reminder-config-companion-labels c)))
 
 (define (dto->config dto)
   (clamp-config
@@ -227,7 +242,11 @@
     (record-ref dto 'sound-enabled)
     (record-ref dto 'auto-check-updates)
     (record-ref dto 'welcome-shown)
-    (record-ref dto 'language))))
+    (record-ref dto 'language)
+    (record-ref dto 'companion-size)
+    (record-ref dto 'companion-motion)
+    (record-ref dto 'companion-dock)
+    (record-ref dto 'companion-labels))))
 
 (define (stats->dto stats)
   (DayStats (day-stats-date-key stats)
@@ -291,6 +310,7 @@
 (define-event health-cue : HealthCue)
 (define-event day-completed : DayStats)
 (define-event config-changed : ReminderConfig)
+(define-event cue-acknowledged : CueAcknowledged)
 
 ;; --- State publishers -----------------------------------------------------
 
@@ -457,7 +477,11 @@
 
 (define-rpc (acknowledge-cue [id : Int64] : Void)
   (define rt (require-runtime))
-  (orchestrator-acknowledge-cue! (runtime-orchestrator rt) id)
+  (define acked (orchestrator-acknowledge-cue! (runtime-orchestrator rt) id))
+  (when (and acked (memq 'sit acked))
+    (cue-acknowledged
+     (CueAcknowledged (ReminderKind 'sit)
+                      (orchestrator-sit-acks-today (runtime-orchestrator rt)))))
   (publish-pending-cues! rt)
   (publish-stats! rt)
   (void))
@@ -683,7 +707,10 @@
         "m away " (reminder-config-away-reset-minutes c)
         "m micro " (reminder-config-micro-break-enabled c)
         " motion " (reminder-config-motion-enabled c)
-        " language " (reminder-config-language c))
+        " language " (reminder-config-language c)
+        " mubi " (reminder-config-companion-size c)
+        "/" (reminder-config-companion-motion c)
+        "/" (reminder-config-companion-dock c))
     (~a "paused: " (scheduler-paused-until-ms scheduler))
     (~a "quiet: " (movebit-orchestrator-quiet? (runtime-orchestrator rt))
         " · open cues: "

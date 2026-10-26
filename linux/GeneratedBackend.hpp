@@ -30,6 +30,11 @@ enum class CueDelivery { character, notification, quiet };
 
 enum class ReminderKind { sit, water, micro };
 
+struct CueAcknowledged {
+  ReminderKind kind;
+  std::int64_t count_today;
+};
+
 struct DayStats {
   std::string date;
   std::int64_t active_mins;
@@ -73,6 +78,10 @@ struct ReminderConfig {
   bool auto_check_updates;
   bool welcome_shown;
   std::string language;
+  std::string companion_size;
+  std::string companion_motion;
+  std::string companion_dock;
+  std::string companion_labels;
 };
 
 struct RuntimeInfo {
@@ -124,8 +133,9 @@ inline rivet::Value encode_Bool(bool v) { return rivet::Value(v); }
 inline rivet::Value encode_DayStats(DayStats const& v) { rivet::Value::List r; r.reserve(6); r.push_back(encode_String(v.date)); r.push_back(encode_Int64(v.active_mins)); r.push_back(encode_Int64(v.sit_breaks)); r.push_back(encode_Int64(v.water_reminders)); r.push_back(encode_Int64(v.micro_breaks)); r.push_back(encode_Int64(v.longest_session_mins)); return rivet::Value(std::move(r)); }
 inline rivet::Value encode__List_DayStats_(std::vector<DayStats> const& xs) { rivet::Value::List r; r.reserve(xs.size()); for (auto const& x : xs) r.push_back(encode_DayStats(x)); return rivet::Value(std::move(r)); }
 inline rivet::Value encode_UpdateState(UpdateState const& v) { rivet::Value::List r; r.reserve(5); r.push_back(encode_String(v.phase)); r.push_back(encode_Int64(v.percent)); r.push_back(encode__Optional_String_(v.message)); r.push_back(encode__Optional_String_(v.available_version)); r.push_back(encode__Optional_String_(v.downloaded_path)); return rivet::Value(std::move(r)); }
-inline rivet::Value encode_ReminderConfig(ReminderConfig const& v) { rivet::Value::List r; r.reserve(12); r.push_back(encode_Int64(v.sit_reminder_minutes)); r.push_back(encode_Int64(v.water_reminder_minutes)); r.push_back(encode_Int64(v.away_reset_minutes)); r.push_back(encode_Int64(v.snooze_minutes)); r.push_back(encode_Bool(v.micro_break_enabled)); r.push_back(encode_Int64(v.micro_break_interval_minutes)); r.push_back(encode_Int64(v.micro_break_duration_seconds)); r.push_back(encode_Bool(v.motion_enabled)); r.push_back(encode_Bool(v.sound_enabled)); r.push_back(encode_Bool(v.auto_check_updates)); r.push_back(encode_Bool(v.welcome_shown)); r.push_back(encode_String(v.language)); return rivet::Value(std::move(r)); }
+inline rivet::Value encode_ReminderConfig(ReminderConfig const& v) { rivet::Value::List r; r.reserve(16); r.push_back(encode_Int64(v.sit_reminder_minutes)); r.push_back(encode_Int64(v.water_reminder_minutes)); r.push_back(encode_Int64(v.away_reset_minutes)); r.push_back(encode_Int64(v.snooze_minutes)); r.push_back(encode_Bool(v.micro_break_enabled)); r.push_back(encode_Int64(v.micro_break_interval_minutes)); r.push_back(encode_Int64(v.micro_break_duration_seconds)); r.push_back(encode_Bool(v.motion_enabled)); r.push_back(encode_Bool(v.sound_enabled)); r.push_back(encode_Bool(v.auto_check_updates)); r.push_back(encode_Bool(v.welcome_shown)); r.push_back(encode_String(v.language)); r.push_back(encode_String(v.companion_size)); r.push_back(encode_String(v.companion_motion)); r.push_back(encode_String(v.companion_dock)); r.push_back(encode_String(v.companion_labels)); return rivet::Value(std::move(r)); }
 inline rivet::Value encode_ReminderKind(ReminderKind v) { switch (v) { case ReminderKind::sit: return rivet::Value(std::string("sit")); case ReminderKind::water: return rivet::Value(std::string("water")); case ReminderKind::micro: return rivet::Value(std::string("micro")); } throw std::runtime_error("invalid Rivet enum value"); }
+inline rivet::Value encode_CueAcknowledged(CueAcknowledged const& v) { rivet::Value::List r; r.reserve(2); r.push_back(encode_ReminderKind(v.kind)); r.push_back(encode_Int64(v.count_today)); return rivet::Value(std::move(r)); }
 inline rivet::Value encode__List_ReminderKind_(std::vector<ReminderKind> const& xs) { rivet::Value::List r; r.reserve(xs.size()); for (auto const& x : xs) r.push_back(encode_ReminderKind(x)); return rivet::Value(std::move(r)); }
 inline rivet::Value encode_CueAction(CueAction v) { switch (v) { case CueAction::stand_and_stretch: return rivet::Value(std::string("stand-and-stretch")); case CueAction::drink_water: return rivet::Value(std::string("drink-water")); case CueAction::rest_eyes: return rivet::Value(std::string("rest-eyes")); } throw std::runtime_error("invalid Rivet enum value"); }
 inline rivet::Value encode_CueDelivery(CueDelivery v) { switch (v) { case CueDelivery::character: return rivet::Value(std::string("character")); case CueDelivery::notification: return rivet::Value(std::string("notification")); case CueDelivery::quiet: return rivet::Value(std::string("quiet")); } throw std::runtime_error("invalid Rivet enum value"); }
@@ -147,8 +157,9 @@ inline bool decode_Bool(rivet::Value const& v) { if (auto p = std::get_if<bool>(
 inline DayStats decode_DayStats(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p || p->size() != 6) throw std::runtime_error("Rivet result type mismatch: DayStats"); return DayStats{decode_String((*p)[0]), decode_Int64((*p)[1]), decode_Int64((*p)[2]), decode_Int64((*p)[3]), decode_Int64((*p)[4]), decode_Int64((*p)[5])}; }
 inline std::vector<DayStats> decode__List_DayStats_(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p) throw std::runtime_error("Rivet result type mismatch: (List DayStats)"); std::vector<DayStats> r; r.reserve(p->size()); for (auto const& x : *p) r.push_back(decode_DayStats(x)); return r; }
 inline UpdateState decode_UpdateState(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p || p->size() != 5) throw std::runtime_error("Rivet result type mismatch: UpdateState"); return UpdateState{decode_String((*p)[0]), decode_Int64((*p)[1]), decode__Optional_String_((*p)[2]), decode__Optional_String_((*p)[3]), decode__Optional_String_((*p)[4])}; }
-inline ReminderConfig decode_ReminderConfig(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p || p->size() != 12) throw std::runtime_error("Rivet result type mismatch: ReminderConfig"); return ReminderConfig{decode_Int64((*p)[0]), decode_Int64((*p)[1]), decode_Int64((*p)[2]), decode_Int64((*p)[3]), decode_Bool((*p)[4]), decode_Int64((*p)[5]), decode_Int64((*p)[6]), decode_Bool((*p)[7]), decode_Bool((*p)[8]), decode_Bool((*p)[9]), decode_Bool((*p)[10]), decode_String((*p)[11])}; }
+inline ReminderConfig decode_ReminderConfig(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p || p->size() != 16) throw std::runtime_error("Rivet result type mismatch: ReminderConfig"); return ReminderConfig{decode_Int64((*p)[0]), decode_Int64((*p)[1]), decode_Int64((*p)[2]), decode_Int64((*p)[3]), decode_Bool((*p)[4]), decode_Int64((*p)[5]), decode_Int64((*p)[6]), decode_Bool((*p)[7]), decode_Bool((*p)[8]), decode_Bool((*p)[9]), decode_Bool((*p)[10]), decode_String((*p)[11]), decode_String((*p)[12]), decode_String((*p)[13]), decode_String((*p)[14]), decode_String((*p)[15])}; }
 inline ReminderKind decode_ReminderKind(rivet::Value const& v) { auto p = std::get_if<std::string>(&v.data); if (p) { if (*p == "sit") return ReminderKind::sit; if (*p == "water") return ReminderKind::water; if (*p == "micro") return ReminderKind::micro; } throw std::runtime_error("Rivet result type mismatch: ReminderKind"); }
+inline CueAcknowledged decode_CueAcknowledged(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p || p->size() != 2) throw std::runtime_error("Rivet result type mismatch: CueAcknowledged"); return CueAcknowledged{decode_ReminderKind((*p)[0]), decode_Int64((*p)[1])}; }
 inline std::vector<ReminderKind> decode__List_ReminderKind_(rivet::Value const& v) { auto p = std::get_if<rivet::Value::List>(&v.data); if (!p) throw std::runtime_error("Rivet result type mismatch: (List ReminderKind)"); std::vector<ReminderKind> r; r.reserve(p->size()); for (auto const& x : *p) r.push_back(decode_ReminderKind(x)); return r; }
 inline CueAction decode_CueAction(rivet::Value const& v) { auto p = std::get_if<std::string>(&v.data); if (p) { if (*p == "stand-and-stretch") return CueAction::stand_and_stretch; if (*p == "drink-water") return CueAction::drink_water; if (*p == "rest-eyes") return CueAction::rest_eyes; } throw std::runtime_error("Rivet result type mismatch: CueAction"); }
 inline CueDelivery decode_CueDelivery(rivet::Value const& v) { auto p = std::get_if<std::string>(&v.data); if (p) { if (*p == "character") return CueDelivery::character; if (*p == "notification") return CueDelivery::notification; if (*p == "quiet") return CueDelivery::quiet; } throw std::runtime_error("Rivet result type mismatch: CueDelivery"); }
@@ -162,12 +173,14 @@ inline RuntimeInfo decode_RuntimeInfo(rivet::Value const& v) { auto p = std::get
 }  // namespace detail
 
 struct Config_changedEvent { ReminderConfig value; };
+struct Cue_acknowledgedEvent { CueAcknowledged value; };
 struct Day_completedEvent { DayStats value; };
 struct Health_cueEvent { HealthCue value; };
 struct Tick_statsEvent { DayStats value; };
-using Event = std::variant<Config_changedEvent, Day_completedEvent, Health_cueEvent, Tick_statsEvent>;
+using Event = std::variant<Config_changedEvent, Cue_acknowledgedEvent, Day_completedEvent, Health_cueEvent, Tick_statsEvent>;
 inline Event decode_event(std::string const& name, rivet::Value const& value) {
   if (name == "config-changed") return Event{Config_changedEvent{detail::decode_ReminderConfig(value)}};
+  if (name == "cue-acknowledged") return Event{Cue_acknowledgedEvent{detail::decode_CueAcknowledged(value)}};
   if (name == "day-completed") return Event{Day_completedEvent{detail::decode_DayStats(value)}};
   if (name == "health-cue") return Event{Health_cueEvent{detail::decode_HealthCue(value)}};
   if (name == "tick-stats") return Event{Tick_statsEvent{detail::decode_DayStats(value)}};

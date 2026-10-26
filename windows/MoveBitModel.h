@@ -171,7 +171,8 @@ struct Model {
   // Pre-bootstrap placeholder = the shipped default; the backend overwrites
   // it with the real persisted config right after init.
   rivet_app::ReminderConfig config{
-      45, 30, 5, 10, true, 30, 20, true, true, true, false, "auto"};
+      45, 30, 5, 10, true, 30, 20, true, true, true, false, "auto",
+      "M", "subtle", "bottom-right", "cue"};
   rivet_app::DayStats today{"", 0, 0, 0, 0, 0};
   rivet_app::PauseState paused{false, std::nullopt};
   std::vector<rivet_app::LoopInfo> loops;

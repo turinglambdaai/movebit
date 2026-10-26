@@ -73,7 +73,7 @@
     
     <path d="M 43 65 C 45 67.6, 48 67.6, 50 65" stroke="#2D2A28" stroke-width="2.2" stroke-linecap="round" fill="none"/>
     <path d="M 70 65 C 72 67.6, 75 67.6, 77 65" stroke="#2D2A28" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-    <path d="M 92 38 A 9 9 0 0 1 99 50" stroke="#65C8B8" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M 92 38 C 96.5 40.5, 99 45, 98 50" stroke="#65C8B8" stroke-width="3" stroke-linecap="round" fill="none"/>
   </g>
   <!-- ack -->
   <g transform="translate(520 0)">
@@ -98,6 +98,6 @@
     
     <path d="M 43 65 C 45 67.6, 48 67.6, 50 65" stroke="#2D2A28" stroke-width="2.2" stroke-linecap="round" fill="none"/>
     <path d="M 70 65 C 72 67.6, 75 67.6, 77 65" stroke="#2D2A28" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-    <path d="M 88 34 A 8.5 8.5 0 1 0 96 46 A 10.5 10.5 0 0 1 88 34 Z" fill="#8DA1B5"/>
+    <path d="M 84 32 C 90 31.5, 95.5 36, 96.5 42 C 97.5 48.5, 93.5 54.5, 87.5 56.5 C 91 52, 92 46, 90.5 41 C 89.2 36.8, 86.8 33.8, 84 32 Z" fill="#8DA1B5"/>
   </g>
 </svg>

@@ -90,7 +90,9 @@ final class MoveBitModel: ObservableObject {
         // overwrites it with the real persisted config right after init.
         snooze_minutes: 10, micro_break_enabled: true, micro_break_interval_minutes: 30,
         micro_break_duration_seconds: 20, motion_enabled: true, sound_enabled: true,
-        auto_check_updates: true, welcome_shown: false, language: "auto")
+        auto_check_updates: true, welcome_shown: false, language: "auto",
+        companion_size: "M", companion_motion: "subtle",
+        companion_dock: "bottom-right", companion_labels: "cue")
     @Published var paused = PauseState(paused: false, until_ms: nil)
     @Published var loops: [LoopInfo] = []
     /// Cues currently pending or on screen (the backend's reconciliation view).

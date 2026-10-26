@@ -35,6 +35,13 @@
       }
     },
     {
+      "name": "cue-acknowledged",
+      "type": {
+        "kind": "record",
+        "name": "CueAcknowledged"
+      }
+    },
+    {
       "name": "day-completed",
       "type": {
         "kind": "record",
@@ -59,6 +66,25 @@
   "format": "rivet-schema",
   "format-version": 1,
   "records": [
+    {
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "record",
+            "name": "ReminderKind"
+          }
+        },
+        {
+          "name": "count-today",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "CueAcknowledged"
+    },
     {
       "fields": [
         {
@@ -295,6 +321,34 @@
         },
         {
           "name": "language",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "companion-size",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "companion-motion",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "companion-dock",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          }
+        },
+        {
+          "name": "companion-labels",
           "type": {
             "kind": "scalar",
             "name": "String"
