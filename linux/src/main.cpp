@@ -136,6 +136,7 @@ struct Model {
 
 struct AppState {
   GtkWindow* window{nullptr};
+  GtkApplication* app{nullptr};
   GtkButton* pause_button{nullptr};
   GtkBox* content_root{nullptr};  // cleared + rebuilt on language change
 
@@ -168,6 +169,22 @@ struct AppState {
   std::int64_t micro_total_ms = 1000;
   std::int64_t micro_cue_id = 0;
   GtkProgressBar* micro_bar{nullptr};
+
+  // Mubi（沐比）companion (issue #56): X11-only presentation. On Wayland
+  // the compositor owns placement, so the companion stays OFF there and
+  // cues deliver as notifications (the documented #54/#56 fallback).
+  GtkWindow* mubi_window{nullptr};
+  GtkDrawingArea* mubi_canvas{nullptr};
+  GtkLabel* mubi_capsule{nullptr};
+  guint mubi_expire_id{0};
+  int mubi_state = 0;  // 0 idle, 1 water, 2 stand, 3 eyes, 4 ack, 5 focus
+  std::string mubi_message;
+  std::string mubi_size = "M";
+  std::string mubi_motion = "subtle";
+  std::string mubi_dock = "bottom-right";
+  bool mubi_labels_always = false;
+  bool mubi_quiet = false;
+  bool mubi_x11 = false;
 
   // Onboarding wizard.
   GtkWindow* onboarding_window{nullptr};
@@ -379,6 +396,10 @@ struct MainWidgets {
   GtkSpinButton* micro_interval_spin{nullptr};
   GtkSpinButton* micro_duration_spin{nullptr};
   GtkSwitch* motion_switch{nullptr};
+  GtkDropDown* mubi_size_drop{nullptr};
+  GtkDropDown* mubi_motion_drop{nullptr};
+  GtkDropDown* mubi_dock_drop{nullptr};
+  GtkDropDown* mubi_labels_drop{nullptr};
   GtkSwitch* micro_switch{nullptr};
   GtkSwitch* sound_switch{nullptr};
   GtkSwitch* autostart_switch{nullptr};
@@ -531,6 +552,40 @@ int on_motion_set(GtkSwitch*, gboolean state, gpointer) {
     mutate_config([&](auto& d) { d.motion_enabled = state != FALSE; });
   }
   return FALSE;
+}
+
+// Mubi presentation pickers: value tables mirror the backend's clamp
+// choices; an out-of-range selection is impossible via the UI.
+void on_mubi_size_changed(GtkDropDown* drop, gpointer) {
+  if (g_state.updating_settings) return;
+  static char const* values[] = {"S", "M", "L"};
+  auto const index = gtk_drop_down_get_selected(drop);
+  if (index < 0 || index > 2) return;
+  mutate_config([&](auto& d) { d.companion_size = values[index]; });
+}
+
+void on_mubi_motion_changed(GtkDropDown* drop, gpointer) {
+  if (g_state.updating_settings) return;
+  static char const* values[] = {"still", "subtle", "lively"};
+  auto const index = gtk_drop_down_get_selected(drop);
+  if (index < 0 || index > 2) return;
+  mutate_config([&](auto& d) { d.companion_motion = values[index]; });
+}
+
+void on_mubi_dock_changed(GtkDropDown* drop, gpointer) {
+  if (g_state.updating_settings) return;
+  static char const* values[] = {"bottom-right", "bottom-left", "top-right"};
+  auto const index = gtk_drop_down_get_selected(drop);
+  if (index < 0 || index > 2) return;
+  mutate_config([&](auto& d) { d.companion_dock = values[index]; });
+}
+
+void on_mubi_labels_changed(GtkDropDown* drop, gpointer) {
+  if (g_state.updating_settings) return;
+  static char const* values[] = {"cue", "always"};
+  auto const index = gtk_drop_down_get_selected(drop);
+  if (index < 0 || index > 1) return;
+  mutate_config([&](auto& d) { d.companion_labels = values[index]; });
 }
 int on_micro_set(GtkSwitch*, gboolean state, gpointer) {
   if (!g_state.updating_settings) {
@@ -837,6 +892,17 @@ void refresh_settings_widgets() {
     gtk_spin_button_set_value(mw.micro_interval_spin, c.micro_break_interval_minutes);
     gtk_spin_button_set_value(mw.micro_duration_spin, c.micro_break_duration_seconds);
     gtk_switch_set_active(mw.motion_switch, c.motion_enabled);
+    gtk_drop_down_set_selected(mw.mubi_size_drop,
+                               c.companion_size == "S" ? 0
+                               : c.companion_size == "L" ? 2 : 1);
+    gtk_drop_down_set_selected(mw.mubi_motion_drop,
+                               c.companion_motion == "still" ? 0
+                               : c.companion_motion == "lively" ? 2 : 1);
+    gtk_drop_down_set_selected(mw.mubi_dock_drop,
+                               c.companion_dock == "bottom-left" ? 1
+                               : c.companion_dock == "top-right" ? 2 : 0);
+    gtk_drop_down_set_selected(mw.mubi_labels_drop,
+                               c.companion_labels == "always" ? 1 : 0);
     gtk_switch_set_active(mw.micro_switch, c.micro_break_enabled);
     gtk_switch_set_active(mw.sound_switch, c.sound_enabled);
     gtk_switch_set_active(mw.autostart_switch, g_state.model.autostart);
@@ -1558,6 +1624,80 @@ void build_main_content() {
     mw.away_spin = add_stepper_row(card, l10n::t("SetAwayReset").c_str(),
                                    c.away_reset_minutes, 1, 60, 1,
                                    G_CALLBACK(on_away_changed));
+    auto* mubi_size_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    box_append(GTK_BOX(mubi_size_row),
+               label_with(l10n::t("SetMubiSize").c_str(), "row-label"));
+    char const* size_items[] = {"S", "M", "L", nullptr};
+    auto* size_drop = gtk_drop_down_new_from_strings(size_items);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(size_drop),
+                               c.companion_size == "S" ? 0
+                               : c.companion_size == "L" ? 2 : 1);
+    g_signal_connect(size_drop, "notify::selected",
+                     G_CALLBACK(on_mubi_size_changed), nullptr);
+    box_append(GTK_BOX(mubi_size_row), size_drop);
+    gtk_widget_set_halign(size_drop, GTK_ALIGN_END);
+    gtk_widget_set_hexpand(size_drop, TRUE);
+    box_append(GTK_BOX(card), mubi_size_row);
+    mw.mubi_size_drop = GTK_DROP_DOWN(size_drop);
+
+    auto* mubi_motion_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    box_append(GTK_BOX(mubi_motion_row),
+               label_with(l10n::t("SetMubiMotion").c_str(), "row-label"));
+    std::string const motion_still = l10n::t("MubiMotionStill");
+    std::string const motion_subtle = l10n::t("MubiMotionSubtle");
+    std::string const motion_lively = l10n::t("MubiMotionLively");
+    char const* motion_items[] = {motion_still.c_str(), motion_subtle.c_str(),
+                                  motion_lively.c_str(), nullptr};
+    auto* motion_drop = gtk_drop_down_new_from_strings(motion_items);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(motion_drop),
+                               c.companion_motion == "still" ? 0
+                               : c.companion_motion == "lively" ? 2 : 1);
+    g_signal_connect(motion_drop, "notify::selected",
+                     G_CALLBACK(on_mubi_motion_changed), nullptr);
+    box_append(GTK_BOX(mubi_motion_row), motion_drop);
+    gtk_widget_set_halign(motion_drop, GTK_ALIGN_END);
+    gtk_widget_set_hexpand(motion_drop, TRUE);
+    box_append(GTK_BOX(card), mubi_motion_row);
+    mw.mubi_motion_drop = GTK_DROP_DOWN(motion_drop);
+
+    auto* mubi_dock_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    box_append(GTK_BOX(mubi_dock_row),
+               label_with(l10n::t("SetMubiDock").c_str(), "row-label"));
+    std::string const dock_br = l10n::t("MubiDockBottomRight");
+    std::string const dock_bl = l10n::t("MubiDockBottomLeft");
+    std::string const dock_tr = l10n::t("MubiDockTopRight");
+    char const* dock_items[] = {dock_br.c_str(), dock_bl.c_str(),
+                                dock_tr.c_str(), nullptr};
+    auto* dock_drop = gtk_drop_down_new_from_strings(dock_items);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(dock_drop),
+                               c.companion_dock == "bottom-left" ? 1
+                               : c.companion_dock == "top-right" ? 2 : 0);
+    g_signal_connect(dock_drop, "notify::selected",
+                     G_CALLBACK(on_mubi_dock_changed), nullptr);
+    box_append(GTK_BOX(mubi_dock_row), dock_drop);
+    gtk_widget_set_halign(dock_drop, GTK_ALIGN_END);
+    gtk_widget_set_hexpand(dock_drop, TRUE);
+    box_append(GTK_BOX(card), mubi_dock_row);
+    mw.mubi_dock_drop = GTK_DROP_DOWN(dock_drop);
+
+    auto* mubi_labels_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    box_append(GTK_BOX(mubi_labels_row),
+               label_with(l10n::t("SetMubiLabels").c_str(), "row-label"));
+    std::string const labels_cue = l10n::t("MubiLabelsCue");
+    std::string const labels_always = l10n::t("MubiLabelsAlways");
+    char const* labels_items[] = {labels_cue.c_str(), labels_always.c_str(),
+                                  nullptr};
+    auto* labels_drop = gtk_drop_down_new_from_strings(labels_items);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(labels_drop),
+                               c.companion_labels == "always" ? 1 : 0);
+    g_signal_connect(labels_drop, "notify::selected",
+                     G_CALLBACK(on_mubi_labels_changed), nullptr);
+    box_append(GTK_BOX(mubi_labels_row), labels_drop);
+    gtk_widget_set_halign(labels_drop, GTK_ALIGN_END);
+    gtk_widget_set_hexpand(labels_drop, TRUE);
+    box_append(GTK_BOX(card), mubi_labels_row);
+    mw.mubi_labels_drop = GTK_DROP_DOWN(labels_drop);
+
     mw.motion_switch = add_toggle_row(card, l10n::t("SetMotion").c_str(),
                                       c.motion_enabled,
                                       G_CALLBACK(on_motion_set));
@@ -1696,6 +1836,9 @@ void apply_global_css() {
                          background: #1A1730; border: 1px solid #5A527A;
                          border-radius: 8px; padding: 7px 16px; }
     .toast-bg { background: #FFFDFB; border-radius: 14px; border: 1px solid #E2DCCC; }
+    .mubi-bg { background: #FFFDFB; border-radius: 20px; border: 1px solid #E2DCCC; }
+    .mubi-capsule { background: #FFFDFB; border-radius: 12px; }
+    .mubi-capsule-text { font-size: 12px; font-weight: 600; color: #2D2A28; }
     .toast-title { font-size: 17px; font-weight: 600; color: #26241F; }
     .toast-line { font-size: 13.5px; color: #6E6A5E; }
     .toast-btn { font-size: 12.5px; color: #26241F; background: #F3EEE3;
@@ -1729,6 +1872,385 @@ void apply_global_css() {
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
   g_object_unref(provider);
 }
+
+
+// Mubi presentation states (mirrors the backend's cue actions; the numeric
+// order matches mubi::draw_state and the companion's idle/focus poses).
+enum class MubiCompanionState { Idle = 0, Water = 1, Stand = 2, Eyes = 3,
+                                Ack = 4, Focus = 5 };
+
+// ---- Mubi（沐比）companion (issue #56, X11 leg) ---------------------------------
+// Canonical character from assets/mubi/tokens.json (generator:
+// scripts/gen-mubi-art.mjs) drawn with cairo from the master path data.
+// The window is placed via gtk_window_move (honored on X11) and is fully
+// pointer-through via gtk_widget_set_can_target(FALSE) — the #54 fallback.
+
+namespace mubi {
+
+using PathIter = std::string::const_iterator;
+
+void skip_separators(PathIter& it, PathIter end) {
+  while (it != end && (*it == ' ' || *it == ',')) ++it;
+}
+
+double read_number(PathIter& it, PathIter end) {
+  skip_separators(it, end);
+  std::string digits;
+  if (it != end && *it == '-') {
+    digits.push_back('-');
+    ++it;
+  }
+  while (it != end && (isdigit(static_cast<unsigned char>(*it)) ||
+                       *it == '.')) {
+    digits.push_back(*it);
+    ++it;
+  }
+  return std::atof(digits.c_str());
+}
+
+// Traces a canonical M/L/C/Z path onto a cairo context (absolute commands
+// only, exactly the generator's alphabet).
+void trace_path(cairo_t* cr, std::string const& d) {
+  auto it = d.begin();
+  auto const end = d.end();
+  while (it != end) {
+    skip_separators(it, end);
+    if (it == end) break;
+    char const command = *it;
+    ++it;
+    if (command == 'M') {
+      double const x = read_number(it, end);
+      double const y = read_number(it, end);
+      cairo_move_to(cr, x, y);
+    } else if (command == 'L') {
+      double const x = read_number(it, end);
+      double const y = read_number(it, end);
+      cairo_line_to(cr, x, y);
+    } else if (command == 'C') {
+      double const x1 = read_number(it, end);
+      double const y1 = read_number(it, end);
+      double const x2 = read_number(it, end);
+      double const y2 = read_number(it, end);
+      double const x3 = read_number(it, end);
+      double const y3 = read_number(it, end);
+      cairo_curve_to(cr, x1, y1, x2, y2, x3, y3);
+    } else if (command == 'Z') {
+      cairo_close_path(cr);
+    }
+  }
+}
+
+void fill_path(cairo_t* cr, std::string const& d, char const* hex,
+               double alpha = 1.0) {
+  trace_path(cr, d);
+  GdkRGBA rgba;
+  gdk_rgba_parse(&rgba, hex);
+  cairo_set_source_rgba(cr, rgba.red, rgba.green, rgba.blue,
+                        rgba.alpha * alpha);
+  cairo_fill(cr);
+}
+
+void stroke_path(cairo_t* cr, std::string const& d, char const* hex,
+                 double width) {
+  trace_path(cr, d);
+  GdkRGBA rgba;
+  gdk_rgba_parse(&rgba, hex);
+  cairo_set_source_rgba(cr, rgba.red, rgba.green, rgba.blue, rgba.alpha);
+  cairo_set_line_width(cr, width);
+  cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+  cairo_stroke(cr);
+}
+
+constexpr char const* kBody =
+    "M 58 16 C 82 18, 106 46, 109 82 C 111 104, 92 124, 60 124 "
+    "C 33 124, 12.5 106, 11 84 C 9.5 52, 34 14, 58 16 Z";
+constexpr char const* kFinLeft =
+    "M 52 24 C 47 13, 40 7, 32 6 C 30 14, 36 23, 45 27 "
+    "C 48 28.2, 51 26.5, 52 24 Z";
+constexpr char const* kFinRight =
+    "M 74 23 C 71 14, 66.5 8, 60.5 6 C 58.5 13, 62.5 21.5, 70 25 "
+    "C 72.3 25.9, 73.8 25, 74 23 Z";
+constexpr char const* kFinShade =
+    "M 48 22 C 44.5 15.5, 39.5 10.5, 34.5 8.5 C 33.5 13.5, 38 20.5, 45 24.5 Z";
+constexpr char const* kLowerShade =
+    "M 16 96 C 24 118, 42 126, 60 126 C 80 126, 98 116, 105 94 "
+    "C 100 116, 84 128, 60 128 C 38 128, 20 114, 16 96 Z";
+constexpr char const* kEyeClosedL = "M 43 65 C 45 67.6, 48 67.6, 50 65";
+constexpr char const* kEyeClosedR = "M 70 65 C 72 67.6, 75 67.6, 77 65";
+constexpr char const* kMouthAck = "M 57.5 74 C 59 75.4, 61 75.4, 62.5 74";
+constexpr char const* kGazeCrescent = "M 92 38 C 96.5 40.5, 99 45, 98 50";
+constexpr char const* kStretchL = "M 42 11 C 47 4, 53 2, 58 4";
+constexpr char const* kStretchR = "M 78 11 C 73 4, 67 2, 62 4";
+constexpr char const* kAckGlint =
+    "M 84 56 L 86 60.5 L 90.5 62 L 86 63.5 L 84 68 L 82 63.5 L 77.5 62 "
+    "L 82 60.5 Z";
+constexpr char const* kCupBody =
+    "M -7 -9 L 7 -9 L 5.4 9 C 5.2 10.6, 4 11.5, 2.4 11.5 "
+    "L -2.4 11.5 C -4 11.5, -5.2 10.6, -5.4 9 Z";
+constexpr char const* kCupWater = "M -4.6 -6.5 L 4.4 -6.5 L 3.6 1.5 L -4 1.5 Z";
+
+constexpr char const* kHexBody = "#F6EEDF";
+constexpr char const* kHexBodyLight = "#FBF5E9";
+constexpr char const* kHexBodyDeep = "#E8D7BE";
+constexpr char const* kHexShadow = "#D8C8B5";
+constexpr char const* kHexInk = "#2D2A28";
+constexpr char const* kHexFin = "#F1E4CC";
+
+void eye(cairo_t* cr, double cx, double cy) {
+  cairo_save(cr);
+  cairo_translate(cr, cx, cy);
+  cairo_scale(cr, 3.0, 3.6);
+  cairo_arc(cr, 0, 0, 1, 0, 2 * 3.14159265358979);
+  cairo_restore(cr);
+  GdkRGBA ink;
+  gdk_rgba_parse(&ink, kHexInk);
+  cairo_set_source_rgba(cr, ink.red, ink.green, ink.blue, ink.alpha);
+  cairo_fill(cr);
+}
+
+void draw_state(cairo_t* cr, int state) {
+  fill_path(cr, kFinLeft, kHexFin);
+  fill_path(cr, kFinRight, kHexFin);
+  fill_path(cr, kFinShade, kHexShadow, 0.35);
+
+  // Body with the volume gradient (tokens: body.light -> body -> deep).
+  trace_path(cr, kBody);
+  cairo_pattern_t* body_grad = cairo_pattern_create_linear(20, 14, 95, 124);
+  GdkRGBA top;
+  gdk_rgba_parse(&top, kHexBodyLight);
+  GdkRGBA mid;
+  gdk_rgba_parse(&mid, kHexBody);
+  GdkRGBA deep;
+  gdk_rgba_parse(&deep, kHexBodyDeep);
+  cairo_pattern_add_color_stop_rgba(body_grad, 0, top.red, top.green,
+                                    top.blue, top.alpha);
+  cairo_pattern_add_color_stop_rgba(body_grad, 0.45, mid.red, mid.green,
+                                    mid.blue, mid.alpha);
+  cairo_pattern_add_color_stop_rgba(body_grad, 1, deep.red, deep.green,
+                                    deep.blue, deep.alpha);
+  cairo_set_source(cr, body_grad);
+  cairo_fill(cr);
+  cairo_pattern_destroy(body_grad);
+
+  // Lower form shade.
+  trace_path(cr, kLowerShade);
+  cairo_pattern_t* shade = cairo_pattern_create_linear(0, 94, 0, 128);
+  GdkRGBA sh;
+  gdk_rgba_parse(&sh, kHexShadow);
+  cairo_pattern_add_color_stop_rgba(shade, 0, sh.red, sh.green, sh.blue, 0);
+  cairo_pattern_add_color_stop_rgba(shade, 1, sh.red, sh.green, sh.blue,
+                                    0.55);
+  cairo_set_source(cr, shade);
+  cairo_fill(cr);
+  cairo_pattern_destroy(shade);
+
+  // Rim light: soft radial blob, upper-left.
+  cairo_pattern_t* rim = cairo_pattern_create_radial(38, 46, 2, 38, 46, 30);
+  cairo_pattern_add_color_stop_rgba(rim, 0, 1, 1, 1, 0.45);
+  cairo_pattern_add_color_stop_rgba(rim, 1, 1, 1, 1, 0);
+  cairo_set_source(cr, rim);
+  cairo_arc(cr, 38, 46, 28, 0, 2 * 3.14159265358979);
+  cairo_fill(cr);
+  cairo_pattern_destroy(rim);
+
+  if (state == 3 || state == 5) {  // eyes closed / focus
+    stroke_path(cr, kEyeClosedL, kHexInk, 2.2);
+    stroke_path(cr, kEyeClosedR, kHexInk, 2.2);
+  } else {
+    eye(cr, 46.5, 65);
+    eye(cr, 73.5, 65);
+    // Glints.
+    double const gy = state == 1 ? 63.2 : 63.8;
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.85);
+    cairo_arc(cr, 47.6, gy, 1, 0, 2 * 3.14159265358979);
+    cairo_fill(cr);
+    cairo_arc(cr, 74.6, gy, 1, 0, 2 * 3.14159265358979);
+    cairo_fill(cr);
+    if (state == 4) stroke_path(cr, kMouthAck, kHexInk, 1.6);
+  }
+
+  if (state == 1) {  // water: cup at canvas (97,57), tilted
+    cairo_save(cr);
+    cairo_translate(cr, 97, 57);
+    cairo_rotate(cr, -10 * 3.14159265358979 / 180.0);
+    cairo_scale(cr, 0.9, 0.9);
+    fill_path(cr, kCupBody, "#62B6FF");
+    fill_path(cr, kCupWater, "#8FCBFF", 0.85);
+    cairo_restore(cr);
+  } else if (state == 2) {  // stand: coral stretch arcs over the crown
+    stroke_path(cr, kStretchL, "#FF8C6B", 3);
+    stroke_path(cr, kStretchR, "#FF8C6B", 3);
+  } else if (state == 3) {  // eyes: mint gaze-off
+    stroke_path(cr, kGazeCrescent, "#65C8B8", 3);
+  } else if (state == 4) {  // ack: warm glint
+    fill_path(cr, kAckGlint, "#F2C96B");
+  } else if (state == 5) {  // focus: quiet moon
+    GdkRGBA moon;
+    gdk_rgba_parse(&moon, "#8DA1B5");
+    cairo_set_source_rgba(cr, moon.red, moon.green, moon.blue, 0.75);
+    cairo_arc(cr, 96, 38, 8, 0, 2 * 3.14159265358979);
+    cairo_fill(cr);
+    GdkRGBA body_over;
+    gdk_rgba_parse(&body_over, kHexBody);
+    cairo_set_source_rgba(cr, body_over.red, body_over.green, body_over.blue,
+                          body_over.alpha);
+    cairo_arc(cr, 99, 35.5, 6, 0, 2 * 3.14159265358979);
+    cairo_fill(cr);
+  }
+}
+
+void draw(GtkDrawingArea*, cairo_t* cr, int, int, gpointer) {
+  draw_state(cr, g_state.mubi_state);
+}
+
+double scale_for(std::string const& size) {
+  if (size == "S") return 60.0 / 108.0;
+  if (size == "L") return 104.0 / 108.0;
+  return 78.0 / 108.0;
+}
+
+void close_window() {
+  if (g_state.mubi_expire_id != 0) {
+    g_source_remove(g_state.mubi_expire_id);
+    g_state.mubi_expire_id = 0;
+  }
+  if (g_state.mubi_window != nullptr) {
+    gtk_window_destroy(g_state.mubi_window);
+    g_state.mubi_window = nullptr;
+    g_state.mubi_canvas = nullptr;
+    g_state.mubi_capsule = nullptr;
+  }
+}
+
+void refresh_label() {
+  if (g_state.mubi_capsule == nullptr) return;
+  if (g_state.mubi_labels_always || !g_state.mubi_message.empty()) {
+    gtk_label_set_text(g_state.mubi_capsule,
+                       g_state.mubi_message.empty()
+                           ? "MoveBit"
+                           : g_state.mubi_message.c_str());
+    gtk_widget_set_visible(GTK_WIDGET(g_state.mubi_capsule), TRUE);
+  } else {
+    gtk_widget_set_visible(GTK_WIDGET(g_state.mubi_capsule), FALSE);
+  }
+}
+
+void present(int state, std::string const& message, GtkApplication* app) {
+  if (!g_state.mubi_x11) return;  // Wayland: notification fallback only
+  if (app == nullptr) app = g_state.app;
+  if (app == nullptr) return;
+  auto& s = g_state;
+  s.mubi_state = state;
+  s.mubi_message = message;
+
+  if (s.mubi_expire_id != 0) {
+    g_source_remove(s.mubi_expire_id);
+    s.mubi_expire_id = 0;
+  }
+
+  double const scale = scale_for(s.mubi_size);
+  int const canvas_w = static_cast<int>(120 * scale + 24);
+  int const canvas_h = static_cast<int>(140 * scale + 24);
+
+  if (s.mubi_window == nullptr) {
+    auto* window = gtk_application_window_new(app);
+    gtk_widget_add_css_class(GTK_WIDGET(window), "mubi-bg");
+    gtk_window_set_title(GTK_WINDOW(window), "Mubi");
+    gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
+    s.mubi_window = GTK_WINDOW(window);
+    // Whole-window pointer-through (#54): no input target on the card.
+    gtk_widget_set_can_target(GTK_WIDGET(window), FALSE);
+
+    auto* body_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    gtk_widget_set_margin_top(body_box, 12);
+    gtk_widget_set_margin_bottom(body_box, 12);
+    gtk_widget_set_margin_start(body_box, 12);
+    gtk_widget_set_margin_end(body_box, 12);
+
+    auto* canvas = GTK_DRAWING_AREA(gtk_drawing_area_new());
+    gtk_drawing_area_set_content_size(
+        canvas, static_cast<int>(120 * scale),
+        static_cast<int>(140 * scale));
+    gtk_drawing_area_set_draw_func(canvas, draw, nullptr, nullptr);
+    box_append(GTK_BOX(body_box), GTK_WIDGET(canvas));
+    s.mubi_canvas = canvas;
+
+    auto* capsule = gtk_label_new("");
+    gtk_widget_add_css_class(capsule, "mubi-capsule");
+    gtk_widget_add_css_class(capsule, "mubi-capsule-text");
+    gtk_widget_set_halign(capsule, GTK_ALIGN_CENTER);
+    gtk_label_set_justify(GTK_LABEL(capsule), GTK_JUSTIFY_CENTER);
+    gtk_label_set_wrap(GTK_LABEL(capsule), TRUE);
+    box_append(GTK_BOX(body_box), capsule);
+    s.mubi_capsule = GTK_LABEL(capsule);
+
+    gtk_window_set_child(GTK_WINDOW(window), body_box);
+  } else {
+    gtk_drawing_area_set_content_size(
+        s.mubi_canvas, static_cast<int>(120 * scale),
+        static_cast<int>(140 * scale));
+  }
+
+  refresh_label();
+  // Explicit size: the card knows its own layout (canvas + capsule area).
+  bool const label_visible = s.mubi_labels_always || !s.mubi_message.empty();
+  int const win_w = canvas_w;
+  int const win_h = canvas_h + (label_visible ? 44 : 0);
+  gtk_window_set_default_size(s.mubi_window, win_w, win_h);
+  gtk_window_present(s.mubi_window);
+
+  // Dock inside the monitor work area (X11 honors the move request).
+  if (auto* surface = gtk_native_get_surface(GTK_NATIVE(s.mubi_window))) {
+    if (GDK_IS_X11_SURFACE(surface)) {
+      GdkMonitor* monitor = gdk_display_get_monitor_at_surface(
+          gdk_display_get_default(), surface);
+      GdkRectangle work{};
+      gdk_monitor_get_workarea(monitor, &work);
+      int const clearance = 16;
+      int x = work.x + work.width - win_w - clearance;
+      int y = work.y + work.height - win_h - clearance;
+      if (s.mubi_dock == "bottom-left") {
+        x = work.x + clearance;
+      } else if (s.mubi_dock == "top-right") {
+        y = work.y + clearance;
+      }
+      gtk_window_move(s.mubi_window, x, y);
+    }
+  }
+
+  // The label reads ~5 s, then the card returns to its calm pose. The cue
+  // itself stays open in the backend ledger (#56: label fade is not Done).
+  s.mubi_expire_id = g_timeout_add(
+      5000,
+      +[](gpointer) -> int {
+        g_state.mubi_expire_id = 0;
+        present(g_state.mubi_quiet ? 5 : 0, "", nullptr);
+        return G_SOURCE_REMOVE;
+      },
+      nullptr);
+}
+
+void show_idle() { present(g_state.mubi_quiet ? 5 : 0, "", nullptr); }
+
+void show_ack() {
+  if (!g_state.mubi_quiet) present(4, "", nullptr);
+}
+
+void set_quiet(bool enabled) {
+  g_state.mubi_quiet = enabled;
+  present(enabled ? 5 : 0, "", nullptr);
+}
+
+void apply_config(std::string const& size, std::string const& motion,
+                  std::string const& dock, std::string const& labels) {
+  g_state.mubi_size = size;
+  g_state.mubi_motion = motion;  // static-state leg; budget tuning is #56 D3
+  g_state.mubi_dock = dock;
+  g_state.mubi_labels_always = labels == "always";
+  show_idle();
+}
+
+}  // namespace mubi
 
 // ---- toast --------------------------------------------------------------------
 
@@ -2013,10 +2535,32 @@ void micro_show(std::int64_t duration_seconds, std::string const& title,
 // ---- reminders due ----------------------------------------------------------------
 
 void handle_health_cue(rivet_app::HealthCue const& cue, GtkApplication* app) {
-  // The backend planned the delivery; the host only renders it. Transitional
-  // cards here — R4 swaps these for the edge-docked character.
+  // The backend planned the delivery; the host only renders it. On X11 the
+  // Mubi companion is the v1 default; Wayland (and the notification route)
+  // uses the non-blocking cards as the documented #54/#56 fallback.
   auto const& model = g_state.model;
   auto const& kinds = cue.kinds;
+  if (cue.delivery == rivet_app::CueDelivery::character && g_state.mubi_x11) {
+    using State = MubiCompanionState;
+    State state = State::Idle;
+    switch (cue.action) {
+      case rivet_app::CueAction::stand_and_stretch: state = State::Stand; break;
+      case rivet_app::CueAction::drink_water: state = State::Water; break;
+      case rivet_app::CueAction::rest_eyes: state = State::Eyes; break;
+      default: state = State::Idle; break;
+    }
+    std::string message;
+    switch (cue.action) {
+      case rivet_app::CueAction::drink_water: message = pick_water(); break;
+      case rivet_app::CueAction::rest_eyes: message = l10n::t("MicroHint"); break;
+      case rivet_app::CueAction::stand_and_stretch:
+        message = l10n::t("NotifSitTitle"); break;
+      default: break;
+    }
+    mubi::present(static_cast<int>(state), message, app);
+    cue_displayed(cue.id);
+    return;
+  }
   if (kinds.size() == 1 && kinds[0] == rivet_app::ReminderKind::micro) {
     micro_show(model.config.micro_break_duration_seconds, pick_micro(),
                cue.id, app);
@@ -2129,6 +2673,22 @@ void handle_event(std::string const& name, rivet::Value const& value,
             });
           } else if constexpr (std::is_same_v<T, rivet_app::Health_cueEvent>) {
             dispatch_ui([app, cue = e.value] { handle_health_cue(cue, app); });
+          } else if constexpr (std::is_same_v<T,
+                                  rivet_app::Cue_acknowledgedEvent>) {
+            dispatch_ui([acked = e.value, app] {
+              if (acked.kind != rivet_app::ReminderKind::sit) return;
+              if (acked.count_today != 3 && acked.count_today != 5 &&
+                  acked.count_today != 8) {
+                return;
+              }
+              show_toast_plain(
+                  l10n::t("NotifCheerTitle"),
+                  {l10n::t("NotifCheerBody",
+                           {l10n::A(acked.count_today),
+                            l10n::A(format_duration(
+                                g_state.model.today.active_mins))})},
+                  rivet_app::ReminderKind::sit, app);
+            });
           } else if constexpr (std::is_same_v<T, rivet_app::Day_completedEvent>) {
             dispatch_ui([stats = e.value] {
               g_state.model.today = stats;
@@ -2151,6 +2711,8 @@ void apply_config(rivet_app::ReminderConfig const& changed, bool announce,
   (void)app;
   bool const language_changed = changed.language != g_state.model.config.language;
   g_state.model.config = changed;
+  mubi::apply_config(changed.companion_size, changed.companion_motion,
+                     changed.companion_dock, changed.companion_labels);
   g_state.language = resolve_language(changed.language);
   apply_language();
   if (language_changed || announce) {
@@ -2562,6 +3124,15 @@ int on_backend_finished(gpointer user_data) {
                                             on_result(std::move(q), [app](std::vector<rivet_app::HealthCue> const& cues) {
                                               dispatch_ui([app, cues] {
                                                 g_state.model.pending_cues = cues;
+                                                mubi::apply_config(
+                                                    g_state.model.config
+                                                        .companion_size,
+                                                    g_state.model.config
+                                                        .companion_motion,
+                                                    g_state.model.config
+                                                        .companion_dock,
+                                                    g_state.model.config
+                                                        .companion_labels);
                                                 bootstrap(app);
                                               });
                                             });
@@ -2576,11 +3147,19 @@ int on_backend_finished(gpointer user_data) {
           });
     });
   };
-  // Honest capability report (issue #54): GTK4 has no proven safe character
-  // surface yet — Wayland cannot reliably position top-levels or guarantee
-  // click-through — so delivery plans as a notification until R4 proves it.
-  (void)g_state.api->set_host_capability_async(false, false,
-                                               [](rivet_app::Result<void>) {});
+  // Honest capability report (issue #54/#56): the Mubi companion needs
+  // reliable placement + click-through, which GTK4 only offers on X11.
+  // On Wayland the compositor owns both, so delivery plans as a
+  // notification there (the documented fallback, never a floating pet).
+  {
+    char const* wayland = g_getenv("WAYLAND_DISPLAY");
+    char const* session = g_getenv("XDG_SESSION_TYPE");
+    bool const on_wayland =
+        (wayland && *wayland) || (session && std::string(session) == "wayland");
+    g_state.mubi_x11 = !on_wayland;
+    (void)g_state.api->set_host_capability_async(!on_wayland, false,
+                                                 [](rivet_app::Result<void>) {});
+  }
   (void)g_state.api->initialize_async(chain);
   return G_SOURCE_REMOVE;
 }
@@ -2670,6 +3249,7 @@ void on_activate(GtkApplication* app, gpointer) {
   g_signal_connect(window, "close-request", G_CALLBACK(on_main_close_request), nullptr);
 
   g_state.window = GTK_WINDOW(window);
+  g_state.app = app;
   apply_global_css();
   gtk_window_present(GTK_WINDOW(window));
   start_backend(app);
@@ -2679,6 +3259,7 @@ void on_shutdown(GApplication*, gpointer) {
   g_state.shutting_down.store(true, std::memory_order_release);
   toast_dismiss();
   micro_dismiss();
+  mubi::close_window();
   if (g_state.startup_thread.joinable()) {
     g_state.startup_thread.join();
   }
