@@ -8,7 +8,8 @@
 ;; When the user goes idle beyond the away threshold, all cycles freeze; when
 ;; they come back the cycles reset — the break already happened, no nagging
 ;; after it. Continuous-session time is tracked separately and resets after a
-;; real away break, completed forced break, pause, or day rollover.
+;; real away break, a self-reported stand-up (acknowledged sit cue), pause,
+;; or day rollover.
 ;;
 ;; Clocks are integer milliseconds; the `now` thunk is injected so tests drive
 ;; a virtual clock. The idle provider returns idle SECONDS or #f (#f means
@@ -26,8 +27,7 @@
          scheduler-tick!
          scheduler-pause-for!
          scheduler-resume!
-         scheduler-discard-elapsed!
-         scheduler-complete-break!
+         scheduler-end-session!
          scheduler-snooze!
          scheduler-restore-today!
          scheduler-stats
@@ -35,7 +35,6 @@
          scheduler-current-session-active-time-ms
          scheduler-paused?
          scheduler-paused-until-ms
-         scheduler-is-break-owned?
          max-tick-delta-ms)
 
 ;; Raise on the away -> active transition (user just sat back down).
@@ -121,9 +120,6 @@
 
 (define (scheduler-paused-until-ms s)
   (and (scheduler-paused? s) (movebit-scheduler-paused-until-ms s)))
-
-;; Reserved for future use.
-(define (scheduler-is-break-owned? s) #f)
 
 ;; Fire a reminder callback if one is installed.
 (define (fire-reminder! s kind count active-ms)
@@ -262,15 +258,17 @@
   (set-movebit-scheduler-last-tick-ms! s ((movebit-scheduler-now s)))
   (set-movebit-scheduler-session-accum-ms! s 0))
 
-;; Discard wall-clock time since the previous tick without changing any cycle
-;; progress. Used while a forced break owns the screen: resting is not work.
-(define (scheduler-discard-elapsed! s)
-  (set-movebit-scheduler-last-tick-ms! s ((movebit-scheduler-now s))))
-
-;; Record a completed real break. All reminder cycles and the current
-;; continuous session restart; time spent on the break is discarded.
-(define (scheduler-complete-break! s)
-  (reset-cycles! s)
+;; A SELF-REPORTED stand-up (Done on a sit cue) ends the counted continuous
+;; session, exactly like going away. Reminder cycles are NOT touched here:
+;; they already restarted when the reminder fired, and Done on water or
+;; micro claims hydration/eye-rest, not a desk break. This is the user's
+;; report, never proof — stats still count fired reminders, not acknowledgments.
+(define (scheduler-end-session! s)
+  ;; A SELF-REPORTED stand-up (Done on a sit cue) ends the counted continuous
+  ;; session, exactly like going away. Reminder cycles are NOT touched here:
+  ;; they already restarted when the reminder fired, and Done on water or
+  ;; micro claims hydration/eye-rest, not a desk break. This is the user's
+  ;; report, never proof — stats still count fired reminders, not acknowledgments.
   (set-movebit-scheduler-session-accum-ms! s 0)
   (set-movebit-scheduler-last-tick-ms! s ((movebit-scheduler-now s))))
 

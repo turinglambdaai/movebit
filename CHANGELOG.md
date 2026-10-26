@@ -2,10 +2,60 @@
 
 ## [Unreleased]
 
-**Rollout note: this is the interaction-contract slice (issue #49) — user
-control comes first, then the health reminder.** Fresh profiles no longer
-start in the fullscreen mode, a strong-mode break can always be left
-immediately by keyboard, and leaving one never re-locks the displays.
+**Rollout note: this is the R1 cue-engine slice of the v1 reboot
+(owner decisions in issues #51/#54/#55) — the fullscreen forced-break
+contract is gone and the canonical reminder state machine now emits
+semantic health cues.** v0.x releases were experiments with no real users:
+there is no migration path, and that is deliberate.
+
+### Removed
+
+- **The fullscreen forced-break product is retired from the codebase.** The
+  Racket countdown engine (`countdown.rkt`), the orchestrator's break
+  lifecycle, the `break-started` / `break-ended` events, the `break-active`
+  state, the `skip-break` / `complete-break` RPCs, and the per-host fullscreen
+  overlay windows (SwiftUI `BreakOverlayController`, WinUI `BreakOverlay`,
+  the GTK4 multi-monitor overlay with countdown ring) are deleted. No
+  reminder can ever cover a screen, grab focus or intercept input again.
+- **Force-break settings are gone** from config and every settings UI:
+  `ForceBreakEnabled`, `BreakDurationMinutes`, `SkipAfterSeconds` and the
+  gentle/standard/strict onboarding pact. v1 has exactly one gentle,
+  non-blocking reminder experience.
+
+### Changed
+
+- **The backend now speaks semantic health cues.** The scheduler/orchestrator
+  model an explicit `due -> pending/displayed -> acknowledged | snoozed |
+  expired` lifecycle and emit one merged `health-cue` per tick (kinds
+  preserved, priority-ordered; the suggested action — stand-and-stretch /
+  drink-water / rest-eyes — and the planned delivery travel with it). New
+  RPCs: `acknowledge-cue` (Done is self-reported, never proof), `snooze-cue`
+  (Later defers every merged kind), `dismiss-cue` (Hide claims nothing),
+  `cue-displayed`, `set-quiet` (Focus/presentation silence queues cues and
+  delivers ONE bounded summary on exit — never a pile-up), and
+  `set-host-capability` (honest per-platform surface reporting; Linux starts
+  at notification fallback). Unanswered cues expire after ten minutes; the
+  next reminder then arrives on its normal schedule — silence never
+  fabricates completion and never loses a reminder.
+- **v1 config schema, clean-install only.** `config.json` now carries a
+  `SchemaVersion` marker; a file without it (any v0.x document) is foreign
+  and falls back to defaults. New `MotionEnabled` setting replaces the
+  removed force-break knobs; the onboarding wizard is a compact
+  health-reminder flow (water/sit cadence + sound) on all three hosts.
+- **Transitional presentation, honestly labeled.** Each host currently
+  renders cues through its non-blocking toast / eye-rest cards with
+  Done / Later / Hide wired to the new RPCs; the per-platform character
+  slices (R2 macOS, R3 Windows, R4 Linux) replace them. Milestone cheers
+  return with the character.
+
+### Tests
+
+- The cue lifecycle is pinned by rewritten orchestrator, config, scheduler
+  and real-RVT1 wire suites (369 checks): merge rule, pending/displayed
+  transitions, quiet queuing + bounded summary, timeout expiry, capability
+  fallback and the v1 schema gate.
+
+**Previous slice (issue #49) notes follow.**
 
 ### Changed
 

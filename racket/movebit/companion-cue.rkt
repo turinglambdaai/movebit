@@ -12,11 +12,24 @@
 ;; presentation flag or compatibility mode. Character-style cues are the
 ;; first real product default. On unsupported platforms use a non-blocking
 ;; native notification rather than an interactive or fullscreen overlay.
+;;
+;; This module also owns the two presentation-side policies the reminder
+;; contract requires to be EXPLICIT (issue #55):
+;;   - cue-expiry-ms: an unacknowledged cue stops being current after this
+;;     much wall-clock time. Expiry closes the ledger entry only — the fired
+;;     reminder already restarted its cycle, so the next reminder arrives on
+;;     the normal schedule. Silence never counts as completion.
+;;   - summarize-open-cues: when Focus/presentation silence ends, the queued
+;;     cues collapse into ONE bounded summary cue carrying the union of their
+;;     kinds — never a pile-up of every missed moment.
 
 (require racket/list)
 
-(provide (struct-out companion-cue)
-         plan-companion-cue)
+(provide cue-expiry-ms
+         (struct-out companion-cue)
+         (struct-out open-cue)
+         plan-companion-cue
+         summarize-open-cues)
 
 ;; kinds:     ALL due kinds (priority order); preserve for snooze/actions
 ;; action:    semantic suggested health action, independent of appearance
@@ -24,6 +37,16 @@
 ;; delivery:  'character | 'notification | 'quiet
 ;; animated?: static when Reduce Motion or presentation silence is selected
 (struct companion-cue (kinds action gesture delivery animated?) #:transparent)
+
+;; The orchestrator's ledger of an emitted-but-unsettled cue. status is
+;; 'pending (not yet shown) or 'displayed (the host confirmed rendering).
+;; settled outcomes (acknowledged / snoozed / expired) leave the open list.
+(struct open-cue (id kinds status created-ms) #:transparent)
+
+;; Ten minutes of no response closes the cue. Long enough to stay visible
+;; through a meeting slide change, short enough that the character never
+;; becomes furniture.
+(define cue-expiry-ms (* 10 60 1000))
 
 (define known-kinds '(sit water micro))
 
@@ -68,3 +91,23 @@
                     delivery
                     (and (eq? delivery 'character)
                          (not reduce-motion?)))]))
+
+;; Collapse the open-cue ledger into at most ONE summary cue: the union of
+;; the queued-but-NEVER-SHOWN kinds, priority-ordered. Entries the host
+;; already reported as displayed were seen before quiet began — they are
+;; carried by the host surface, not re-emitted as a second interruption.
+;; Returns the summary kinds or #f when nothing is queued. The orchestrator
+;; turns the result into a fresh cue with a new id; superseded entries close
+;; as expired — a Focus window can hide a reminder moment, never delete its
+;; meaning.
+(define (summarize-open-cues entries)
+  (unless (and (list? entries)
+               (andmap open-cue? entries))
+    (raise-argument-error 'summarize-open-cues "(listof open-cue?)" entries))
+  (define kinds
+    (filter (lambda (kind)
+              (for/or ([e (in-list entries)])
+                (and (eq? (open-cue-status e) 'pending)
+                     (memq kind (open-cue-kinds e)))))
+            known-kinds))
+  (and (pair? kinds) kinds))

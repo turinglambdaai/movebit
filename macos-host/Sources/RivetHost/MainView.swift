@@ -57,13 +57,11 @@ extension ReminderConfig {
         sit_reminder_minutes: Int64? = nil,
         water_reminder_minutes: Int64? = nil,
         away_reset_minutes: Int64? = nil,
-        force_break_enabled: Bool? = nil,
-        break_duration_minutes: Int64? = nil,
-        skip_after_seconds: Int64? = nil,
         snooze_minutes: Int64? = nil,
         micro_break_enabled: Bool? = nil,
         micro_break_interval_minutes: Int64? = nil,
         micro_break_duration_seconds: Int64? = nil,
+        motion_enabled: Bool? = nil,
         sound_enabled: Bool? = nil,
         auto_check_updates: Bool? = nil,
         welcome_shown: Bool? = nil,
@@ -73,13 +71,11 @@ extension ReminderConfig {
             sit_reminder_minutes: sit_reminder_minutes ?? self.sit_reminder_minutes,
             water_reminder_minutes: water_reminder_minutes ?? self.water_reminder_minutes,
             away_reset_minutes: away_reset_minutes ?? self.away_reset_minutes,
-            force_break_enabled: force_break_enabled ?? self.force_break_enabled,
-            break_duration_minutes: break_duration_minutes ?? self.break_duration_minutes,
-            skip_after_seconds: skip_after_seconds ?? self.skip_after_seconds,
             snooze_minutes: snooze_minutes ?? self.snooze_minutes,
             micro_break_enabled: micro_break_enabled ?? self.micro_break_enabled,
             micro_break_interval_minutes: micro_break_interval_minutes ?? self.micro_break_interval_minutes,
             micro_break_duration_seconds: micro_break_duration_seconds ?? self.micro_break_duration_seconds,
+            motion_enabled: motion_enabled ?? self.motion_enabled,
             sound_enabled: sound_enabled ?? self.sound_enabled,
             auto_check_updates: auto_check_updates ?? self.auto_check_updates,
             welcome_shown: welcome_shown ?? self.welcome_shown,
@@ -588,17 +584,6 @@ private struct SettingsCard: View {
                        range: 1...60, step: 1) {
                 save(model.config.with(away_reset_minutes: $0))
             }
-            ToggleRow(label: L10n.t("SetForce"), isOn: model.config.force_break_enabled) {
-                save(model.config.with(force_break_enabled: $0))
-            }
-            StepperRow(label: L10n.t("SetBreakDuration"), value: model.config.break_duration_minutes,
-                       range: 1...30, step: 1) {
-                save(model.config.with(break_duration_minutes: $0))
-            }
-            StepperRow(label: L10n.t("SetSkipDelay"), value: model.config.skip_after_seconds,
-                       range: 0...120, step: 5) {
-                save(model.config.with(skip_after_seconds: $0))
-            }
             StepperRow(label: L10n.t("SetSnooze"), value: model.config.snooze_minutes,
                        range: 5...60, step: 5) {
                 save(model.config.with(snooze_minutes: $0))
@@ -619,6 +604,9 @@ private struct SettingsCard: View {
                            range: 10...60, step: 5, compact: true) {
                     save(model.config.with(micro_break_duration_seconds: $0))
                 }
+            }
+            ToggleRow(label: L10n.t("SetMotion"), isOn: model.config.motion_enabled) {
+                save(model.config.with(motion_enabled: $0))
             }
             ToggleRow(label: L10n.t("SetSound"), isOn: model.config.sound_enabled) {
                 save(model.config.with(sound_enabled: $0))

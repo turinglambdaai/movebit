@@ -5,11 +5,12 @@
 ;; depends on: `current-event-emitter` lives on the server reader thread, so a
 ;; module-top-level thread has NO emitter — but the tick thread started inside
 ;; the `init` RPC inherits it and its events reach the client. Also exercises
-;; complete-break / snooze / set-config / get-history / autostart over the wire.
+;; the v1 cue lifecycle over the wire: health-cue events, cue-displayed,
+;; acknowledge/snooze/dismiss, quiet mode, set-config, get-history, autostart.
 ;;
 ;; The virtual clock advances 60 s of work time per `now` read, so one 0.05 s
-;; tick accumulates one active minute and a 10-minute sit cycle fires after
-;; ~10 ticks — no real waiting.
+;; tick accumulates one active minute and a 5-minute water cycle fires after
+;; ~5 ticks — no real waiting.
 
 (require rackunit
          racket/async-channel
@@ -22,10 +23,11 @@
          rivet/protocol
          json
          "../../app/backend.rkt"
+         "../movebit/config.rkt"
          "../movebit/idle.rkt"
          "../movebit/timeutil.rkt")
 
-;; --- temp data dir with a fast config --------------------------------------
+;; --- temp data dir with a fast, v1-schema config ----------------------------
 
 (define tmp-dir (make-temporary-file "movebit-server-test-~a" 'directory))
 ;; Keep the device-id bootstrap out of the developer's real appdata.
@@ -33,14 +35,13 @@
 (call-with-output-file (build-path tmp-dir "config.json")
   (lambda (out)
     (write-json
-     (hasheq 'SitReminderMinutes 10
-             'WaterReminderMinutes 5
+     (hasheq 'SchemaVersion config-schema-version
+             'SitReminderMinutes 10
+             'WaterReminderMinutes 8
              'AwayResetMinutes 1
-             'ForceBreakEnabled #t
-             'BreakDurationMinutes 5
-             'SkipAfterSeconds 20
              'SnoozeMinutes 10
-             'MicroBreakEnabled #f)
+             'MicroBreakEnabled #f
+             'AutoCheckUpdates #f)
      out)))
 
 ;; --- virtual clock: +60 s of active time per read ---------------------------
@@ -114,59 +115,111 @@
         payload
         (loop))))
 
+(define (get-state name)
+  (define-values (v _) (call "$state/get" name))
+  v)
+
 ;; --- 1. init starts the lazy tick thread -----------------------------------
 
 (define-values (init-result init-events) (call "initialize"))
 (check-true (void? init-result))
 
-;; The tick thread (inside the init RPC) emits tick-stats State updates and
-;; events. Wait for the forced break: sit fires after 10 active minutes.
+;; Water (5 active minutes) fires first as a character-delivered health cue.
+;; HealthCue wire layout: (id kinds action delivery animated due-at-ms
+;; expires-at-ms).
+(define water-cue (wait-for-event "health-cue"))
+(define wc (list-ref water-cue 1))
+(check-equal? (list-ref wc 0) 1)                     ; monotone payload id
+(check-equal? (list-ref wc 1) (list "water"))        ; kinds
+(check-equal? (list-ref wc 2) "drink-water")         ; semantic action
+(check-equal? (list-ref wc 3) "character")           ; default delivery
+(check-true (list-ref wc 4))                         ; animated
+(check-true (= (list-ref wc 6) (+ (list-ref wc 5) (* 10 60 1000)))) ; expiry
 
-(define break-started (wait-for-event "break-started"))
-(define bs (list-ref break-started 1))
-(check-equal? bs (list (* 5 60 1000) (* 20 1000))) ; duration 5 min, skip 20 s
+;; Sit (10 active minutes) merges into its own cue on a later tick.
+(define sit-cue (wait-for-event "health-cue"))
+(define sc (list-ref sit-cue 1))
+(check-equal? (list-ref sc 0) 2)
+(check-equal? (list-ref sc 1) (list "sit"))
+(check-equal? (list-ref sc 2) "stand-and-stretch")
 
-;; --- 2. complete-break over the wire ---------------------------------------
+;; The pending-cues state reconciles a reconnecting host.
+(define pending (get-state "pending-cues"))
+(check-equal? (length pending) 2)
 
-(define-values (cb-result cb-events)
-  (call "complete-break"))
-(check-true (void? cb-result))
-(check-true
- (for/or ([e (in-list cb-events)])
-   (and (string=? (car e) "break-ended")
-        (equal? (list-ref e 1) (list #t))))
- "break-ended(completed #t) must arrive with the complete-break response")
+;; --- 2. the lifecycle over the wire -----------------------------------------
 
-;; Today's state shows one counted sit break (the swallowed kind still counted).
-(define-values (today-wire today-ev) (call "$state/get" "today"))
-;; today wire: (date active-mins sit-breaks water-reminders micro-breaks longest)
-(check-true (string=? (list-ref today-wire 0) (ms->date-key (unbox clock))))
-(check-equal? (list-ref today-wire 2) 1)
-(check-true (>= (list-ref today-wire 1) 10))
+;; Host reports the sit cue visible, then the user acknowledges it (Done).
+(define-values (disp-result disp-ev) (call "cue-displayed" (list-ref sc 0)))
+(check-true (void? disp-result))
+(define-values (ack-result ack-ev) (call "acknowledge-cue" (list-ref sc 0)))
+(check-true (void? ack-result))
+;; today's state counts FIRED reminders — a click is never a completion
+(define today-after-ack (get-state "today"))
+(check-equal? (list-ref today-after-ack 2) 1)  ; sit-breaks (fired)
+(check-true (>= (list-ref today-after-ack 1) 10))
 
-;; --- 3. snooze over the wire ------------------------------------------------
+;; Hide (dismiss) expires the water cue without claiming completion.
+(define-values (dismiss-result dismiss-ev) (call "dismiss-cue" (list-ref wc 0)))
+(check-true (void? dismiss-result))
+(check-equal? (length (get-state "pending-cues")) 0)
 
-;; Water fires every 5 active minutes; wait for the merged-toast event.
+;; The dismissed water reminder is not lost: it re-fires on its normal full
+;; interval and a fresh cue arrives with the next id.
+(define water-again (wait-for-event "health-cue"))
+(define wa (list-ref water-again 1))
+(check-equal? (list-ref wa 0) 3)
+(check-equal? (list-ref wa 1) (list "water"))
 
-(define reminders-due (wait-for-event "reminders-due"))
-(define rd (list-ref reminders-due 1))
-(check-equal? rd (list (list "water") #f)) ; single kind -> not merged
-
-(define-values (snooze-result snooze-ev) (call "snooze" "water"))
+;; Later (snooze) defers by ACTIVE time: accumulator = interval - snooze.
+(define-values (snooze-result snooze-ev) (call "snooze-cue" (list-ref wa 0)))
 (check-true (void? snooze-result))
-
-;; Snooze is NOT a delay: water accumulator = interval - snooze = 5 - 10 = -5.
-(define-values (loops-wire loops-ev) (call "$state/get" "loops"))
+(define loops-wire (get-state "loops"))
 (define water-loop
   (findf (lambda (l) (string=? (list-ref l 0) "water")) loops-wire))
 (check-true (pair? water-loop))
-(check-equal? (list-ref water-loop 2) -5)                 ; accumulated-mins
-(check-equal? (list-ref water-loop 1) 10)                 ; due-in = 5 - (-5)
+(check-equal? (list-ref water-loop 2) -2)                 ; 8 - 10 accumulated
+(check-equal? (list-ref water-loop 1) 10)                 ; due-in = 8 - (-2)
+(check-equal? (length (get-state "pending-cues")) 0)
+
+;; --- 3. quiet mode queues, and exits with a bounded summary -----------------
+
+(define-values (quiet-on-result qon-ev) (call "set-quiet" #t))
+(check-true (void? quiet-on-result))
+;; While quiet, BOTH the snoozed water reminder (~minute 26) and the sit
+;; cycle (minute 20) come due: no health-cue EVENT may fire — the entries
+;; just queue in the ledger.
+(let poll ([tries 0])
+  (when (and (< tries 200) (< (length (get-state "pending-cues")) 2))
+    (sleep 0.05)
+    (poll (add1 tries))))
+(check-equal? (length (get-state "pending-cues")) 2)
+;; bounded drain of everything already on the wire: no health-cue event may
+;; have fired while quiet (state frames keep flowing and are skipped)
+(check-false
+ (let drain ()
+   (define f (async-channel-try-get frames))
+   (and f
+        (or (and (= (frame-type f) message:event)
+                 (string=? (car (decode-value (frame-payload f))) "health-cue"))
+            (drain))))
+ "no health-cue event may fire while quiet")
+
+;; Leaving quiet emits ONE summary cue carrying the queued kinds.
+(define-values (quiet-off-result qoff-ev) (call "set-quiet" #f))
+(check-true (void? quiet-off-result))
+(define quiet-summary
+  (for/first ([e (in-list qoff-ev)] #:when (string=? (car e) "health-cue"))
+    e))
+(check-true (pair? quiet-summary) "leaving quiet emits one summary cue")
+(define qs (list-ref quiet-summary 1))
+(check-equal? (list-ref qs 1) (list "sit" "water")) ; priority-ordered union
+(check-equal? (length (get-state "pending-cues")) 1)
 
 ;; --- 4. set-config clamps + announces ---------------------------------------
 
 (define-values (cfg-result cfg-events)
-  (call "set-config" (list 5 999 0 #t 99 999 999 #f 99 99 #t #t #f "klingon")))
+  (call "set-config" (list 5 999 0 999 #f 99 99 #t #t #t #f "klingon")))
 (check-true (void? cfg-result))
 (define config-event
   (for/first ([e (in-list cfg-events)] #:when (string=? (car e) "config-changed"))
@@ -175,7 +228,10 @@
 (define saved-config (list-ref config-event 1))
 (check-equal? (list-ref saved-config 0) 10)    ; sit clamped
 (check-equal? (list-ref saved-config 1) 180)   ; water clamped
-(check-equal? (list-ref saved-config 13) "auto") ; language normalized
+(check-equal? (list-ref saved-config 11) "auto") ; language normalized
+;; the published config state carries the same v1 shape
+(define cfg-state (get-state "active-config"))
+(check-equal? (list-ref cfg-state 1) 180)
 
 ;; --- 5. get-history zero-fills gaps -----------------------------------------
 
@@ -242,10 +298,13 @@
    (string-suffix? (path->string f) ".json"))
  "flush-now must persist today's stats to a day shard")
 
-;; The persisted config is the clamped one (immediate auto-save on set-config).
+;; The persisted config is the clamped, version-marked v1 document (immediate
+;; auto-save on set-config). The v0.x PascalCase fields are gone.
 (define persisted-config
   (call-with-input-file (build-path tmp-dir "config.json") read-json))
+(check-equal? (hash-ref persisted-config 'SchemaVersion) 2)
 (check-equal? (hash-ref persisted-config 'WaterReminderMinutes) 180)
+(check-false (hash-has-key? persisted-config 'ForceBreakEnabled))
 
 ;; --- diagnostics: JSONL into the data dir --------------------------------------
 ;;

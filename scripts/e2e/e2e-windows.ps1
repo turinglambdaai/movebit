@@ -5,7 +5,7 @@ $repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $output = Join-Path $repo '.rivet\acceptance\windows'
 $data = Join-Path $output 'data'
 New-Item -ItemType Directory -Force -Path $output,$data | Out-Null
-'{"WelcomeShown":true,"Language":"en","AutoCheckUpdates":false}' | Set-Content -LiteralPath (Join-Path $data 'config.json') -Encoding utf8
+'{"SchemaVersion":2,"WelcomeShown":true,"Language":"en","AutoCheckUpdates":false}' | Set-Content -LiteralPath (Join-Path $data 'config.json') -Encoding utf8
 $exe = Get-ChildItem -LiteralPath (Join-Path $repo 'dist') -Filter RivetHost.exe -File -Recurse | Select-Object -First 1
 if (-not $exe) { throw 'packaged MoveBit executable was not found' }
 function Wait-Until([string]$Description,[scriptblock]$Probe,[int]$TimeoutSeconds=90) { $deadline=[DateTime]::UtcNow.AddSeconds($TimeoutSeconds); while([DateTime]::UtcNow -lt $deadline){$v=& $Probe;if($null -ne $v -and $v -ne $false){return $v};Start-Sleep -Milliseconds 100};throw "timed out waiting for $Description" }

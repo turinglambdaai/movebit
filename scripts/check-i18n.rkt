@@ -1,8 +1,9 @@
 #lang racket/base
 
 ;; i18n single-source checker: shared/i18n/{zh,en}.json must cover exactly the
-;; same key tree, and the BreakCopy pools must keep their canonical sizes
-;; (hints 10, water 8, micro 9, deep-night variants 3 each, celebrate 3/5/8).
+;; same key tree, and the copy pools must keep their canonical sizes
+;; (water 8, micro 9, deep-night variants 3 each). The v1 reboot (issue #55)
+;; removed the fullscreen-break copy: brk.* and copy.breakHintPool are gone.
 ;; Run: racket scripts/check-i18n.rkt
 
 (require json
@@ -41,19 +42,15 @@
            (remove* en-keys zh-keys)
            (remove* zh-keys en-keys)))
 
-;; Contract: 182 keys = the 181 UI strings plus one structured `copy` section
-;; holding the BreakCopy pools verbatim. (The count had drifted — the
-;; foundation round's About/copy-error keys landed without bumping 156;
-;; re-pinned alongside the update-flow keys; the AppKit main-menu keys
-;; re-pinned it again; the update-flow keys drifted it once more unnoticed
-;; because nothing invokes this check in CI; brk.emergency, issue 49,
-;; re-pinned it to the counted truth.)
+;; Contract: the counted UI key set plus one structured `copy` section holding
+;; the rotating copy pools verbatim. The v1 reboot re-pinned the count when
+;; the fullscreen-break copy came out and the Focus/motion/done keys went in.
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
-(unless (= (length ui-keys) 181)
+(unless (= (length ui-keys) 161)
   (set! failed? #t)
-  (eprintf "expected 181 UI keys, got ~a~n" (length ui-keys)))
-(unless (and (>= (length copy-keys) 7)
+  (eprintf "expected 161 UI keys, got ~a~n" (length ui-keys)))
+(unless (and (>= (length copy-keys) 6)
              (hash-has-key? (hash-ref zh 'copy) 'celebrateAt))
   (set! failed? #t)
   (eprintf "copy section incomplete: ~a~n" copy-keys))
@@ -69,7 +66,6 @@
      (eprintf "copy.~a: expected ~a lines, got ~a~n" name expected (length p))]))
 
 (for ([doc (in-list (list zh en))])
-  (pool doc 'breakHintPool 10)
   (pool doc 'waterPool 8)
   (pool doc 'microPool 9)
   (pool doc 'sitToastPool 6)
@@ -80,4 +76,4 @@
     (eprintf "copy.celebrateAt must be [3, 5, 8]~n")))
 
 (when failed? (exit 1))
-(printf "i18n OK: 182 contract keys (181 UI + copy), pools verbatim, zh/en parity~n")
+(printf "i18n OK: 167 contract keys (161 UI + copy), pools verbatim, zh/en parity~n")

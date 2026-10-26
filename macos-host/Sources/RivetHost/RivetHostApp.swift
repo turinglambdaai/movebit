@@ -55,7 +55,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var onboardingState: OnboardingState?
     private var menuBar: RivetMenuBarController?
-    private var overlayController: BreakOverlayController?
     private var toastController: ToastPanelController?
     private var microController: MicroPanelController?
     // Retained for the process lifetime: dropping it releases the lease.
@@ -79,14 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         model.onReady = { [weak self] in self?.handleReady() }
         model.onConfigChanged = { [weak self] in self?.rebuildMenuBar() }
-        model.onRemindersDue = { [weak self] due in self?.handleRemindersDue(due) }
-        model.onBreakStarted = { [weak self] in self?.handleBreakStarted() }
-        model.onBreakEnded = { [weak self] completed in self?.handleBreakEnded(completed: completed) }
+        model.onCue = { [weak self] cue in self?.handleHealthCue(cue) }
         // Restart-install handoff: the backend staged the update and spawned
         // the apply helper; quitting lets it swap the bundle and relaunch.
         model.onQuitRequested = { [weak self] in self?.quit() }
 
-        installOverlayControllers(model: model)
+        installReminderPanels()
         rebuildMenuBar()
         installMainWindow(model: model)
 
@@ -147,6 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .action(label: model.paused.paused ? L10n.t("TrayResume") : L10n.t("TrayPause"),
                     identifier: "tray-pause",
                     handler: { [weak self] in self?.model?.togglePause() }),
+            .action(label: model.quiet ? L10n.t("TrayFocusOff") : L10n.t("TrayFocusOn"),
+                    identifier: "tray-focus",
+                    handler: { [weak self] in self?.model?.setQuiet(!self!.model!.quiet) }),
             .action(label: L10n.t("TrayExit"), identifier: "tray-exit",
                     handler: { [weak self] in self?.quit() }),
         ]
@@ -217,114 +217,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = mainMenu
     }
 
-    // MARK: reminders due
+    // MARK: health cues
+    // The backend planned the delivery; the host only renders it. Delivery
+    // 'notification' and 'character' both surface through the transitional
+    // panels below — R2 swaps these for the edge-docked character.
 
-    private func handleRemindersDue(_ due: RemindersDue) {
+    private func handleHealthCue(_ cue: HealthCue) {
         guard let model else { return }
-        if due.kinds == [.micro] {
-            // Micro-only tick: small top-center nudge, no lock, no sound.
+        let kinds: [ReminderKind] = cue.kinds
+
+        if kinds == [.micro] {
+            // Micro-only cue: the eye-rest card; finishing it acknowledges.
+            microController?.onDone = { [weak self] id in self?.model?.acknowledgeCue(id) }
+            microController?.onHide = { [weak self] id in self?.model?.dismissCue(id) }
             microController?.show(durationSeconds: model.config.micro_break_duration_seconds,
-                                  title: CopyPool.pickMicro())
+                                  title: CopyPool.pickMicro(),
+                                  cueId: cue.id)
+            model.cueDisplayed(cue.id)
             return
         }
 
-        // Merged toast: one card stands in for every kind due this tick.
-        let lines = toastLines(due: due, model: model)
+        let lines = cueLines(kinds: kinds, model: model)
         let title: String
-        if due.kinds.contains(.sit) {
+        if kinds.contains(.sit) {
             title = L10n.t("NotifSitTitle")
-        } else if due.kinds.contains(.water) {
-            title = L10n.t("NotifWaterTitle")
         } else {
-            title = L10n.t("NotifSitTitle")
+            title = L10n.t("NotifWaterTitle")
         }
-        let accent: ReminderKind = due.kinds.contains(.sit) ? .sit
-            : due.kinds.contains(.water) ? .water : .micro
+        let accent: ReminderKind = kinds.contains(.sit) ? .sit
+            : kinds.contains(.water) ? .water : .micro
 
         if model.config.sound_enabled {
             NSSound(named: "Ping")?.play()
         }
+        toastController?.onDone = { [weak self] id in self?.model?.acknowledgeCue(id) }
+        toastController?.onSnooze = { [weak self] id in self?.model?.snoozeCue(id) }
+        toastController?.onHide = { [weak self] id in self?.model?.dismissCue(id) }
         toastController?.show(ToastContent(title: title, lines: lines, accent: accent,
                                            snoozeMinutes: model.config.snooze_minutes,
-                                           kinds: due.kinds))
+                                           cueId: cue.id))
+        model.cueDisplayed(cue.id)
     }
 
-    /// Per-kind line + a rotating pool line (parity with FlushTickReminders).
-    private func toastLines(due: RemindersDue, model: MoveBitModel) -> [String] {
+    /// Per-kind line + a rotating pool line.
+    private func cueLines(kinds: [ReminderKind], model: MoveBitModel) -> [String] {
         var lines: [String] = []
-        if due.kinds.contains(.sit) {
+        if kinds.contains(.sit) {
             lines.append(L10n.t("NotifSitBody",
                                 CopyFormat.duration(model.today.active_mins),
                                 "\(model.today.sit_breaks)"))
             lines.append(L10n.pick(CopyPool.sitToasts.0, CopyPool.sitToasts.1))
         }
-        if due.kinds.contains(.water) {
+        if kinds.contains(.water) {
             lines.append(L10n.t("NotifWaterCount", "\(model.today.water_reminders)"))
             lines.append(CopyPool.pickWater())
         }
-        if due.kinds.contains(.micro) {
+        if kinds.contains(.micro) {
             lines.append(CopyPool.pickMicro())
         }
         return lines
     }
 
-    /// Cheer toast when a completed break hits a milestone count.
-    func showCheerToast(count: Int64) {
-        guard let model else { return }
-        showToast(title: L10n.t("NotifCheerTitle"),
-                  lines: [L10n.t("NotifCheerBody", "\(count)",
-                                  CopyFormat.duration(model.today.active_mins))],
-                  accent: .sit)
-    }
-
     func showToast(title: String, lines: [String], accent: ReminderKind) {
-        guard let model else { return }
         toastController?.show(ToastContent(title: title, lines: lines, accent: accent,
-                                           snoozeMinutes: model.config.snooze_minutes,
-                                           kinds: []))
+                                           snoozeMinutes: 10,
+                                           cueId: 0))
     }
 
-    // MARK: forced break
+    // MARK: reminder panels
 
-    private func installOverlayControllers(model: MoveBitModel) {
-        let overlays = BreakOverlayController()
-        overlays.onSkip = { [weak self] in self?.model?.skipBreak() }
-        overlays.onEmergencyExit = { [weak self] in self?.model?.emergencySkipBreak() }
-        overlays.onComplete = { [weak self] in self?.model?.completeBreak() }
-        overlays.hintProvider = { L10n.pick(CopyPool.breakHints.0, CopyPool.breakHints.1) }
-        overlayController = overlays
-
+    private func installReminderPanels() {
         let toast = ToastPanelController()
-        toast.onSnooze = { [weak self] kinds in self?.model?.snooze(kinds) }
         toastController = toast
 
         microController = MicroPanelController()
-    }
-
-    private func handleBreakStarted() {
-        guard let model, let state = model.breakActive else { return }
-        // The full-screen break outranks transient nudges/toasts (parity).
-        toastController?.dismiss()
-        microController?.dismiss()
-        if !overlayController!.show(state: state,
-                                    snoozeMinutes: model.config.snooze_minutes) {
-            // No screen to cover: at least say why (parity fallback).
-            toastController?.show(ToastContent(
-                title: L10n.t("NotifSitTitle"),
-                lines: [L10n.t("NotifSitFallback")],
-                accent: .sit,
-                snoozeMinutes: model.config.snooze_minutes,
-                kinds: []))
-        }
-    }
-
-    private func handleBreakEnded(completed: Bool) {
-        overlayController?.finish(completed: completed)
-        guard completed, let model else { return }
-        let count = model.today.sit_breaks
-        if CopyPool.celebrateAt.contains(count) {
-            showCheerToast(count: count)
-        }
     }
 
     // MARK: onboarding

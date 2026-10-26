@@ -6,45 +6,36 @@ import AppKit
 @MainActor
 final class OnboardingState: ObservableObject {
     @Published var page = 0
-    /// Fresh profiles start gentle: the strong modes are an explicit opt-in
-    /// (selecting the Standard/Strict card), never a silent default.
-    @Published var mode = "gentle"
     @Published var water: Int64 = 30
+    @Published var sit: Int64 = 45
     @Published var sound = true
     var finished = false
 
-    // Mode -> config mapping (parity with OnboardingWindow.ApplyMode).
-    var sitMinutes: Int64 { mode == "gentle" ? 60 : mode == "strict" ? 30 : 45 }
-    var forceEnabled: Bool { mode != "gentle" }
-    var breakDuration: Int64 { mode == "gentle" ? 3 : 5 }
-
-    /// One set-config call writes the whole pact.
+    /// One set-config call writes the whole first-run choice. There is no
+    /// strictness pact in v1: one gentle, non-blocking reminder experience.
     func persist(model: MoveBitModel, welcomeShown: Bool) {
         model.saveConfig(model.config.with(
-            sit_reminder_minutes: sitMinutes,
+            sit_reminder_minutes: sit,
             water_reminder_minutes: water,
-            force_break_enabled: forceEnabled,
-            break_duration_minutes: breakDuration,
             sound_enabled: sound,
             welcome_shown: welcomeShown))
     }
 }
 
-/// Four-step first-run wizard: meet the droplet -> strictness pact -> water +
-/// sound -> contract summary. Kept deliberately small (plain page switching).
+/// Three-step first-run flow: meet MoveBit -> reminders (water cadence +
+/// sound) -> contract summary. Kept deliberately small (plain page switching).
 struct OnboardingView: View {
     @ObservedObject var state: OnboardingState
     @ObservedObject var model: MoveBitModel
 
-    private let lastPage = 3
+    private let lastPage = 2
 
     var body: some View {
         VStack(spacing: 0) {
             Group {
                 switch state.page {
                 case 0: introPage
-                case 1: strictPage
-                case 2: waterPage
+                case 1: remindersPage
                 default: pactPage
                 }
             }
@@ -80,37 +71,20 @@ struct OnboardingView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var strictPage: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.t("ObStrictTitle"))
-                .font(.system(size: 22, weight: .bold))
-                .foregroundColor(Palette.inkPrimary)
-            Text(L10n.t("ObStrictQ"))
-                .font(.system(size: 13))
-                .foregroundColor(Palette.inkSecondary)
-            modeCard(id: "gentle", title: L10n.t("ObModeGentle"), badge: nil,
-                     desc: L10n.t("ObModeGentleDesc"))
-            modeCard(id: "standard", title: L10n.t("ObModeStandard"),
-                     badge: L10n.t("ObBadgeRecommended"),
-                     desc: L10n.t("ObModeStandardDesc"))
-            modeCard(id: "strict", title: L10n.t("ObModeStrict"),
-                     badge: L10n.t("ObBadgeEvidence"),
-                     desc: L10n.t("ObModeStrictDesc"))
-            Text(L10n.t("ObStrictFootnote"))
-                .font(.system(size: 11))
-                .foregroundColor(Palette.inkMuted)
-        }
-    }
-
-    private var waterPage: some View {
+    private var remindersPage: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.t("ObWaterTitle"))
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(Palette.inkPrimary)
             HStack(spacing: 10) {
-                waterCard(30)
-                waterCard(45)
-                waterCard(60)
+                waterCard(30, label: "ObMin30")
+                waterCard(45, label: "ObMin45")
+                waterCard(60, label: "ObMin60")
+            }
+            HStack(spacing: 10) {
+                sitCard(45, label: "ObSit45")
+                sitCard(60, label: "ObSit60")
+                sitCard(90, label: "ObSit90")
             }
             Text(L10n.t("ObSoundTitle"))
                 .font(.system(size: 15, weight: .semibold))
@@ -153,11 +127,8 @@ struct OnboardingView: View {
     }
 
     private var summaryLines: [String] {
-        let sit = state.forceEnabled
-            ? L10n.t("ObSummaryForced", "\(state.sitMinutes)", "\(state.breakDuration)")
-            : L10n.t("ObSummaryToast", "\(state.sitMinutes)")
-        return [
-            sit,
+        [
+            L10n.t("ObSummaryToast", "\(state.sit)"),
             L10n.t("ObSummaryWater", "\(state.water)"),
             L10n.t("ObSummaryAway", "\(model.config.away_reset_minutes)"),
             L10n.t("ObSummarySound", L10n.t(state.sound ? "ObOn" : "ObOff")),
@@ -166,39 +137,20 @@ struct OnboardingView: View {
 
     // MARK: pieces
 
-    private func modeCard(id: String, title: String, badge: String?, desc: String) -> some View {
-        let selected = state.mode == id
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(selected ? Palette.accent : Palette.inkPrimary)
-                if let badge {
-                    Text(badge)
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundColor(selected ? Palette.accent : Palette.inkMuted)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Palette.accentSoft))
-                }
-            }
-            Text(desc)
-                .font(.system(size: 12.5))
-                .foregroundColor(Palette.inkSecondary)
+    private func waterCard(_ minutes: Int64, label: String) -> some View {
+        choiceCard(selected: state.water == minutes, label: L10n.t(label)) {
+            state.water = minutes
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 12)
-            .fill(selected ? Palette.accentSoft : Palette.cardBg))
-        .overlay(RoundedRectangle(cornerRadius: 12)
-            .strokeBorder(selected ? Palette.accent : Palette.cardBorder, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { state.mode = id }
     }
 
-    private func waterCard(_ minutes: Int64) -> some View {
-        let selected = state.water == minutes
-        return Text(L10n.t(minutes == 30 ? "ObMin30" : minutes == 45 ? "ObMin45" : "ObMin60"))
+    private func sitCard(_ minutes: Int64, label: String) -> some View {
+        choiceCard(selected: state.sit == minutes, label: L10n.t(label)) {
+            state.sit = minutes
+        }
+    }
+
+    private func choiceCard(selected: Bool, label: String, pick: @escaping () -> Void) -> some View {
+        Text(label)
             .font(.system(size: 14, weight: selected ? .semibold : .regular))
             .foregroundColor(selected ? Palette.accent : Palette.inkPrimary)
             .frame(maxWidth: .infinity)
@@ -208,7 +160,7 @@ struct OnboardingView: View {
             .overlay(RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(selected ? Palette.accent : Palette.cardBorder, lineWidth: 1))
             .contentShape(Rectangle())
-            .onTapGesture { state.water = minutes }
+            .onTapGesture(perform: pick)
     }
 
     // MARK: controls
@@ -251,11 +203,10 @@ struct OnboardingView: View {
         }
     }
 
-    /// Skip = the gentle shipped defaults, as if the user opted out of
-    /// everything non-blocking. Fullscreen breaks stay opt-in.
+    /// Skip = the shipped defaults, as if the user opted out of choices.
     private func skipToDefaults() {
-        state.mode = "gentle"
         state.water = 30
+        state.sit = 45
         state.sound = true
         finish()
     }

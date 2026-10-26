@@ -38,9 +38,6 @@
     "sitInterval": "Sit reminder interval (min)",
     "waterInterval": "Water reminder (min)",
     "awayReset": "Away counts as rest (min)",
-    "force": "Forced breaks",
-    "breakDuration": "Forced break length (min)",
-    "skipDelay": "\"Skip\" button delay (sec)",
     "snooze": "Snooze length (min)",
     "microToggle": "Micro break: every X min / Y sec",
     "microParams": "Micro interval / length (min · sec)",
@@ -50,7 +47,8 @@
     "statusDefault": "Type directly · changes save automatically",
     "statusSaved": "✓ Saved · {0:HH:mm:ss}",
     "statusApplied": "✓ Applied · {0:HH:mm:ss}",
-    "statusSaveFailed": "⚠ Active this session, but writing the config file failed"
+    "statusSaveFailed": "⚠ Active this session, but writing the config file failed",
+    "motion": "Character motion"
   },
   "lang": {
     "auto": "Auto"
@@ -132,11 +130,11 @@
     "checkUpdate": "Check for updates",
     "updateTo": "Update &amp; restart {0}",
     "exit": "Quit MoveBit",
-    "hideHintTitle": "MoveBit keeps running",
-    "hideHintBody": "Minimized to the tray — click the droplet icon to open it again.",
     "running": "MoveBit · {0}active today {1} · sit {2}/{3} min",
     "paused": "MoveBit · {0}paused until {1:HH:mm}",
-    "updatePrefix": "update {0} · "
+    "updatePrefix": "update {0} · ",
+    "focusOn": "Turn on Focus",
+    "focusOff": "Turn off Focus"
   },
   "notif": {
     "windowTitle": "MoveBit reminder",
@@ -148,7 +146,8 @@
     "snooze": "Later, {0} min",
     "cheerTitle": "Droplet applauds 💧",
     "cheerBody": "Break #{0} done — your body says thanks. Droplet's tally: {1} of focus today.",
-    "sitFallback": "You've been working continuously for too long — please step away and rest."
+    "done": "Done",
+    "hide": "Hide"
   },
   "tpl": {
     "pausedUntil": "Paused until {0:HH:mm}",
@@ -166,18 +165,6 @@
     "hello": "Hi, I'm Droplet 💧",
     "intro": "I live quietly in your tray, watching how long you actually work —\nthen, when the time comes, I'll kindly get you out of the chair.",
     "steps": "Three quick steps and we're acquainted.",
-    "strictTitle": "How strict should I be?",
-    "strictQ": "After how much continuous work should I interrupt you?",
-    "modeGentle": "Gentle",
-    "modeGentleHint": "I know my limits",
-    "modeGentleDesc": "Toast every 60 minutes, never locks the screen",
-    "modeStandard": "Standard",
-    "badgeRecommended": "Recommended",
-    "modeStandardDesc": "Opt in: lock all screens every 45 minutes for a 5-minute fullscreen break",
-    "modeStrict": "Strict",
-    "badgeEvidence": "Backed by research",
-    "modeStrictDesc": "Opt in: lock all screens every 30 minutes for a 5-minute fullscreen break",
-    "strictFootnote": "Standard and Strict opt into fullscreen breaks — Esc always exits immediately, and the \"skip\" button appears after 20 seconds; being away 5+ minutes resets the timer.",
     "waterTitle": "How often should I nudge you to drink?",
     "min30": "30 min",
     "min45": "45 min",
@@ -190,7 +177,6 @@
     "next": "Next",
     "start": "Start",
     "launch": "Let's go",
-    "summaryForced": "{0} min of continuous work → lock all screens for a {1}-minute break",
     "summaryToast": "Toast nudge to stand up every {0} minutes",
     "summaryWater": "Water reminder every {0} minutes",
     "summaryAway": "Away from the desk over {0} minutes resets the timer",
@@ -198,18 +184,10 @@
     "on": "On",
     "off": "Off",
     "settled": "All set 💧",
-    "settledBody": "I'll wait quietly in the tray. See you at the next break."
-  },
-  "brk": {
-    "windowTitle": "Take a break",
-    "title": "Break time ☕",
-    "done": "Break complete",
-    "untilUnlock": "until unlock",
-    "defaultHint": "Stand up, shake out your shoulders",
-    "autoUnlock": "Unlocks automatically when the countdown ends",
-    "emergency": "Emergency exit (Esc)",
-    "skip": "Skip — remind me in {0} minutes",
-    "goodbye": "Back to work — I'm on call"
+    "settledBody": "I'll wait quietly in the tray. See you at the next break.",
+    "sit45": "45 min",
+    "sit60": "60 min",
+    "sit90": "90 min"
   },
   "micro": {
     "windowTitle": "Micro break",
@@ -217,18 +195,6 @@
     "hint": "Micro breaks don't touch the sit timer · click or press Esc to dismiss"
   },
   "copy": {
-    "breakHintPool": [
-      "I'll watch the screen — you go drink that water",
-      "Bathroom break. I'd keep your seat warm… fine, just go",
-      "As a certified water droplet, I declare this hydration time",
-      "Stand up and roll your neck — I'll be right here waiting",
-      "The light outside is gentler than the screen. Go have a look",
-      "Your back needs this more than you think it does",
-      "Go get some water — say hi to my relatives",
-      "Think about that bug standing up. Maybe it cracks first",
-      "Three deep breaths before you decide to sit back down",
-      "Your hips are on break for five minutes. The work isn't going anywhere"
-    ],
     "sitToastPool": [
       "The chair won't miss you, but your back will — Droplet",
       "Sway for two minutes; I'll mind the screen",

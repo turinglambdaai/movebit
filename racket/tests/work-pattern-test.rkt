@@ -21,10 +21,10 @@
   (check-equal? (h-session-ms h) (* 20 minute-ms))
   (check-equal? (h-longest-ms h) (* 30 minute-ms)))
 
-;; Completed_forced_break_starts_a_new_continuous_session
+;; A_self_reported_stand_up_starts_a_new_continuous_session
 (let ([h (make-harness #:sit 300 #:water 300)])
   (h-step-minutes! h 25)
-  (scheduler-complete-break! (h-scheduler h))
+  (scheduler-end-session! (h-scheduler h))
   (check-equal? (h-session-ms h) 0)
   (h-step-minutes! h 10)
   (check-equal? (h-session-ms h) (* 10 minute-ms))
