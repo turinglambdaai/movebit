@@ -313,6 +313,16 @@ void MainWindow::Bootstrap() {
                                               w->RefreshHistoryCard();
                                               w->RefreshInsightCard();
                                               w->RefreshSettingsWidgets();
+                                              w->companion_.ApplyConfig(
+                                                  w->model_.config
+                                                      .companion_size,
+                                                  w->model_.config
+                                                      .companion_motion,
+                                                  w->model_.config
+                                                      .companion_dock,
+                                                  w->model_.config
+                                                      .companion_labels);
+                                              w->companion_.ShowIdle();
                                               w->ReloadHistory();
                                               w->ReloadAutostart();
                                               w->ReloadDataDir();
@@ -363,6 +373,9 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
             if (history_dirty) ReloadHistory();
           } else if constexpr (std::is_same_v<T, rivet_app::Health_cueEvent>) {
             HandleHealthCue(e.value);
+          } else if constexpr (std::is_same_v<T,
+                                  rivet_app::Cue_acknowledgedEvent>) {
+            HandleCueAcknowledged(e.value);
           } else if constexpr (std::is_same_v<T, rivet_app::Day_completedEvent>) {
             model_.today = e.value;
             RefreshTodayCard();
@@ -379,10 +392,37 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
 }
 
 void MainWindow::HandleHealthCue(rivet_app::HealthCue const& cue) {
-  // The backend planned the delivery; the host only renders it. Delivery
-  // 'notification' and 'character' both surface through the transitional
-  // cards below — R3 swaps these for the edge-docked character.
+  // The backend planned the delivery; the host only renders it. The Mubi
+  // companion is the v1 default; the R1 cards stay as the notification
+  // fallback path.
   auto const weak = get_weak();
+  if (cue.delivery == rivet_app::CueDelivery::character) {
+    if (model_.config.sound_enabled) {
+      ::MessageBeep(MB_ICONASTERISK);
+    }
+    using State = MubiCompanion::MubiState;
+    State state = State::Idle;
+    switch (cue.action) {
+      case rivet_app::CueAction::stand_and_stretch: state = State::Stand; break;
+      case rivet_app::CueAction::drink_water: state = State::Water; break;
+      case rivet_app::CueAction::rest_eyes: state = State::Eyes; break;
+      default: state = State::Idle; break;
+    }
+    std::wstring message;
+    switch (cue.action) {
+      case rivet_app::CueAction::drink_water:
+        message = wide(movebit::pick_water()); break;
+      case rivet_app::CueAction::rest_eyes:
+        message = wide(l10n::t("MicroHint")); break;
+      case rivet_app::CueAction::stand_and_stretch:
+        message = wide(l10n::t("NotifSitTitle")); break;
+      default: break;
+    }
+    companion_.Show(state, message);
+    CueDisplayed(cue.id);
+    RefreshTrayState();
+    return;
+  }
   if (model_.config.sound_enabled) {
     ::MessageBeep(MB_ICONASTERISK);
   }
@@ -451,6 +491,23 @@ void MainWindow::HandleHealthCue(rivet_app::HealthCue const& cue) {
   };
   toast_.Show(title, lines, accent, cue.id, model_.config.snooze_minutes);
   CueDisplayed(cue.id);
+  RefreshTrayState();
+}
+
+void MainWindow::HandleCueAcknowledged(
+    rivet_app::CueAcknowledged const& acked) {
+  // Milestone cheer for SELF-REPORTED sit acknowledgments — a cheer claims
+  // nothing clinical (charter #51).
+  if (acked.kind != rivet_app::ReminderKind::sit) return;
+  bool const milestone =
+      acked.count_today == 3 || acked.count_today == 5 || acked.count_today == 8;
+  if (!milestone) return;
+  toast_.Show(
+      l10n::t("NotifCheerTitle"),
+      {l10n::t("NotifCheerBody",
+               {l10n::A(acked.count_today),
+                l10n::A(movebit::format_duration(model_.today.active_mins))})},
+      rivet_app::ReminderKind::sit, 0, model_.config.snooze_minutes);
 }
 
 void MainWindow::CueDisplayed(std::int64_t id) {
@@ -469,6 +526,7 @@ void MainWindow::RefreshStatesAfterTick() {
                 if (r.succeeded()) w->model_.pending_cues = r.get();
               } catch (std::exception const&) {
               }
+              w->RefreshTrayState();
             }
           });
         }
@@ -507,6 +565,8 @@ void MainWindow::ApplyConfig(rivet_app::ReminderConfig const& changed,
                              bool announce) {
   bool const language_changed = changed.language != model_.config.language;
   model_.config = changed;
+  companion_.ApplyConfig(changed.companion_size, changed.companion_motion,
+                         changed.companion_dock, changed.companion_labels);
   language_ = movebit::resolve_language(changed.language);
   l10n::g_language = language_;
   if (language_changed || announce) {
@@ -993,6 +1053,10 @@ void MainWindow::ApplyTexts() {
   SetSitLabel().Text(winrt::to_hstring(l10n::t("SetSitInterval")));
   SetWaterLabel().Text(winrt::to_hstring(l10n::t("SetWaterInterval")));
   SetAwayLabel().Text(winrt::to_hstring(l10n::t("SetAwayReset")));
+  SetMubiSizeLabel().Text(winrt::to_hstring(l10n::t("SetMubiSize")));
+  SetMubiMotionLabel().Text(winrt::to_hstring(l10n::t("SetMubiMotion")));
+  SetMubiDockLabel().Text(winrt::to_hstring(l10n::t("SetMubiDock")));
+  SetMubiLabelsLabel().Text(winrt::to_hstring(l10n::t("SetMubiLabels")));
   SetMotionLabel().Text(winrt::to_hstring(l10n::t("SetMotion")));
   SetSnoozeLabel().Text(winrt::to_hstring(l10n::t("SetSnooze")));
   SetMicroLabel().Text(winrt::to_hstring(l10n::t("SetMicroToggle")));
@@ -1220,6 +1284,15 @@ void MainWindow::RefreshSettingsWidgets() {
   MicroDurationBox().Value(
       static_cast<double>(c.micro_break_duration_seconds));
   MotionSwitch().IsOn(c.motion_enabled);
+  MubiSizeCombo().SelectedIndex(
+      c.companion_size == "S" ? 0 : c.companion_size == "L" ? 2 : 1);
+  MubiMotionCombo().SelectedIndex(
+      c.companion_motion == "still" ? 0
+      : c.companion_motion == "lively" ? 2 : 1);
+  MubiDockCombo().SelectedIndex(
+      c.companion_dock == "bottom-left" ? 1
+      : c.companion_dock == "top-right" ? 2 : 0);
+  MubiLabelsCombo().SelectedIndex(c.companion_labels == "always" ? 1 : 0);
   MicroSwitch().IsOn(c.micro_break_enabled);
   SoundSwitch().IsOn(c.sound_enabled);
   UpdatesSwitch().IsOn(c.auto_check_updates);
@@ -1363,11 +1436,42 @@ void MainWindow::InitTray() {
                     L"https://github.com/turinglambdaai/movebit/releases/latest",
                     nullptr, nullptr, SW_SHOWNORMAL);
   };
+  // Mandatory reminder controls (#54): act on the newest open cue.
+  tray_.on_cue_done = [this]() {
+    if (model_.pending_cues.empty()) return;
+    auto const id = model_.pending_cues.back().id;
+    (void)api_->acknowledge_cue_async(id, [](rivet_app::Result<void>) {});
+    companion_.ShowAck();
+    RefreshTrayState();
+  };
+  tray_.on_cue_later = [this]() {
+    if (model_.pending_cues.empty()) return;
+    auto const id = model_.pending_cues.back().id;
+    (void)api_->snooze_cue_async(id, [](rivet_app::Result<void>) {});
+    RefreshTrayState();
+  };
+  tray_.on_cue_hide = [this]() {
+    if (model_.pending_cues.empty()) return;
+    auto const id = model_.pending_cues.back().id;
+    (void)api_->dismiss_cue_async(id, [](rivet_app::Result<void>) {});
+    RefreshTrayState();
+  };
+  tray_.on_focus_toggle = [this]() {
+    auto const next = !model_.quiet;
+    (void)api_->set_quiet_async(next, [](rivet_app::Result<void>) {});
+    model_.quiet = next;
+    companion_.SetQuiet(next);
+    RefreshTrayState();
+  };
   tray_.on_exit = [this]() {
     really_quitting_ = true;
     Close();
   };
   tray_.Attach(*this);
+}
+
+void MainWindow::RefreshTrayState() {
+  tray_.RefreshCueState(!model_.pending_cues.empty(), model_.quiet);
 }
 
 void MainWindow::HideToTray() {
@@ -1463,6 +1567,54 @@ void MainWindow::MicroDuration_ValueChanged(
   MutateConfig([&](rivet_app::ReminderConfig& d) {
     d.micro_break_duration_seconds =
         static_cast<std::int64_t>(MicroDurationBox().Value());
+  });
+}
+
+void MainWindow::MubiSize_SelectionChanged(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+  if (updating_settings_) return;
+  static char const* values[] = {"S", "M", "L"};
+  auto const index = MubiSizeCombo().SelectedIndex();
+  if (index < 0 || index > 2) return;
+  MutateConfig([&](rivet_app::ReminderConfig& d) {
+    d.companion_size = values[index];
+  });
+}
+
+void MainWindow::MubiMotion_SelectionChanged(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+  if (updating_settings_) return;
+  static char const* values[] = {"still", "subtle", "lively"};
+  auto const index = MubiMotionCombo().SelectedIndex();
+  if (index < 0 || index > 2) return;
+  MutateConfig([&](rivet_app::ReminderConfig& d) {
+    d.companion_motion = values[index];
+  });
+}
+
+void MainWindow::MubiDock_SelectionChanged(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+  if (updating_settings_) return;
+  static char const* values[] = {"bottom-right", "bottom-left", "top-right"};
+  auto const index = MubiDockCombo().SelectedIndex();
+  if (index < 0 || index > 2) return;
+  MutateConfig([&](rivet_app::ReminderConfig& d) {
+    d.companion_dock = values[index];
+  });
+}
+
+void MainWindow::MubiLabels_SelectionChanged(
+    winrt::Windows::Foundation::IInspectable const&,
+    Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+  if (updating_settings_) return;
+  static char const* values[] = {"cue", "always"};
+  auto const index = MubiLabelsCombo().SelectedIndex();
+  if (index < 0 || index > 1) return;
+  MutateConfig([&](rivet_app::ReminderConfig& d) {
+    d.companion_labels = values[index];
   });
 }
 
