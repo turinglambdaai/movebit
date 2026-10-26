@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.1 — the fresh start (2026-10-27)
+
+**The first real MoveBit.** The owner decided the rebooted product ships as
+v0.0.1 — a deliberate restart of the version line; the content is the
+complete v1 reboot (#55/#56): reminders-first character delivery (Mubi),
+the explicit cue lifecycle, the removed fullscreen contract, the v1 config
+schema, companion settings, tray Done/Later/Hide/Focus, milestone cheers,
+and the completed gesture-motion story on all three hosts. See the
+[Unreleased] section below for the full slice-by-slice detail.
+
 ## [Unreleased]
 
 **Rollout note: the v1 reboot's visual identity landed — Mubi（沐比）is the
