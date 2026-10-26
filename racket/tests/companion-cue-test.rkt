@@ -1,66 +1,67 @@
 #lang racket/base
 
-;; Companion cue policy contracts. No native UI or real-time clock required.
+;; MoveBit v1 first product contract: one useful HEALTH reminder, not a pet
+;; event. Pure tests exercise policy without a host/window or real clock.
 
 (require rackunit
          "../movebit/companion-cue.rkt")
 
-;; Existing users stay with current gentle reminders until they opt in.
+;; New product default is a character-delivered, actionable water reminder.
+;; There is no opt-in compatibility path from the experimental v0.x.
 (let ([cue (plan-companion-cue '(water))])
-  (check-equal? (companion-cue-delivery cue) 'legacy)
-  (check-false (companion-cue-animated? cue))
-  (check-equal? (companion-cue-kinds cue) '(water)))
-
-;; A water reminder is expressed as the water gesture.
-(let ([cue (plan-companion-cue '(water)
-                               #:companion-enabled? #t)])
+  (check-equal? (companion-cue-kinds cue) '(water))
+  (check-equal? (companion-cue-action cue) 'drink-water)
   (check-equal? (companion-cue-gesture cue) 'water)
-  (check-equal? (companion-cue-delivery cue) 'companion)
+  (check-equal? (companion-cue-delivery cue) 'character)
   (check-true (companion-cue-animated? cue)))
 
-;; One merged scheduler event must generate just one cue. Preserve all
-;; included kinds in a deterministic order for later/snooze handling.
-(let ([cue (plan-companion-cue '(micro water sit water)
-                               #:companion-enabled? #t)])
+;; Every visual hint must have a clear real-world health action.
+(let ([cue (plan-companion-cue '(sit))])
+  (check-equal? (companion-cue-action cue) 'stand-and-stretch)
+  (check-equal? (companion-cue-gesture cue) 'stretch))
+(let ([cue (plan-companion-cue '(micro))])
+  (check-equal? (companion-cue-action cue) 'rest-eyes)
+  (check-equal? (companion-cue-gesture cue) 'blink))
+
+;; A merged scheduler event produces exactly one cue, deterministic priority,
+;; and preserves EVERY due kind for downstream Done/Later behavior.
+(let ([cue (plan-companion-cue '(micro water sit water))])
   (check-equal? (companion-cue-kinds cue) '(sit water micro))
-  (check-equal? (companion-cue-gesture cue) 'stretch)
-  (check-equal? (companion-cue-delivery cue) 'companion))
+  (check-equal? (companion-cue-action cue) 'stand-and-stretch)
+  (check-equal? (companion-cue-delivery cue) 'character))
+(let ([cue (plan-companion-cue '(micro water))])
+  (check-equal? (companion-cue-kinds cue) '(water micro))
+  (check-equal? (companion-cue-action cue) 'drink-water))
 
-;; Water outranks micro, which becomes a subtle blink by itself.
-(check-equal? (companion-cue-gesture
-               (plan-companion-cue '(micro water)
-                                   #:companion-enabled? #t))
-              'water)
-(check-equal? (companion-cue-gesture
-               (plan-companion-cue '(micro)
-                                   #:companion-enabled? #t))
-              'blink)
-
-;; Quiet/presentation mode means no pet attention request, but the due-kind
-;; set is retained: suppression is PRESENTATION policy, not a scheduler reset.
-(let ([cue (plan-companion-cue '(sit water)
-                               #:companion-enabled? #t
-                               #:quiet? #t)])
+;; Presentation/Focus mode suppresses UI, NOT real reminder state.
+(let ([cue (plan-companion-cue '(sit water) #:quiet? #t)])
   (check-equal? (companion-cue-kinds cue) '(sit water))
+  (check-equal? (companion-cue-action cue) 'stand-and-stretch)
   (check-equal? (companion-cue-delivery cue) 'quiet)
   (check-false (companion-cue-animated? cue)))
 
-;; Honor reduced motion without erasing the static cue.
-(let ([cue (plan-companion-cue '(sit)
-                               #:companion-enabled? #t
-                               #:reduce-motion? #t)])
-  (check-equal? (companion-cue-delivery cue) 'companion)
-  (check-equal? (companion-cue-gesture cue) 'stretch)
+;; An incapable compositor must get a non-blocking native notification
+;; rather than a bogus interactive overlay or full-screen interruption.
+(let ([cue (plan-companion-cue '(water)
+                               #:surface-supported? #f)])
+  (check-equal? (companion-cue-delivery cue) 'notification)
+  (check-equal? (companion-cue-action cue) 'drink-water)
   (check-false (companion-cue-animated? cue)))
 
-(check-false (plan-companion-cue '()
-                                 #:companion-enabled? #t))
+;; Reduce Motion still delivers the health suggestion as a static visual.
+(let ([cue (plan-companion-cue '(micro) #:reduce-motion? #t)])
+  (check-equal? (companion-cue-delivery cue) 'character)
+  (check-equal? (companion-cue-action cue) 'rest-eyes)
+  (check-false (companion-cue-animated? cue)))
 
-;; Reject unrecognized events/flags instead of producing a misleading cue.
+(check-false (plan-companion-cue '()))
 (check-exn exn:fail:contract?
            (lambda () (plan-companion-cue '(unknown))))
 (check-exn exn:fail:contract?
            (lambda () (plan-companion-cue "water")))
 (check-exn exn:fail:contract?
-           (lambda () (plan-companion-cue '(water)
-                                           #:quiet? 'maybe)))
+           (lambda () (plan-companion-cue '(water) #:quiet? 'maybe)))
+(check-exn exn:fail:contract?
+           (lambda () (plan-companion-cue '(water) #:surface-supported? 'maybe)))
+(check-exn exn:fail:contract?
+           (lambda () (plan-companion-cue '(water) #:reduce-motion? 'maybe)))
