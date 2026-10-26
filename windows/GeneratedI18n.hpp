@@ -16,7 +16,7 @@ struct I18nEntry {
   std::string_view en;
 };
 
-inline constexpr std::array<I18nEntry, 206> kI18nTable{{
+inline constexpr std::array<I18nEntry, 207> kI18nTable{{
     {"about.autoUpdate", "\350\207\252\345\212\250\346\243\200\346\237\245\346\233\264\346\226\260", "Check updates automatically"},
     {"about.autoUpdateHint", "\345\220\257\345\212\250\345\220\216\346\243\200\346\237\245\357\274\214\346\255\244\345\220\216\347\272\246\346\257\217 6 \345\260\217\346\227\266\346\243\200\346\237\245\344\270\200\346\254\241\357\274\233\344\270\215\344\274\232\351\235\231\351\273\230\345\256\211\350\243\205\343\200\202", "Checks at startup, then every ~6 hours; never installs silently."},
     {"about.changeDataFolder", "\346\233\264\346\224\271\342\200\246", "Change\342\200\246"},
@@ -103,6 +103,7 @@ inline constexpr std::array<I18nEntry, 206> kI18nTable{{
     {"mubi.dockTopRight", "\345\217\263\344\270\212", "Top right"},
     {"mubi.labelsAlways", "\345\270\270\346\230\276", "Always"},
     {"mubi.labelsCue", "\344\273\205\346\217\220\351\206\222\346\227\266", "During reminders"},
+    {"mubi.laterNote", "\347\250\215\345\220\216\345\206\215\346\217\220\351\206\222\344\275\240", "I'll remind you later"},
     {"mubi.motionLively", "\346\264\273\346\263\274", "Lively"},
     {"mubi.motionStill", "\351\235\231\346\255\242", "Still"},
     {"mubi.motionSubtle", "\350\275\273\346\237\224", "Subtle"},

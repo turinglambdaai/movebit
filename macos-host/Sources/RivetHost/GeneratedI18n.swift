@@ -92,6 +92,7 @@ enum GeneratedI18n {
         "mubi.dockTopRight": ["zh": "右上", "en": "Top right"],
         "mubi.labelsAlways": ["zh": "常显", "en": "Always"],
         "mubi.labelsCue": ["zh": "仅提醒时", "en": "During reminders"],
+        "mubi.laterNote": ["zh": "稍后再提醒你", "en": "I'll remind you later"],
         "mubi.motionLively": ["zh": "活泼", "en": "Lively"],
         "mubi.motionStill": ["zh": "静止", "en": "Still"],
         "mubi.motionSubtle": ["zh": "轻柔", "en": "Subtle"],
