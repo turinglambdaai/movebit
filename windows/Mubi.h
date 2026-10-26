@@ -28,6 +28,7 @@ namespace winrt::RivetHost::implementation {
 
 using namespace winrt::Microsoft::UI::Xaml;
 using namespace winrt::Microsoft::UI::Xaml::Shapes;
+using namespace winrt::Microsoft::UI::Xaml::Media;
 
 // ---- minimal SVG path parser (canonical data is absolute M/L/C/Z only) ----
 
@@ -353,8 +354,8 @@ struct MubiCompanion {
       capsule.HorizontalAlignment(HorizontalAlignment::Center);
       capsule.VerticalAlignment(VerticalAlignment::Bottom);
       capsule_text = make_text(
-          message.empty() ? L"MoveBit" : message, 12, true,
-          dark ? "#F1EEE7" : "#2D2A28");
+          winrt::hstring(message.empty() ? std::wstring(L"MoveBit") : message),
+          12, true, dark ? "#F1EEE7" : "#2D2A28");
       capsule_text.TextAlignment(TextAlignment::Center);
       capsule.Child(capsule_text);
       Controls::Grid::SetRow(capsule, 1);
