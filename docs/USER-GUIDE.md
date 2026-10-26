@@ -2,55 +2,55 @@
 
 **English** · [简体中文](USER-GUIDE.zh-CN.md)
 
-Configure work-break and water reminders with local activity history.
+Water, stand-up and eye-rest reminders delivered by Mubi（沐比）, a small original character at the edge of your screen — never a fullscreen cover, never stolen focus, never intercepted input.
 
 ## Availability
 
-Free community application under MIT; no commercial activation or subscription.
+v0.0.1. Free community application under MIT; no commercial activation or subscription.
 
 ## Platforms and installation
 
-Desktop previews for macOS, Windows and Linux. Idle detection depends on the desktop session; unsupported Wayland sessions fall back to elapsed time.
+Official releases target Windows x64, macOS (Apple silicon and Intel) and Linux x64/arm64. Every platform ships a portable archive; Windows adds an MSI, macOS a DMG, Linux a deb, rpm and AppImage. Use the [official Releases](https://github.com/turinglambdaai/movebit/releases), select an explicitly listed OS/architecture asset, and check the supplied SHA-256 sidecars. Preview assets may lack publisher signing or notarization; do not disable system-wide security protections to install them.
 
-Use [official Releases](https://github.com/turinglambdaai/movebit/releases), select an explicitly listed OS/architecture asset, read its release notes and check supplied checksums. An absent asset/platform is not a delivery promise. Preview builds may lack publisher signing or notarization; do not disable system-wide security protections to install them.
+Platform notes: idle detection uses the native desktop APIs (GetLastInputInfo / CoreGraphics / XScreenSaver). On Linux, Mubi's card docks on X11 sessions; Wayland sessions honestly fall back to system notifications (reminders and updates work as usual).
 
-## Your first successful session
+## Your first session
 
-1. New profiles start **gentle**: toast reminders only, never a locked screen. A fullscreen break only ever starts after you explicitly opt in — picking Standard or Strict during onboarding, or the "Forced breaks" switch in settings.
-2. Test pause, snooze and the break-screen controls before enabling stronger full-screen breaks.
-3. Enable login startup only if you want background reminders. Review 7/30-day history as usage estimates, not health measurements.
+1. Install and launch. The compact first-run flow asks for a water interval (30/45/60 min), a sit interval (45/60/90 min) and whether cues make a sound — or press Skip for the defaults.
+2. Meet Mubi. When a cycle is due, the character appears at the screen edge with a clear health suggestion and an actionable label. The bubble rests after a few seconds; the cue itself waits in the tray.
+3. Respond your way: **Done** (a self-report — never a measurement), **Later** (defers by the snooze interval), **Hide** (puts it away; the next cycle arrives on schedule). All three live in the tray menu, always reachable — the character panel itself is fully click-through.
+4. Enable login startup only if you want background reminders. Treat the history charts as usage estimates, not health measurements.
 
-## Break screens and how to leave them
+## Mubi, focus mode and honesty
 
-- A fullscreen break covers **every connected display** with a countdown and unlocks automatically when it ends.
-- The **emergency exit is always available**: press <kbd>Esc</kbd> or use the visible "Emergency exit" button. It restores usable windows on all displays immediately and does not depend on the reminder engine being reachable.
-- The delayed ordinary **Skip** appears after the configured delay (20 seconds by default) and reschedules the sit reminder.
-- Leaving a break never counts against you: an emergency exit or skip postpones the reminder instead of instantly re-locking. If the reminder engine is unreachable at the moment you exit, MoveBit still restores your screens first and finishes the cancellation quietly once the engine responds again.
-- Completed breaks restart every reminder cycle, and the break itself is never counted as active work.
-- Reduced Motion on macOS suppresses the decorative halo pulse; break screens expose their controls to screen readers through ordinary button labels.
+- The three gestures map to the three reminders: sit → stretch, water → raised cup, eye rest → closed eyes. Several due reminders merge into one cue with every meaning preserved.
+- **Focus mode** (tray toggle) queues cues silently during presentations and delivers ONE bounded summary when it ends — never a pile-up. Cues that were already on screen are not re-emitted.
+- Unanswered cues expire after ten minutes and the next reminder arrives on its normal schedule. Silence never counts as completion, and nothing is lost.
+- Personalize Mubi in settings: size S/M/L (body heights 60/78/104), motion (still/subtle/lively), dock position, label visibility. Reduce Motion (or motion "still") renders everything static.
+- There is no fullscreen forced break anywhere in v0.0.1, and no way to opt back into one — that contract was removed on purpose.
+
+## Work history
+
+Today's active minutes, reminder counts and the 7/30-day charts live in the main window; history is retained for 370 days. Activity time counts only real keyboard/mouse presence — idle time past the away threshold (5 minutes by default) is treated as a real break and resets the cycles.
 
 ## Data, backup and recovery
 
-Quit MoveBit and back up config.json and history.json: ~/Library/Application Support/movebit on macOS, ~/.config/movebit on Linux, or %APPDATA%/movebit on Windows. History retains up to 370 days. Restore into a copy first.
+Quit MoveBit and back up `config.json` and the `history/` folder: `~/Library/Application Support/movebit` on macOS, `~/.config/movebit` on Linux, `%APPDATA%\movebit` on Windows. The v1 config file carries a `SchemaVersion` marker; a file without it falls back to defaults rather than being half-migrated. Restore into a copy first.
 
 ## Network, keys and privacy
 
-Reminder/accounting work is local. Update checks and release downloads contact external services. Activity history may reveal working habits; review it before sharing diagnostics.
-
-## Known limits
-
-Per-installation update recovery remains tracked in #48. The emergency exit ships on all three platforms; native runtime qualification of the full-screen controls on Windows and Linux follows their packaging legs. This tool provides reminders, not medical advice or a guaranteed way to prevent injury.
+Reminder and accounting work is local. Update checks and release downloads contact GitHub Releases only. There is no account, no telemetry, no keystroke recording — idle detection asks the OS how long ago the last input was, nothing more. Mubi's panel never reads input.
 
 ## Updates and removal
 
-Back up data and read the destination release notes first. An in-app update check does not necessarily install an update for your channel; follow the manual for portable, installer and source paths. Never bypass a failed signature check or replace the program with an untrusted artifact. On failure, preserve data and the error, then recover with a trusted release. Removing the program does not necessarily erase its separate data directory; verify your backup before deleting personal data.
+The in-app **Check for updates** reads the Ed25519-signed `update-manifest.json`, verifies size and SHA-256 after download, and swaps the payload only through **Update & restart**. A failed check aborts without touching the current install. Removing the program does not erase the separate data directory; verify your backup before deleting personal data.
 
 ## Get help
 
-Report problems in [GitHub Issues](https://github.com/turinglambdaai/movebit/issues), in English or Chinese. Include the version, OS/architecture, installation channel, steps, expected result and actual result. Reproduce with synthetic input first; do not attach keys, credentials, databases, private source documents or complete logs. Public support has no guaranteed response time.
+Report problems in [GitHub Issues](https://github.com/turinglambdaai/movebit/issues), in English or Chinese. Include the version, OS/architecture, installation channel, steps, expected and actual results. Do not attach keys, credentials, databases or complete logs. Public support has no guaranteed response time.
 
 ## Further reading
 
-
 - [Project overview and development](../README.md)
+- [Mubi design system](MUBI-DESIGN-SYSTEM.md)
 - [Current licence](../LICENSE)
