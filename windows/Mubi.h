@@ -174,8 +174,8 @@ struct MubiCompanion {
   double anim_progress = 0.0;   // 0..1
   std::int64_t anim_total_ticks = 0;
   Media::CompositeTransform cup_transform{nullptr};
-  std::vector<Media::Path> stand_arcs;
-  Media::Path ack_glint{nullptr};
+  std::vector<Shapes::Path> stand_arcs;
+  Shapes::Path ack_glint{nullptr};
 
   // Label auto-return (#56 §4: the label reads ~5 s, then the card returns
   // to its calm pose — the label's disappearance is NOT Done).
