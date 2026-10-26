@@ -186,6 +186,11 @@ struct AppState {
   guint mubi_expire_id{0};
   int mubi_state = 0;  // 0 idle, 1 water, 2 stand, 3 eyes, 4 ack, 5 focus
   std::string mubi_message;
+  // Gesture animation (#56 §4): one expressive motion per cue, 33 ms ticks
+  // redrawing the cairo canvas; still = static, lively = slightly slower.
+  double mubi_anim_progress = 1.0;
+  double mubi_anim_step = 0.0;
+  guint mubi_anim_tick_id{0};
   std::string mubi_size = "M";
   std::string mubi_motion = "subtle";
   std::string mubi_dock = "bottom-right";
@@ -2016,6 +2021,14 @@ void eye(cairo_t* cr, double cx, double cy) {
 }
 
 void draw_state(cairo_t* cr, int state) {
+  double const p = g_state.mubi_anim_progress;
+  // Stand: body lengthens upward, anchored at the docked bottom (y=124).
+  if (state == 2) {
+    cairo_save(cr);
+    cairo_translate(cr, 0, 124);
+    cairo_scale(cr, 1.0, 1.0 + 0.06 * p);
+    cairo_translate(cr, 0, -124);
+  }
   fill_path(cr, kFinLeft, kHexFin);
   fill_path(cr, kFinRight, kHexFin);
   fill_path(cr, kFinShade, kHexShadow, 0.35);
@@ -2076,21 +2089,40 @@ void draw_state(cairo_t* cr, int state) {
     if (state == 4) stroke_path(cr, kMouthAck, kHexInk, 1.6);
   }
 
-  if (state == 1) {  // water: cup at canvas (97,57), tilted
+  if (state == 2) {
+    cairo_restore(cr);  // end the stand stretch transform
+  }
+
+  if (state == 1) {  // water: cup rises 12 units at canvas (97,57)
     cairo_save(cr);
-    cairo_translate(cr, 97, 57);
+    cairo_translate(cr, 97, 57 - 12 * p);
     cairo_rotate(cr, -10 * 3.14159265358979 / 180.0);
     cairo_scale(cr, 0.9, 0.9);
     fill_path(cr, kCupBody, "#62B6FF");
     fill_path(cr, kCupWater, "#8FCBFF", 0.85);
     cairo_restore(cr);
-  } else if (state == 2) {  // stand: coral stretch arcs over the crown
-    stroke_path(cr, kStretchL, "#FF8C6B", 3);
-    stroke_path(cr, kStretchR, "#FF8C6B", 3);
+  } else if (state == 2) {  // stand: coral stretch arcs fade in
+    GdkRGBA move;
+    gdk_rgba_parse(&move, "#FF8C6B");
+    cairo_set_source_rgba(cr, move.red, move.green, move.blue,
+                          move.alpha * (0.3 + 0.7 * p));
+    cairo_set_line_width(cr, 3);
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+    trace_path(cr, kStretchL);
+    cairo_stroke(cr);
+    cairo_set_source_rgba(cr, move.red, move.green, move.blue,
+                          move.alpha * (0.3 + 0.7 * p) * 0.65);
+    trace_path(cr, kStretchR);
+    cairo_stroke(cr);
   } else if (state == 3) {  // eyes: mint gaze-off
     stroke_path(cr, kGazeCrescent, "#65C8B8", 3);
-  } else if (state == 4) {  // ack: warm glint
-    fill_path(cr, kAckGlint, "#F2C96B");
+  } else if (state == 4) {  // ack: warm glint brightens
+    GdkRGBA done;
+    gdk_rgba_parse(&done, "#F2C96B");
+    cairo_set_source_rgba(cr, done.red, done.green, done.blue,
+                          done.alpha * (0.4 + 0.6 * p));
+    trace_path(cr, kAckGlint);
+    cairo_fill(cr);
   } else if (state == 5) {  // focus: quiet moon
     GdkRGBA moon;
     gdk_rgba_parse(&moon, "#8DA1B5");
@@ -2132,14 +2164,61 @@ void close_window() {
 void refresh_label() {
   if (g_state.mubi_capsule == nullptr) return;
   if (g_state.mubi_labels_always || !g_state.mubi_message.empty()) {
-    gtk_label_set_text(g_state.mubi_capsule,
-                       g_state.mubi_message.empty()
-                           ? "MoveBit"
-                           : g_state.mubi_message.c_str());
+    // Contextual state icon; the text carries the meaning (#56 §5).
+    char const* icon = "";
+    switch (g_state.mubi_state) {
+      case 1: icon = "\u2703\uFE0F "; break;   // 💧
+      case 2: icon = "\U0001F9CD "; break;      // 🧍
+      case 3: icon = "\U0001F441 "; break;      // 👁
+      case 4: icon = "\u2713 "; break;          // ✓
+      case 5: icon = "\U0001F319 "; break;      // 🌙
+      default: break;
+    }
+    std::string text = icon;
+    text += g_state.mubi_message.empty() ? "MoveBit" : g_state.mubi_message;
+    gtk_label_set_text(g_state.mubi_capsule, text.c_str());
     gtk_widget_set_visible(GTK_WIDGET(g_state.mubi_capsule), TRUE);
   } else {
     gtk_widget_set_visible(GTK_WIDGET(g_state.mubi_capsule), FALSE);
   }
+}
+
+void stop_anim() {
+  if (g_state.mubi_anim_tick_id != 0) {
+    g_source_remove(g_state.mubi_anim_tick_id);
+    g_state.mubi_anim_tick_id = 0;
+  }
+}
+
+// One expressive gesture per due moment; "still" stays static.
+void start_anim(int state) {
+  stop_anim();
+  g_state.mubi_anim_progress = 1.0;
+  std::int64_t ms = 0;
+  switch (state) {
+    case 1: ms = g_state.mubi_motion == "lively" ? 950 : 750; break;
+    case 2: ms = g_state.mubi_motion == "lively" ? 1150 : 900; break;
+    case 4: ms = 450; break;
+    default: ms = 0; break;  // eyes/idle/focus are the quietest poses
+  }
+  if (ms == 0 || g_state.mubi_motion == "still") return;
+  g_state.mubi_anim_progress = 0.0;
+  g_state.mubi_anim_step = 33.0 / static_cast<double>(ms);
+  g_state.mubi_anim_tick_id = g_timeout_add(
+      33,
+      +[](gpointer) -> int {
+        g_state.mubi_anim_progress =
+            std::min(1.0, g_state.mubi_anim_progress + g_state.mubi_anim_step);
+        if (g_state.mubi_canvas != nullptr) {
+          gtk_widget_queue_draw(GTK_WIDGET(g_state.mubi_canvas));
+        }
+        if (g_state.mubi_anim_progress >= 1.0) {
+          g_state.mubi_anim_tick_id = 0;
+          return G_SOURCE_REMOVE;
+        }
+        return G_SOURCE_CONTINUE;
+      },
+      nullptr);
 }
 
 void present(int state, std::string const& message, GtkApplication* app) {
@@ -2150,6 +2229,7 @@ void present(int state, std::string const& message, GtkApplication* app) {
   auto& s = g_state;
   s.mubi_state = state;
   s.mubi_message = message;
+  start_anim(state);
 
   if (s.mubi_expire_id != 0) {
     g_source_remove(s.mubi_expire_id);
@@ -2315,6 +2395,8 @@ void on_toast_snooze(GtkButton*, gpointer) {
         refresh_today_card();
       });
     });
+    // #56 §4 `later`: a tiny quiet settle on the companion.
+    mubi::present(0, l10n::t("MubiLaterNote"), g_state.app);
   }
   toast_dismiss();
 }
@@ -3281,6 +3363,7 @@ void on_shutdown(GApplication*, gpointer) {
   g_state.shutting_down.store(true, std::memory_order_release);
   toast_dismiss();
   micro_dismiss();
+  mubi::stop_anim();
   mubi::close_window();
   if (g_state.startup_thread.joinable()) {
     g_state.startup_thread.join();

@@ -162,7 +162,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                  }))
             items.append(.action(label: L10n.t("TrayCueLater"),
                                  identifier: "tray-cue-later",
-                                 handler: { [weak self] in self?.model?.snoozeCue(cue.id) }))
+                                 handler: { [weak self] in
+                                     self?.model?.snoozeCue(cue.id)
+                                     // #56 §4 `later`: a tiny quiet settle.
+                                     self?.companion?.show(state: .idle,
+                                                           message: L10n.t("MubiLaterNote"))
+                                 }))
             items.append(.action(label: L10n.t("TrayCueHide"),
                                  identifier: "tray-cue-hide",
                                  handler: { [weak self] in self?.model?.dismissCue(cue.id) }))

@@ -3,8 +3,9 @@
 ## [Unreleased]
 
 **Rollout note: the v1 reboot's visual identity landed — Mubi（沐比）is the
-official companion (issue #56), and the repo is staged for the first real
-v1.0.0 release.**
+official companion (issue #56), and the first real release ships as
+**v0.0.1** — the owner's chosen fresh-start baseline for the rebooted
+product.**
 
 ### Added
 
@@ -38,9 +39,15 @@ v1.0.0 release.**
 
 ### Changed
 
-- **The first real v1.0.0 is staged:** `VERSION`/`rivet.rktd` now say
-  1.0.0. Publishing remains gated on the release checklist (see #55 R6);
-  no tag exists yet.
+- **The motion story is complete (#56 §4).** Windows and Linux run the
+  full gesture set (water cup raise, stand stretch with coral arc
+  fade-in, ack glint) as timer-driven animation honoring the
+  still/subtle/lively preference; macOS adds the rare natural idle blink
+  and the `later` settle; contextual state icons ride the capsule on all
+  three hosts; labels auto-return after ~5 s everywhere.
+- **The first real release is v0.0.1:** `VERSION`/`rivet.rktd` say 0.0.1 —
+  a deliberate fresh-start baseline chosen by the owner (the content is
+  the complete reboot; the number restarts the version line).
 
 **Previous slices (R1 cue engine, R2 macOS companion) below.**
 

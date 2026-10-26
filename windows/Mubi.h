@@ -167,7 +167,19 @@ struct MubiCompanion {
   bool quiet = false;
   bool pointer_through_applied = false;
 
-  std::function<void()> on_expired;  // label fade ended -> idle pose
+  // Gesture animation (#56 §4): one expressive motion per cue, timer-driven
+  // (WinRT setters return void, so no storyboards — a 33 ms tick updating
+  // the live elements is small and dependency-free). still = static.
+  Microsoft::UI::Dispatching::DispatcherQueueTimer anim_timer{nullptr};
+  double anim_progress = 0.0;   // 0..1
+  std::int64_t anim_total_ticks = 0;
+  Media::CompositeTransform cup_transform{nullptr};
+  std::vector<Shapes::Path> stand_arcs;
+  Shapes::Path ack_glint{nullptr};
+
+  // Label auto-return (#56 §4: the label reads ~5 s, then the card returns
+  // to its calm pose — the label's disappearance is NOT Done).
+  Microsoft::UI::Dispatching::DispatcherQueueTimer label_timer{nullptr};
 
   static double body_height_for(std::string const& size) {
     if (size == "S") return 60;
@@ -200,6 +212,8 @@ struct MubiCompanion {
     Position();
     window.Activate();
     ApplyPointerThrough();
+    StartGesture(state);
+    StartLabelTimer(message);
   }
 
   void ShowIdle() { Show(quiet ? MubiState::Focus : MubiState::Idle, L""); }
@@ -246,6 +260,10 @@ struct MubiCompanion {
     using namespace mubi_detail;
 
     auto accent = [&](char const* hex) { return solid(hex); };
+    cup_transform = {nullptr};
+    canvas_scale = {nullptr};
+    stand_arcs.clear();
+    ack_glint = {nullptr};
 
     // Canvas: 120x140 design units scaled up by s.
     canvas = Controls::Canvas{};
@@ -254,6 +272,8 @@ struct MubiCompanion {
     canvas_scale = Media::ScaleTransform();
     canvas_scale.ScaleX(s);
     canvas_scale.ScaleY(s);
+    // Stand stretches the body upward from the docked bottom edge.
+    canvas_scale.CenterY(124);
     canvas.RenderTransform(canvas_scale);
 
     auto dark_or = [&](char const* light_hex) {
@@ -311,26 +331,34 @@ struct MubiCompanion {
           path_shape(L"M -4.6 -6.5 L 4.4 -6.5 L 3.6 1.5 L -4 1.5 Z",
                      solid("#8FCBFF", 0.85)));
       // WinRT setters return void — compose the transform explicitly.
-      auto cup_transform = Media::CompositeTransform{};
+      cup_transform = Media::CompositeTransform{};
       cup_transform.TranslateX(97);
-      cup_transform.TranslateY(51);
+      cup_transform.TranslateY(51 - 12 * anim_progress);
       cup_transform.Rotation(-10);
       cup_transform.ScaleX(0.9);
       cup_transform.ScaleY(0.9);
       cup.RenderTransform(cup_transform);
       canvas.Children().Append(cup);
     } else if (state == MubiState::Stand) {
-      canvas.Children().Append(
-          stroke_shape(L"M 42 11 C 47 4, 53 2, 58 4", accent("#FF8C6B"), 3));
-      canvas.Children().Append(
-          stroke_shape(L"M 78 11 C 73 4, 67 2, 62 4", accent("#FF8C6B"), 3));
+      auto left = stroke_shape(L"M 42 11 C 47 4, 53 2, 58 4",
+                               accent("#FF8C6B"), 3);
+      left.Opacity(0.3 + 0.7 * anim_progress);
+      stand_arcs.push_back(left);
+      canvas.Children().Append(left);
+      auto right = stroke_shape(L"M 78 11 C 73 4, 67 2, 62 4",
+                                accent("#FF8C6B"), 3);
+      right.Opacity((0.3 + 0.7 * anim_progress) * 0.65);
+      stand_arcs.push_back(right);
+      canvas.Children().Append(right);
     } else if (state == MubiState::Eyes) {
       canvas.Children().Append(
           stroke_shape(L"M 92 38 C 96.5 40.5, 99 45, 98 50", accent("#65C8B8"), 3));
     } else if (state == MubiState::Ack) {
-      canvas.Children().Append(
+      ack_glint =
           path_shape(L"M 84 56 L 86 60.5 L 90.5 62 L 86 63.5 L 84 68 L 82 63.5 L 77.5 62 L 82 60.5 Z",
-                     accent("#F2C96B")));
+                     accent("#F2C96B"));
+      ack_glint.Opacity(0.4 + 0.6 * anim_progress);
+      canvas.Children().Append(ack_glint);
     } else if (state == MubiState::Focus) {
       auto moon = Shapes::Ellipse{};
       moon.Width(16);
@@ -368,9 +396,22 @@ struct MubiCompanion {
       capsule.Margin(Thickness{0, 8, 0, 0});
       capsule.HorizontalAlignment(HorizontalAlignment::Center);
       capsule.VerticalAlignment(VerticalAlignment::Bottom);
-      capsule_text = make_text(
-          winrt::hstring(message.empty() ? std::wstring(L"MoveBit") : message),
-          12, true, dark ? "#F1EEE7" : "#2D2A28");
+      // Contextual state icon; the text carries the meaning (#56 §5).
+      wchar_t const* icon = L"";
+      switch (state) {
+        // UTF-16 surrogate pairs (Windows wchar_t is 16-bit):
+        // 💧 U+1F4A7? no — the droplet glyph here is ✃… use: 💧 = U+1F4A7
+        case MubiState::Water: icon = L"\xD83D\xDCA7 "; break;   // 💧
+        case MubiState::Stand: icon = L"\xD83E\xDDCD "; break;   // 🧍
+        case MubiState::Eyes: icon = L"\xD83D\xDC41 "; break;    // 👁
+        case MubiState::Ack: icon = L"\x2713 "; break;            // ✓
+        case MubiState::Focus: icon = L"\xD83C\xDF19 "; break;   // 🌙
+        case MubiState::Idle: break;
+      }
+      std::wstring labeled = icon +
+          (message.empty() ? std::wstring(L"MoveBit") : message);
+      capsule_text = make_text(winrt::hstring(labeled),
+                               12, true, dark ? "#F1EEE7" : "#2D2A28");
       capsule_text.TextAlignment(TextAlignment::Center);
       capsule.Child(capsule_text);
       Controls::Grid::SetRow(capsule, 1);
@@ -418,6 +459,51 @@ struct MubiCompanion {
         pointer_through_applied = true;
       }
     }
+  }
+
+  // One expressive gesture per due moment (#56 §4); "still" stays static.
+  void StartGesture(MubiState state) {
+    if (anim_timer) anim_timer.Stop();
+    anim_progress = 1.0;
+    std::int64_t ms = 0;
+    switch (state) {
+      case MubiState::Water: ms = motion == "lively" ? 950 : 750; break;
+      case MubiState::Stand: ms = motion == "lively" ? 1150 : 900; break;
+      case MubiState::Ack: ms = 450; break;
+      default: ms = 0; break;  // eyes/idle/focus are the quietest poses
+    }
+    if (ms == 0 || motion == "still") return;
+    anim_progress = 0.0;
+    anim_total_ticks = ms / 33 + 1;
+    if (!anim_timer) {
+      anim_timer = make_timer(std::chrono::milliseconds(33), true, [this] {
+        anim_progress = std::min(1.0, anim_progress + 1.0 / static_cast<double>(anim_total_ticks));
+        if (cup_transform != nullptr) {
+          cup_transform.TranslateY(51 - 12 * anim_progress);
+        }
+        if (canvas_scale != nullptr) {
+          canvas_scale.ScaleY(1.0 + 0.06 * anim_progress);
+        }
+        for (auto const& arc : stand_arcs) {
+          if (arc) arc.Opacity(0.3 + 0.7 * anim_progress);
+        }
+        if (ack_glint) ack_glint.Opacity(0.4 + 0.6 * anim_progress);
+        if (anim_progress >= 1.0 && anim_timer) anim_timer.Stop();
+      });
+    }
+    anim_timer.Start();
+  }
+
+  // The label reads ~5 s, then the card returns to its calm pose (#56 §4).
+  void StartLabelTimer(std::wstring const& message) {
+    if (label_timer) label_timer.Stop();
+    if (message.empty() && !labels_always) return;
+    if (!label_timer) {
+      label_timer = make_timer(std::chrono::milliseconds(5000), false, [this] {
+        ShowIdle();
+      });
+    }
+    label_timer.Start();
   }
 
   void Position() {
