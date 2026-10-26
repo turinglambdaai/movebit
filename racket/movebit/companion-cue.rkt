@@ -1,33 +1,35 @@
 #lang racket/base
 
-;; Companion presentation policy, intentionally isolated from scheduling.
+;; MoveBit v1: choose HOW to present an already-due health reminder.
 ;;
-;; Reminder timing, counts, snooze and away-reset remain owned by scheduler.rkt
-;; and orchestrator.rkt. This module maps ONE already-coalesced reminders-due
-;; event into ONE display cue, without side effects, timers or platform UI.
+;; The core product is hydration, standing/movement and eye-rest reminders,
+;; not a desktop pet. The scheduler/orchestrator still own all timing, merging,
+;; pause, snooze, idle and statistics; these choices do not reset any timer.
+;; The native host is responsible for safe surfaces, input pass-through,
+;; labels, accessibility and presentation capability reporting.
 ;;
-;; Host capability inputs (quiet/presentation mode, reduced motion) are
-;; explicit and may be different on macOS, Windows and Linux. This does NOT
-;; detect fullscreen windows or claim pointer pass-through support.
-;;
-;; Existing users remain on the legacy presentation unless the host opts in.
+;; v0.x was an experiment with no real users: there is deliberately no legacy
+;; presentation flag or compatibility mode. Character-style cues are the
+;; first real product default. On unsupported platforms use a non-blocking
+;; native notification rather than an interactive or fullscreen overlay.
 
 (require racket/list)
 
 (provide (struct-out companion-cue)
          plan-companion-cue)
 
-;; kinds:      complete, unique list ordered by priority (sit water micro)
-;; gesture:    'stretch | 'water | 'blink (the host supplies original artwork)
-;; delivery:   'legacy | 'quiet | 'companion
-;; animated?:  #f when focus mode or OS Reduce Motion disallows animation
-(struct companion-cue (kinds gesture delivery animated?) #:transparent)
+;; kinds:     ALL due kinds (priority order); preserve for snooze/actions
+;; action:    semantic suggested health action, independent of appearance
+;; gesture:   original visual rendering hint for the character
+;; delivery:  'character | 'notification | 'quiet
+;; animated?: static when Reduce Motion or presentation silence is selected
+(struct companion-cue (kinds action gesture delivery animated?) #:transparent)
 
 (define known-kinds '(sit water micro))
 
 (define (plan-companion-cue kinds
-                            #:companion-enabled? [companion-enabled? #f]
                             #:quiet? [quiet? #f]
+                            #:surface-supported? [surface-supported? #t]
                             #:reduce-motion? [reduce-motion? #f])
   (unless (and (list? kinds)
                (andmap (lambda (kind) (and (symbol? kind)
@@ -35,29 +37,34 @@
                        kinds))
     (raise-argument-error
      'plan-companion-cue "(listof (or/c 'sit 'water 'micro))" kinds))
-  (unless (boolean? companion-enabled?)
-    (raise-argument-error 'plan-companion-cue "boolean?" companion-enabled?))
   (unless (boolean? quiet?)
     (raise-argument-error 'plan-companion-cue "boolean?" quiet?))
+  (unless (boolean? surface-supported?)
+    (raise-argument-error 'plan-companion-cue "boolean?" surface-supported?))
   (unless (boolean? reduce-motion?)
     (raise-argument-error 'plan-companion-cue "boolean?" reduce-motion?))
-  ;; Input order and duplicates must not produce different gestures on
-  ;; different hosts. Keep the FULL due-kind set for later/snooze actions.
+
+  ;; Deterministic regardless of host event order; one already-merged event
+  ;; results in one cue while all kinds remain available for the user action.
   (define ordered
     (filter (lambda (kind) (memq kind kinds)) known-kinds))
   (cond
     [(null? ordered) #f]
     [else
-     (define gesture
-       (cond [(memq 'sit ordered) 'stretch]
-             [(memq 'water ordered) 'water]
-             [else 'blink]))
+     (define-values (action gesture)
+       (cond [(memq 'sit ordered) (values 'stand-and-stretch 'stretch)]
+             [(memq 'water ordered) (values 'drink-water 'water)]
+             [else (values 'rest-eyes 'blink)]))
+     ;; Quiet merely controls presentation. It must never be used as proof
+     ;; that the user completed a break or drank water; queue/expiry semantics
+     ;; belong to the reminder engine, not the renderer.
      (define delivery
-       (cond [(not companion-enabled?) 'legacy]
-             [quiet? 'quiet]
-             [else 'companion]))
+       (cond [quiet? 'quiet]
+             [surface-supported? 'character]
+             [else 'notification]))
      (companion-cue ordered
+                    action
                     gesture
                     delivery
-                    (and (eq? delivery 'companion)
+                    (and (eq? delivery 'character)
                          (not reduce-motion?)))]))
