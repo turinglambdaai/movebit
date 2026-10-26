@@ -2220,7 +2220,8 @@ void present(int state, std::string const& message, GtkApplication* app) {
       GdkMonitor* monitor =
           gdk_display_get_monitor_at_surface(display, surface);
       GdkRectangle work{};
-      gdk_monitor_get_workarea(monitor, &work);
+      // GTK4 renamed the work-area accessor to the X11 variant.
+      gdk_x11_monitor_get_workarea(monitor, &work);
       int const clearance = 16;
       int x = work.x + work.width - win_w - clearance;
       int y = work.y + work.height - win_h - clearance;
