@@ -24,6 +24,7 @@
 namespace winrt::RivetHost::implementation {
 
 using namespace winrt::Microsoft::UI::Xaml;
+using namespace winrt::Microsoft::UI::Xaml::Shapes;
 
 // ---- minimal SVG path parser (canonical data is absolute M/L/C/Z only) ----
 
@@ -108,8 +109,8 @@ inline Media::Brush solid(char const* hex, double opacity = 1.0) {
   return brush;
 }
 
-inline Media::Path path_shape(wchar_t const* d, Media::Brush const& brush) {
-  Media::Path path;
+inline Shapes::Path path_shape(wchar_t const* d, Media::Brush const& brush) {
+  Shapes::Path path;
   path.Data(parse(d));
   path.Fill(brush);
   path.Stretch(Stretch::None);
@@ -117,9 +118,9 @@ inline Media::Path path_shape(wchar_t const* d, Media::Brush const& brush) {
   return path;
 }
 
-inline Media::Path stroke_shape(wchar_t const* d, Media::Brush const& brush,
+inline Shapes::Path stroke_shape(wchar_t const* d, Media::Brush const& brush,
                                 double width) {
-  Media::Path path;
+  Shapes::Path path;
   path.Data(parse(d));
   path.Fill(nullptr);
   path.Stroke(brush);
@@ -257,7 +258,7 @@ struct MubiCompanion {
 
     // Face at the frozen placement; state decides open/closed/props.
     auto eye = [&](double cx, double cy) {
-      auto ellipse = Controls::Ellipse{};
+      auto ellipse = Shapes::Ellipse{};
       ellipse.Width(6);
       ellipse.Height(7.2);
       ellipse.Fill(solid("#2D2A28"));
@@ -312,7 +313,7 @@ struct MubiCompanion {
           path_shape(L"M 84 56 L 86 60.5 L 90.5 62 L 86 63.5 L 84 68 L 82 63.5 L 77.5 62 L 82 60.5 Z",
                      accent("#F2C96B")));
     } else if (state == MubiState::Focus) {
-      auto moon = Controls::Ellipse{};
+      auto moon = Shapes::Ellipse{};
       moon.Width(16);
       moon.Height(16);
       moon.Fill(solid("#8DA1B5", 0.75));
@@ -372,7 +373,7 @@ struct MubiCompanion {
   bool _root_is_dark() const {
     try {
       return window != nullptr &&
-             window.Content().as<Controls::FrameworkElement>()
+             window.Content().try_as<FrameworkElement>()
                  .ActualTheme() == ElementTheme::Dark;
     } catch (...) {
       // Before first layout: ask the OS.
