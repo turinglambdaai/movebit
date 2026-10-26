@@ -1,5 +1,7 @@
 # MoveBit
 
+> **MoveBit v1 正在从实验品重新设计（2026-10-26）：** 已有 v0.x 版本没有真实用户。我们确定将 MoveBit 打造成**喝水、久坐起身和护眼健康提醒工具**，以温柔的拟人角色代替生硬遮屏。**新版 v1 仍在开发，尚未发布**；下文的下载、全屏强制休息、旧设置说明属于原先 v0.5.0 实验版本的实际行为，不代表 v1 的产品承诺。v1 将移除强制全屏休息、严格引导与旧版迁移要求。参见 [重构实施 #55](https://github.com/turinglambdaai/movebit/issues/55) 和 [新版交互规范](docs/COMPANION-RFC.zh-CN.md)。
+
 一个桌面健康小卫士：监测你**真正处于电脑前工作的时间**，到点把你从椅子上请起来——久坐提醒可用带倒计时的休息屏**覆盖所有显示器**，喝水提醒保持轻量。一份 Racket 领域核心通过 [Rivet](https://github.com/turinglambdaai/rivet) 的类型化 RPC 驱动 Windows、macOS、Linux 上的第一方原生宿主。
 
 [![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turinglambdaai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
