@@ -1,5 +1,7 @@
 # macOS character-style health reminder preview (developer-only)
 
+**Update for v1 reboot (#55):** This experiment is an input-safe **water/stand-up/eye-rest reminder renderer**, not a separate desktop-pet product. v0.x had no users; no legacy migration or force-cover preservation is required for v1. This prototype still uses the old backend until the semantic reminder engine replacement lands.
+
 Parent product task: [#51](https://github.com/turinglambdaai/movebit/issues/51). Depends on cue foundation PR #52. This slice is a **native Mac proof of rendering and non-interception**, not the cross-platform pet release. **MoveBit remains a hydration, movement and eye-rest reminder product**. This character is only a visual way of presenting the existing due reminders; it does not add autonomous pet prompts, care needs or a gameplay loop.
 
 ## Run
@@ -13,6 +15,8 @@ MOVEBIT_COMPANION_PREVIEW=1 raco rivet dev
 The app's normal reminders are unchanged unless this environment variable is set at launch. The packaged acceptance flow (`MOVEBIT_ACCEPTANCE=1`) explicitly ignores the preview flag and continues to validate the shipping UI.
 
 ### Preview behavior
+
+- Health gestures now include a **short readable localized advice label** so the character is not just an ambiguous icon. While a cue is outstanding, the macOS tray exposes **Got it** and **Later** for all outstanding merged kinds (the same current backend snooze RPC as the old toast). Got it means self-reported acknowledgement only; Later is currently **best-effort** (no durable acknowledgement/response RPC yet). These limitations must be resolved in v1 backend #55 before the prototype is shipped.
 
 - Tiny original vector pet, anchored at the lower-right of the main screen's **visible** work area (without traversing screen center).
 - Its entire non-activating floating window uses AppKit `ignoresMouseEvents = true`. **No mouse drag/click is implemented in this preview**; that must wait for a proper, tested input-region implementation. Clicking through the pet should reach underlying windows.
