@@ -42,38 +42,40 @@
            (remove* en-keys zh-keys)
            (remove* zh-keys en-keys)))
 
-;; Contract: the counted UI key set plus one structured `copy` section holding
-;; the rotating copy pools verbatim. The v1 reboot re-pinned the count when
-;; the fullscreen-break copy came out and the Focus/motion/done keys went in.
+;; Contract: the counted UI key set plus the flat copy pools. The v1 source
+;; is a FLAT string->string table (dot-keyed; the family convention rivet's
+;; doctor enforces); the rotating copy pools are indexed keys
+;; copy.<pool>.<i>, and the milestone policy lives in the backend, not here.
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
 (unless (= (length ui-keys) 176)
   (set! failed? #t)
   (eprintf "expected 176 UI keys, got ~a~n" (length ui-keys)))
-(unless (and (>= (length copy-keys) 6)
-             (hash-has-key? (hash-ref zh 'copy) 'celebrateAt))
-  (set! failed? #t)
-  (eprintf "copy section incomplete: ~a~n" copy-keys))
 
 (define (pool doc name expected)
-  (define p (hash-ref (hash-ref doc 'copy) name #f))
-  (cond
-    [(not (list? p))
-     (set! failed? #t)
-     (eprintf "copy.~a missing or not a list~n" name)]
-    [(not (= (length p) expected))
-     (set! failed? #t)
-     (eprintf "copy.~a: expected ~a lines, got ~a~n" name expected (length p))]))
+  (define prefix (string-append "copy." (symbol->string name) "."))
+  (define n
+    (count (lambda (k) (string-prefix? k prefix)) zh-keys))
+  (cond [(zero? n)
+         (set! failed? #t)
+         (eprintf "copy.~a missing~n" name)]
+        [(not (= n expected))
+         (set! failed? #t)
+         (eprintf "copy.~a: expected ~a lines, got ~a~n" name expected n)]))
 
-(for ([doc (in-list (list zh en))])
-  (pool doc 'waterPool 8)
-  (pool doc 'microPool 9)
-  (pool doc 'sitToastPool 6)
-  (pool doc 'lateNightWaterPool 3)
-  (pool doc 'lateNightMicroPool 3)
-  (unless (equal? (hash-ref (hash-ref doc 'copy) 'celebrateAt #f) '(3 5 8))
-    (set! failed? #t)
-    (eprintf "copy.celebrateAt must be [3, 5, 8]~n")))
+;; pools exist with the canonical sizes
+(for ([table (in-list (list zh en))])
+  (for ([k (in-list (hash-keys table))])
+    (unless (string? (hash-ref table k))
+      (set! failed? #t)
+      (eprintf "~a is not a string~n" k))))
+(pool zh 'waterPool 8)
+(pool zh 'microPool 9)
+(pool zh 'sitToastPool 6)
+(pool zh 'lateNightWaterPool 3)
+(pool zh 'lateNightMicroPool 3)
 
+(when failed? (exit 1))
+(printf "i18n OK: flat table, 176 UI keys, pools verbatim, zh/en parity~n")
 (when failed? (exit 1))
 (printf "i18n OK: 182 contract keys (176 UI + copy), pools verbatim, zh/en parity~n")

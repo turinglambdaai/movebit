@@ -49,9 +49,12 @@ const esc = (s) =>
     .replace(/\r/g, "\\r")
     .replace(/\t/g, "\\t");
 
+// Sorted-key emission: the generated header is byte-stable regardless of
+// the source JSON's key order (nested sections or a flat table).
 const table = (flat) =>
-  Object.entries(flat)
-    .map(([k, v]) => `    {"${esc(cppKey(k))}", "${esc(v)}"},`)
+  Object.keys(flat)
+    .sort()
+    .map((k) => `    {"${esc(cppKey(k))}", "${esc(flat[k])}"},`)
     .join("\n");
 
 const flatZh = {};
