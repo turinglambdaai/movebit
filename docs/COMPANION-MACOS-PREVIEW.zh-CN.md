@@ -1,6 +1,6 @@
-# macOS 桌面宠物预览（仅供开发测试）
+# macOS 健康提醒角色视觉预览（仅供开发测试）
 
-产品总任务：[Issue #51](https://github.com/turinglambdaai/movebit/issues/51)。依赖提示策略基础 PR #52。此切片只验证 **macOS 原生绘制与不截获输入**，不是三端已上线功能。
+产品总任务：[Issue #51](https://github.com/turinglambdaai/movebit/issues/51)。依赖提示策略基础 PR #52。此切片只验证 **macOS 原生绘制与不截获输入**，不是三端已上线功能。**MoveBit 的核心仍是喝水、久坐起身和护眼提醒。** 小角色只是原有提醒事件的视觉表达，不是要做独立宠物养成、陪玩或额外索取注意力的产品。
 
 ## 如何启动
 
