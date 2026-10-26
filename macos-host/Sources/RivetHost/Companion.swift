@@ -165,6 +165,7 @@ struct MubiView: View {
     @State private var standStretch = false
     @State private var cupRaise = false
     @State private var nod = false
+    @State private var blinking = false
 
     private var dark: Bool { scheme == .dark }
     private var motionAllowed: Bool { motion != "still" && !systemReduceMotion }
@@ -181,8 +182,24 @@ struct MubiView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(message.isEmpty ? "MoveBit" : message)
-        .onAppear { cueAnimation() }
+        .onAppear {
+            cueAnimation()
+            startIdleBlink()
+        }
         .onChange(of: state) { _ in cueAnimation() }
+    }
+
+    /// Rare natural blink while idle (#56 §4: 120-180 ms, mostly still).
+    /// Skipped entirely for the "still" motion level and Reduce Motion.
+    private func startIdleBlink() {
+        guard state == .idle, motionAllowed else { return }
+        Task {
+            try? await Task.sleep(nanoseconds: UInt64.random(in: 3_500_000_000...6_500_000_000))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.07)) { blinking = true }
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            withAnimation(.easeInOut(duration: 0.07)) { blinking = false }
+        }
     }
 
     private func cueAnimation() {
@@ -270,6 +287,11 @@ struct MubiView: View {
                 .stroke(MubiArt.ink, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
             MubiShape(d: MubiArt.eyeClosedRight)
                 .stroke(MubiArt.ink, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+        case .idle where blinking:
+            MubiShape(d: MubiArt.eyeClosedLeft)
+                .stroke(MubiArt.ink, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+            MubiShape(d: MubiArt.eyeClosedRight)
+                .stroke(MubiArt.ink, style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
         default:
             Ellipse().fill(MubiArt.ink)
                 .frame(width: 6 * scale, height: 7.2 * scale)
@@ -347,24 +369,42 @@ struct MubiView: View {
 
     /// The actionable text capsule: opaque-enough surface, subtle stroke,
     /// native typography — text scales with accessibility, not the character.
+    private var capsuleIcon: String {
+        switch state {
+        case .water: return "drop.fill"
+        case .stand: return "figure.stand"
+        case .eyes: return "eye"
+        case .ack: return "checkmark"
+        case .focus: return "moon.zzz"
+        case .idle: return ""
+        }
+    }
+
     @ViewBuilder private var capsule: some View {
         if labelsAlways || !message.isEmpty {
-            Text(message.isEmpty ? "MoveBit" : message)
-                .font(.system(size: 12, weight: .semibold))
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .foregroundColor(dark ? MubiArt.labelTextDark : MubiArt.labelTextLight)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(dark ? MubiArt.labelSurfaceDark
-                                   : MubiArt.labelSurfaceLight))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder((dark ? Color.white : Color.black).opacity(0.08),
-                                      lineWidth: 1))
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 5) {
+                if !capsuleIcon.isEmpty {
+                    Image(systemName: capsuleIcon)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(dark ? MubiArt.labelTextDark : MubiArt.labelTextLight)
+                }
+                Text(message.isEmpty ? "MoveBit" : message)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .foregroundColor(dark ? MubiArt.labelTextDark : MubiArt.labelTextLight)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(dark ? MubiArt.labelSurfaceDark
+                               : MubiArt.labelSurfaceLight))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder((dark ? Color.white : Color.black).opacity(0.08),
+                                  lineWidth: 1))
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

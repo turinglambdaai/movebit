@@ -396,9 +396,22 @@ struct MubiCompanion {
       capsule.Margin(Thickness{0, 8, 0, 0});
       capsule.HorizontalAlignment(HorizontalAlignment::Center);
       capsule.VerticalAlignment(VerticalAlignment::Bottom);
-      capsule_text = make_text(
-          winrt::hstring(message.empty() ? std::wstring(L"MoveBit") : message),
-          12, true, dark ? "#F1EEE7" : "#2D2A28");
+      // Contextual state icon; the text carries the meaning (#56 §5).
+      wchar_t const* icon = L"";
+      switch (state) {
+        // UTF-16 surrogate pairs (Windows wchar_t is 16-bit):
+        // 💧 U+1F4A7? no — the droplet glyph here is ✃… use: 💧 = U+1F4A7
+        case MubiState::Water: icon = L"\xD83D\xDCA7 "; break;   // 💧
+        case MubiState::Stand: icon = L"\xD83E\xDDCD "; break;   // 🧍
+        case MubiState::Eyes: icon = L"\xD83D\xDC41 "; break;    // 👁
+        case MubiState::Ack: icon = L"\x2713 "; break;            // ✓
+        case MubiState::Focus: icon = L"\xD83C\xDF19 "; break;   // 🌙
+        case MubiState::Idle: break;
+      }
+      std::wstring labeled = icon +
+          (message.empty() ? std::wstring(L"MoveBit") : message);
+      capsule_text = make_text(winrt::hstring(labeled),
+                               12, true, dark ? "#F1EEE7" : "#2D2A28");
       capsule_text.TextAlignment(TextAlignment::Center);
       capsule.Child(capsule_text);
       Controls::Grid::SetRow(capsule, 1);
