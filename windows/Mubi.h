@@ -200,6 +200,7 @@ struct MubiCompanion {
 
   void SetQuiet(bool enabled) {
     quiet = enabled;
+    if (window == nullptr && acceptance_mode()) return;
     Show(quiet ? MubiState::Focus : MubiState::Idle, L"");
   }
 
@@ -207,16 +208,29 @@ struct MubiCompanion {
 
   void Show(MubiState state, std::wstring const& message) {
     if (acceptance_mode()) return;
-    EnsureWindow();
-    Rebuild(state, message);
-    Position();
-    window.Activate();
-    ApplyPointerThrough();
-    StartGesture(state);
-    StartLabelTimer(message);
+    try {
+      EnsureWindow();
+      Rebuild(state, message);
+      Position();
+      window.Activate();
+      ApplyPointerThrough();
+      StartGesture(state);
+      StartLabelTimer(message);
+    } catch (...) {
+      // The reminder surface must never take the tray app down; the cue
+      // itself stays safe in the backend ledger.
+      Dismiss();
+    }
   }
 
-  void ShowIdle() { Show(quiet ? MubiState::Focus : MubiState::Idle, L""); }
+  // The idle pose is attached to an EXISTING card only: the companion is
+  // created lazily with the first character cue, so a broken/absent
+  // surface can never affect plain startup (launch-smoke contract).
+  void ShowIdle() {
+    if (acceptance_mode()) return;
+    if (window == nullptr) return;
+    Show(quiet ? MubiState::Focus : MubiState::Idle, L"");
+  }
 
   void ShowAck() {
     if (quiet) return;
