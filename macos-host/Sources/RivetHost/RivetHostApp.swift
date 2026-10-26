@@ -58,6 +58,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var overlayController: BreakOverlayController?
     private var toastController: ToastPanelController?
     private var microController: MicroPanelController?
+    // Explicit developer-only preview, not a changed default or migration.
+    // Packaging acceptance deliberately continues exercising the real legacy UI.
+    private let companionPreviewEnabled =
+        ProcessInfo.processInfo.environment["MOVEBIT_COMPANION_PREVIEW"] == "1" &&
+        ProcessInfo.processInfo.environment["MOVEBIT_ACCEPTANCE"] != "1"
+    private var companionPreviewHidden = false
+    private var companionPreviewController: CompanionPreviewController?
     // Retained for the process lifetime: dropping it releases the lease.
     private var instanceLease: RivetSingleInstance?
     private(set) var model: MoveBitModel?
@@ -109,6 +116,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if !model.config.welcome_shown {
             showOnboarding()
+        } else if companionPreviewEnabled && !companionPreviewHidden {
+            _ = companionPreviewController?.showIdle()
         }
     }
 
@@ -141,7 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenuBar() {
         guard let model else { return }
-        let items: [RivetMenuItem] = [
+        var items: [RivetMenuItem] = [
             .action(label: L10n.t("TrayOpen"), identifier: "tray-open",
                     handler: { [weak self] in self?.showMainWindow() }),
             .action(label: model.paused.paused ? L10n.t("TrayResume") : L10n.t("TrayPause"),
@@ -150,6 +159,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .action(label: L10n.t("TrayExit"), identifier: "tray-exit",
                     handler: { [weak self] in self?.quit() }),
         ]
+        if companionPreviewEnabled {
+            // Preview-only tray control: the non-interactive pet always has an
+            // immediate local Hide action, even if the backend is unavailable.
+            items.insert(.action(
+                label: companionPreviewHidden ? "🐾 Show preview pet" : "🐾 Hide preview pet",
+                identifier: "companion-preview-toggle",
+                handler: { [weak self] in self?.toggleCompanionPreview() }),
+                at: 2)
+        }
         if let menuBar {
             menuBar.update(items: items)
         } else {
@@ -159,7 +177,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func toggleCompanionPreview() {
+        guard companionPreviewEnabled else { return }
+        companionPreviewHidden.toggle()
+        if companionPreviewHidden {
+            companionPreviewController?.hide()
+        } else if model?.breakActive == nil {
+            _ = companionPreviewController?.showIdle()
+        }
+        rebuildMenuBar()
+    }
+
     func quit() {
+        companionPreviewController?.hide()
         model?.flushNowSync()
         NSApp.terminate(nil)
     }
@@ -221,6 +251,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handleRemindersDue(_ due: RemindersDue) {
         guard let model else { return }
+        // The preview is a single mouse-through, edge-docked pet. The old
+        // reminder path remains the fallback whenever preview is disabled,
+        // hidden or cannot find a usable display.
+        if companionPreviewEnabled && !companionPreviewHidden &&
+            companionPreviewController?.show(due) == true {
+            return
+        }
         if due.kinds == [.micro] {
             // Micro-only tick: small top-center nudge, no lock, no sound.
             microController?.show(durationSeconds: model.config.micro_break_duration_seconds,
@@ -299,10 +336,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toastController = toast
 
         microController = MicroPanelController()
+        if companionPreviewEnabled {
+            companionPreviewController = CompanionPreviewController()
+        }
     }
 
     private func handleBreakStarted() {
         guard let model, let state = model.breakActive else { return }
+        companionPreviewController?.hide()
         // The full-screen break outranks transient nudges/toasts (parity).
         toastController?.dismiss()
         microController?.dismiss()
@@ -320,6 +361,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handleBreakEnded(completed: Bool) {
         overlayController?.finish(completed: completed)
+        if companionPreviewEnabled && !companionPreviewHidden {
+            _ = companionPreviewController?.showIdle()
+        }
         guard completed, let model else { return }
         let count = model.today.sit_breaks
         if CopyPool.celebrateAt.contains(count) {
@@ -363,6 +407,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let state = onboardingState {
             state.finished = true
         }
+        if companionPreviewEnabled && !companionPreviewHidden {
+            _ = companionPreviewController?.showIdle()
+        }
         showToast(title: L10n.t("ObSettled"),
                   lines: [L10n.t("ObSettledBody")],
                   accent: .water)
@@ -385,6 +432,9 @@ extension AppDelegate: NSWindowDelegate {
             }
             onboardingWindow = nil
             onboardingState = nil
+            if companionPreviewEnabled && !companionPreviewHidden {
+                _ = companionPreviewController?.showIdle()
+            }
         }
         return true
     }
