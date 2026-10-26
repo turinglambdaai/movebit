@@ -27,6 +27,10 @@ enum CopyPool {
         isLateNight ? L10n.pick(lateNightMicro.0, lateNightMicro.1)
                     : L10n.pick(micro.0, micro.1)
     }
+
+    /// Self-reported sit-acknowledgment counts worth a cheer (parity with
+    /// the backend's celebrate-at policy; a cheer claims nothing clinical).
+    static let celebrateAt: [Int64] = [3, 5, 8]
 }
 
 enum CopyFormat {
@@ -90,7 +94,9 @@ final class MoveBitModel: ObservableObject {
         // overwrites it with the real persisted config right after init.
         snooze_minutes: 10, micro_break_enabled: true, micro_break_interval_minutes: 30,
         micro_break_duration_seconds: 20, motion_enabled: true, sound_enabled: true,
-        auto_check_updates: true, welcome_shown: false, language: "auto")
+        auto_check_updates: true, welcome_shown: false, language: "auto",
+        companion_size: "M", companion_motion: "subtle",
+        companion_dock: "bottom-right", companion_labels: "cue")
     @Published var paused = PauseState(paused: false, until_ms: nil)
     @Published var loops: [LoopInfo] = []
     /// Cues currently pending or on screen (the backend's reconciliation view).
@@ -112,6 +118,8 @@ final class MoveBitModel: ObservableObject {
     /// The open-cue ledger changed: the tray cue actions and the companion's
     /// idle/cue pose re-derive from `pendingCues`.
     var onPendingCuesChanged: (() -> Void)?
+    /// A self-reported sit acknowledgment landed (milestone cheer source).
+    var onSitAcknowledged: ((Int64) -> Void)?
     /// The restart-install handoff: after the backend staged the payload and
     /// spawned the apply helper, the host must quit so the helper can swap
     /// the bundle and relaunch.
@@ -234,6 +242,9 @@ final class MoveBitModel: ObservableObject {
             // quiet); quiet cues never arrive here, they queue backend-side.
             pendingCues.append(cue)
             onCue?(cue)
+        case .cue_acknowledged(let acked):
+            // Milestone cheer source (3/5/8 self-reported sit claims).
+            if acked.kind == .sit { onSitAcknowledged?(acked.count_today) }
         case .day_completed(let stats):
             today = stats
             Task { await reloadHistory() }

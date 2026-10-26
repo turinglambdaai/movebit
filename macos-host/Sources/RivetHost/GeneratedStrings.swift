@@ -50,6 +50,10 @@ enum L10n {
     "SetStatusApplied": "✓ 已应用 · {0:HH:mm:ss}",
     "SetStatusSaveFailed": "⚠ 已在本次运行中生效，但写入配置文件失败",
     "SetMotion": "角色动效",
+    "SetMubiSize": "沐比大小",
+    "SetMubiMotion": "角色动效",
+    "SetMubiDock": "停靠位置",
+    "SetMubiLabels": "文字标签",
     "LangAuto": "跟随系统",
     "AboutAutoUpdate": "自动检查更新",
     "AboutAutoUpdateHint": "启动后检查，此后约每 6 小时检查一次；不会静默安装。",
@@ -201,6 +205,14 @@ enum L10n {
     "CopyLateNightMicroPool1": "眼睛也要下夜班，看会儿远处吧",
     "CopyLateNightMicroPool2": "轻一点，站起来 20 秒，别吵醒开着的标签页",
     "CopyLateNightWindow": "22:00-06:00",
+    "MubiMotionStill": "静止",
+    "MubiMotionSubtle": "轻柔",
+    "MubiMotionLively": "活泼",
+    "MubiDockBottomRight": "右下",
+    "MubiDockBottomLeft": "左下",
+    "MubiDockTopRight": "右上",
+    "MubiLabelsCue": "仅提醒时",
+    "MubiLabelsAlways": "常显",
     ]
 
     private static let en: [String: String] = [
@@ -247,6 +259,10 @@ enum L10n {
     "SetStatusApplied": "✓ Applied · {0:HH:mm:ss}",
     "SetStatusSaveFailed": "⚠ Active this session, but writing the config file failed",
     "SetMotion": "Character motion",
+    "SetMubiSize": "Mubi size",
+    "SetMubiMotion": "Character motion",
+    "SetMubiDock": "Dock position",
+    "SetMubiLabels": "Label",
     "LangAuto": "Auto",
     "AboutAutoUpdate": "Check updates automatically",
     "AboutAutoUpdateHint": "Checks at startup, then every ~6 hours; never installs silently.",
@@ -398,6 +414,14 @@ enum L10n {
     "CopyLateNightMicroPool1": "Your eyes want off duty too. Gaze far for a moment",
     "CopyLateNightMicroPool2": "Quietly now: stand for 20 seconds. Don't wake the open tabs",
     "CopyLateNightWindow": "22:00-06:00",
+    "MubiMotionStill": "Still",
+    "MubiMotionSubtle": "Subtle",
+    "MubiMotionLively": "Lively",
+    "MubiDockBottomRight": "Bottom right",
+    "MubiDockBottomLeft": "Bottom left",
+    "MubiDockTopRight": "Top right",
+    "MubiLabelsCue": "During reminders",
+    "MubiLabelsAlways": "Always",
     ]
 
     private static let formatPatterns = ["yyyy-MM-dd", "HH:mm:ss", "HH:mm"]

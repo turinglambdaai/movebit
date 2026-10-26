@@ -48,7 +48,11 @@
     "statusSaved": "✓ Saved · {0:HH:mm:ss}",
     "statusApplied": "✓ Applied · {0:HH:mm:ss}",
     "statusSaveFailed": "⚠ Active this session, but writing the config file failed",
-    "motion": "Character motion"
+    "motion": "Character motion",
+    "mubiSize": "Mubi size",
+    "mubiMotion": "Character motion",
+    "mubiDock": "Dock position",
+    "mubiLabels": "Label"
   },
   "lang": {
     "auto": "Auto"
@@ -243,5 +247,15 @@
       8
     ],
     "lateNightWindow": "22:00-06:00"
+  },
+  "mubi": {
+    "motionStill": "Still",
+    "motionSubtle": "Subtle",
+    "motionLively": "Lively",
+    "dockBottomRight": "Bottom right",
+    "dockBottomLeft": "Bottom left",
+    "dockTopRight": "Top right",
+    "labelsCue": "During reminders",
+    "labelsAlways": "Always"
   }
 }

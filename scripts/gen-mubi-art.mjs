@@ -95,7 +95,7 @@ const states = {
   eyes: `
     ${fins()}${body}${lowerShade}${rimLight}
     ${closedEyes}
-    <path d="M 92 38 A 9 9 0 0 1 99 50" stroke="${C["cue.eyes"]}" stroke-width="3" stroke-linecap="round" fill="none"/>`,
+    <path d="M 92 38 C 96.5 40.5, 99 45, 98 50" stroke="${C["cue.eyes"]}" stroke-width="3" stroke-linecap="round" fill="none"/>`,
   ack: `
     ${fins()}${body}${lowerShade}${rimLight}
     ${openEyes(63.8)}
@@ -106,7 +106,7 @@ const states = {
     <circle cx="60" cy="72" r="52" fill="url(#focusTint)"/>
     ${lowerShade}${rimLight}
     ${closedEyes}
-    <path d="M 88 34 A 8.5 8.5 0 1 0 96 46 A 10.5 10.5 0 0 1 88 34 Z" fill="${C["cue.focus"]}"/>`,
+    <path d="M 84 32 C 90 31.5, 95.5 36, 96.5 42 C 97.5 48.5, 93.5 54.5, 87.5 56.5 C 91 52, 92 46, 90.5 41 C 89.2 36.8, 86.8 33.8, 84 32 Z" fill="${C["cue.focus"]}"/>`,
 };
 
 const stateSvg = (id, inner, width = 120, height = 140) =>

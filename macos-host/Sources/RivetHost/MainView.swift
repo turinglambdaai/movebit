@@ -65,7 +65,11 @@ extension ReminderConfig {
         sound_enabled: Bool? = nil,
         auto_check_updates: Bool? = nil,
         welcome_shown: Bool? = nil,
-        language: String? = nil
+        language: String? = nil,
+        companion_size: String? = nil,
+        companion_motion: String? = nil,
+        companion_dock: String? = nil,
+        companion_labels: String? = nil
     ) -> ReminderConfig {
         ReminderConfig(
             sit_reminder_minutes: sit_reminder_minutes ?? self.sit_reminder_minutes,
@@ -79,7 +83,11 @@ extension ReminderConfig {
             sound_enabled: sound_enabled ?? self.sound_enabled,
             auto_check_updates: auto_check_updates ?? self.auto_check_updates,
             welcome_shown: welcome_shown ?? self.welcome_shown,
-            language: language ?? self.language)
+            language: language ?? self.language,
+            companion_size: companion_size ?? self.companion_size,
+            companion_motion: companion_motion ?? self.companion_motion,
+            companion_dock: companion_dock ?? self.companion_dock,
+            companion_labels: companion_labels ?? self.companion_labels)
     }
 }
 
@@ -605,6 +613,31 @@ private struct SettingsCard: View {
                     save(model.config.with(micro_break_duration_seconds: $0))
                 }
             }
+            pickerRow(label: L10n.t("SetMubiSize"),
+                      selection: model.config.companion_size,
+                      options: [("S", "S"), ("M", "M"), ("L", "L")]) {
+                save(model.config.with(companion_size: $0))
+            }
+            pickerRow(label: L10n.t("SetMubiMotion"),
+                      selection: model.config.companion_motion,
+                      options: [("still", L10n.t("MubiMotionStill")),
+                                ("subtle", L10n.t("MubiMotionSubtle")),
+                                ("lively", L10n.t("MubiMotionLively"))]) {
+                save(model.config.with(companion_motion: $0))
+            }
+            pickerRow(label: L10n.t("SetMubiDock"),
+                      selection: model.config.companion_dock,
+                      options: [("bottom-right", L10n.t("MubiDockBottomRight")),
+                                ("bottom-left", L10n.t("MubiDockBottomLeft")),
+                                ("top-right", L10n.t("MubiDockTopRight"))]) {
+                save(model.config.with(companion_dock: $0))
+            }
+            pickerRow(label: L10n.t("SetMubiLabels"),
+                      selection: model.config.companion_labels,
+                      options: [("cue", L10n.t("MubiLabelsCue")),
+                                ("always", L10n.t("MubiLabelsAlways"))]) {
+                save(model.config.with(companion_labels: $0))
+            }
             ToggleRow(label: L10n.t("SetMotion"), isOn: model.config.motion_enabled) {
                 save(model.config.with(motion_enabled: $0))
             }
@@ -615,6 +648,25 @@ private struct SettingsCard: View {
                 model.setAutostart($0)
             }
         }
+    }
+
+    private func pickerRow(label: String, selection: String,
+                           options: [(String, String)],
+                           save: @escaping (String) -> Void) -> some View {
+        HStack {
+            Text(label)
+                .foregroundColor(Palette.inkPrimary)
+            Spacer()
+            Picker("", selection: Binding(get: { selection },
+                                          set: { save($0) })) {
+                ForEach(options, id: \.0) { value, title in
+                    Text(title).tag(value)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 132)
+        }
+        .font(.system(size: 13))
     }
 
     private var languageRow: some View {

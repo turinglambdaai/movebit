@@ -14,7 +14,8 @@
 
 ;; Save_and_load_roundtrip_all_settings
 (let* ([dir (make-temp-dir "cfg")]
-       [expected (reminder-config 50 40 7 25 #f 25 30 #f #f #f #t "auto")])
+       [expected (reminder-config 50 40 7 25 #f 25 30 #f #f #f #t "auto"
+                             "L" "lively" "top-right" "always")])
   (check-true (save-config dir expected))
   (define actual (load-config dir))
   (check-equal? (reminder-config-sit-reminder-minutes actual) 50)
@@ -28,6 +29,10 @@
   (check-false (reminder-config-sound-enabled actual))
   (check-false (reminder-config-auto-check-updates actual))
   (check-true (reminder-config-welcome-shown actual))
+  (check-equal? (reminder-config-companion-size actual) "L")
+  (check-equal? (reminder-config-companion-motion actual) "lively")
+  (check-equal? (reminder-config-companion-dock actual) "top-right")
+  (check-equal? (reminder-config-companion-labels actual) "always")
   ;; atomic write: no .tmp residue
   (check-false (file-exists? (build-path dir "config.json.tmp")))
   ;; every write stamps the schema version
@@ -147,11 +152,17 @@ EOF
 
 ;; Save_clamps_out_of_range_values_too (clamp on save, per the port contract)
 (let* ([dir (make-temp-dir "saveclamp")])
-  (save-config dir (reminder-config 1 999 0 999 #t 1 999 "x" #t #t #f "klingon"))
+  (save-config dir (reminder-config 1 999 0 999 #t 1 999 "x" #t #t #f "klingon"
+                                   "huge" "fast" "center" "sometimes"))
   (define actual (load-config dir))
   (check-equal? (reminder-config-sit-reminder-minutes actual) 10)
   (check-equal? (reminder-config-water-reminder-minutes actual) 180)
   (check-equal? (reminder-config-snooze-minutes actual) 60)
   (check-true (reminder-config-motion-enabled actual))
   (check-equal? (reminder-config-language actual) "auto")
+  ;; unknown companion choices normalize to the shipped defaults
+  (check-equal? (reminder-config-companion-size actual) "M")
+  (check-equal? (reminder-config-companion-motion actual) "subtle")
+  (check-equal? (reminder-config-companion-dock actual) "bottom-right")
+  (check-equal? (reminder-config-companion-labels actual) "cue")
   (delete-directory/files dir))

@@ -32,6 +32,15 @@ public enum RivetTypes {
         case micro = "micro"
     }
 
+    public struct CueAcknowledged: Sendable {
+        public let kind: RivetTypes.ReminderKind
+        public let count_today: Int64
+        public init(kind: RivetTypes.ReminderKind, count_today: Int64) {
+            self.kind = kind
+            self.count_today = count_today
+        }
+    }
+
     public struct DayStats: Sendable {
         public let date: String
         public let active_mins: Int64
@@ -101,7 +110,11 @@ public enum RivetTypes {
         public let auto_check_updates: Bool
         public let welcome_shown: Bool
         public let language: String
-        public init(sit_reminder_minutes: Int64, water_reminder_minutes: Int64, away_reset_minutes: Int64, snooze_minutes: Int64, micro_break_enabled: Bool, micro_break_interval_minutes: Int64, micro_break_duration_seconds: Int64, motion_enabled: Bool, sound_enabled: Bool, auto_check_updates: Bool, welcome_shown: Bool, language: String) {
+        public let companion_size: String
+        public let companion_motion: String
+        public let companion_dock: String
+        public let companion_labels: String
+        public init(sit_reminder_minutes: Int64, water_reminder_minutes: Int64, away_reset_minutes: Int64, snooze_minutes: Int64, micro_break_enabled: Bool, micro_break_interval_minutes: Int64, micro_break_duration_seconds: Int64, motion_enabled: Bool, sound_enabled: Bool, auto_check_updates: Bool, welcome_shown: Bool, language: String, companion_size: String, companion_motion: String, companion_dock: String, companion_labels: String) {
             self.sit_reminder_minutes = sit_reminder_minutes
             self.water_reminder_minutes = water_reminder_minutes
             self.away_reset_minutes = away_reset_minutes
@@ -114,6 +127,10 @@ public enum RivetTypes {
             self.auto_check_updates = auto_check_updates
             self.welcome_shown = welcome_shown
             self.language = language
+            self.companion_size = companion_size
+            self.companion_motion = companion_motion
+            self.companion_dock = companion_dock
+            self.companion_labels = companion_labels
         }
     }
 
@@ -172,8 +189,9 @@ private func encode_Bool(_ v: Bool) -> RivetValue { .bool(v) }
 private func encode_DayStats(_ v: RivetTypes.DayStats) -> RivetValue { .list([encode_String(v.date), encode_Int64(v.active_mins), encode_Int64(v.sit_breaks), encode_Int64(v.water_reminders), encode_Int64(v.micro_breaks), encode_Int64(v.longest_session_mins)]) }
 private func encode__List_DayStats_(_ v: [RivetTypes.DayStats]) -> RivetValue { .list(v.map(encode_DayStats)) }
 private func encode_UpdateState(_ v: RivetTypes.UpdateState) -> RivetValue { .list([encode_String(v.phase), encode_Int64(v.percent), encode__Optional_String_(v.message), encode__Optional_String_(v.available_version), encode__Optional_String_(v.downloaded_path)]) }
-private func encode_ReminderConfig(_ v: RivetTypes.ReminderConfig) -> RivetValue { .list([encode_Int64(v.sit_reminder_minutes), encode_Int64(v.water_reminder_minutes), encode_Int64(v.away_reset_minutes), encode_Int64(v.snooze_minutes), encode_Bool(v.micro_break_enabled), encode_Int64(v.micro_break_interval_minutes), encode_Int64(v.micro_break_duration_seconds), encode_Bool(v.motion_enabled), encode_Bool(v.sound_enabled), encode_Bool(v.auto_check_updates), encode_Bool(v.welcome_shown), encode_String(v.language)]) }
+private func encode_ReminderConfig(_ v: RivetTypes.ReminderConfig) -> RivetValue { .list([encode_Int64(v.sit_reminder_minutes), encode_Int64(v.water_reminder_minutes), encode_Int64(v.away_reset_minutes), encode_Int64(v.snooze_minutes), encode_Bool(v.micro_break_enabled), encode_Int64(v.micro_break_interval_minutes), encode_Int64(v.micro_break_duration_seconds), encode_Bool(v.motion_enabled), encode_Bool(v.sound_enabled), encode_Bool(v.auto_check_updates), encode_Bool(v.welcome_shown), encode_String(v.language), encode_String(v.companion_size), encode_String(v.companion_motion), encode_String(v.companion_dock), encode_String(v.companion_labels)]) }
 private func encode_ReminderKind(_ v: RivetTypes.ReminderKind) -> RivetValue { .string(v.rawValue) }
+private func encode_CueAcknowledged(_ v: RivetTypes.CueAcknowledged) -> RivetValue { .list([encode_ReminderKind(v.kind), encode_Int64(v.count_today)]) }
 private func encode__List_ReminderKind_(_ v: [RivetTypes.ReminderKind]) -> RivetValue { .list(v.map(encode_ReminderKind)) }
 private func encode_CueAction(_ v: RivetTypes.CueAction) -> RivetValue { .string(v.rawValue) }
 private func encode_CueDelivery(_ v: RivetTypes.CueDelivery) -> RivetValue { .string(v.rawValue) }
@@ -195,8 +213,9 @@ private func decode_Bool(_ v: RivetValue) throws -> Bool { guard case .bool(let 
 private func decode_DayStats(_ v: RivetValue) throws -> RivetTypes.DayStats { guard case .list(let xs) = v, xs.count == 6 else { throw RivetGeneratedError.typeMismatch("DayStats") }; return RivetTypes.DayStats(date: try decode_String(xs[0]), active_mins: try decode_Int64(xs[1]), sit_breaks: try decode_Int64(xs[2]), water_reminders: try decode_Int64(xs[3]), micro_breaks: try decode_Int64(xs[4]), longest_session_mins: try decode_Int64(xs[5])) }
 private func decode__List_DayStats_(_ v: RivetValue) throws -> [RivetTypes.DayStats] { guard case .list(let xs) = v else { throw RivetGeneratedError.typeMismatch("(List DayStats)") }; return try xs.map(decode_DayStats) }
 private func decode_UpdateState(_ v: RivetValue) throws -> RivetTypes.UpdateState { guard case .list(let xs) = v, xs.count == 5 else { throw RivetGeneratedError.typeMismatch("UpdateState") }; return RivetTypes.UpdateState(phase: try decode_String(xs[0]), percent: try decode_Int64(xs[1]), message: try decode__Optional_String_(xs[2]), available_version: try decode__Optional_String_(xs[3]), downloaded_path: try decode__Optional_String_(xs[4])) }
-private func decode_ReminderConfig(_ v: RivetValue) throws -> RivetTypes.ReminderConfig { guard case .list(let xs) = v, xs.count == 12 else { throw RivetGeneratedError.typeMismatch("ReminderConfig") }; return RivetTypes.ReminderConfig(sit_reminder_minutes: try decode_Int64(xs[0]), water_reminder_minutes: try decode_Int64(xs[1]), away_reset_minutes: try decode_Int64(xs[2]), snooze_minutes: try decode_Int64(xs[3]), micro_break_enabled: try decode_Bool(xs[4]), micro_break_interval_minutes: try decode_Int64(xs[5]), micro_break_duration_seconds: try decode_Int64(xs[6]), motion_enabled: try decode_Bool(xs[7]), sound_enabled: try decode_Bool(xs[8]), auto_check_updates: try decode_Bool(xs[9]), welcome_shown: try decode_Bool(xs[10]), language: try decode_String(xs[11])) }
+private func decode_ReminderConfig(_ v: RivetValue) throws -> RivetTypes.ReminderConfig { guard case .list(let xs) = v, xs.count == 16 else { throw RivetGeneratedError.typeMismatch("ReminderConfig") }; return RivetTypes.ReminderConfig(sit_reminder_minutes: try decode_Int64(xs[0]), water_reminder_minutes: try decode_Int64(xs[1]), away_reset_minutes: try decode_Int64(xs[2]), snooze_minutes: try decode_Int64(xs[3]), micro_break_enabled: try decode_Bool(xs[4]), micro_break_interval_minutes: try decode_Int64(xs[5]), micro_break_duration_seconds: try decode_Int64(xs[6]), motion_enabled: try decode_Bool(xs[7]), sound_enabled: try decode_Bool(xs[8]), auto_check_updates: try decode_Bool(xs[9]), welcome_shown: try decode_Bool(xs[10]), language: try decode_String(xs[11]), companion_size: try decode_String(xs[12]), companion_motion: try decode_String(xs[13]), companion_dock: try decode_String(xs[14]), companion_labels: try decode_String(xs[15])) }
 private func decode_ReminderKind(_ v: RivetValue) throws -> RivetTypes.ReminderKind { guard case .string(let x) = v, let result = RivetTypes.ReminderKind(rawValue: x) else { throw RivetGeneratedError.typeMismatch("ReminderKind") }; return result }
+private func decode_CueAcknowledged(_ v: RivetValue) throws -> RivetTypes.CueAcknowledged { guard case .list(let xs) = v, xs.count == 2 else { throw RivetGeneratedError.typeMismatch("CueAcknowledged") }; return RivetTypes.CueAcknowledged(kind: try decode_ReminderKind(xs[0]), count_today: try decode_Int64(xs[1])) }
 private func decode__List_ReminderKind_(_ v: RivetValue) throws -> [RivetTypes.ReminderKind] { guard case .list(let xs) = v else { throw RivetGeneratedError.typeMismatch("(List ReminderKind)") }; return try xs.map(decode_ReminderKind) }
 private func decode_CueAction(_ v: RivetValue) throws -> RivetTypes.CueAction { guard case .string(let x) = v, let result = RivetTypes.CueAction(rawValue: x) else { throw RivetGeneratedError.typeMismatch("CueAction") }; return result }
 private func decode_CueDelivery(_ v: RivetValue) throws -> RivetTypes.CueDelivery { guard case .string(let x) = v, let result = RivetTypes.CueDelivery(rawValue: x) else { throw RivetGeneratedError.typeMismatch("CueDelivery") }; return result }
@@ -210,6 +229,7 @@ private func decode_RuntimeInfo(_ v: RivetValue) throws -> RivetTypes.RuntimeInf
 
 public enum RivetEvent: Sendable {
     case config_changed(RivetTypes.ReminderConfig)
+    case cue_acknowledged(RivetTypes.CueAcknowledged)
     case day_completed(RivetTypes.DayStats)
     case health_cue(RivetTypes.HealthCue)
     case tick_stats(RivetTypes.DayStats)
@@ -217,6 +237,7 @@ public enum RivetEvent: Sendable {
     public static func decode(name: String, value: RivetValue) throws -> RivetEvent {
         switch name {
         case "config-changed": return .config_changed(try decode_ReminderConfig(value))
+        case "cue-acknowledged": return .cue_acknowledged(try decode_CueAcknowledged(value))
         case "day-completed": return .day_completed(try decode_DayStats(value))
         case "health-cue": return .health_cue(try decode_HealthCue(value))
         case "tick-stats": return .tick_stats(try decode_DayStats(value))

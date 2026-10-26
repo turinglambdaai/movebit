@@ -40,17 +40,30 @@
    sound-enabled             ; #t
    auto-check-updates        ; #t
    welcome-shown             ; #f
-   language)                 ; "auto" | "zh" | "en"
+   language                  ; "auto" | "zh" | "en"
+   companion-size            ; "S" | "M" | "L" — Mubi BODY height 60/78/104
+   companion-motion          ; "still" | "subtle" | "lively"
+   companion-dock            ; "bottom-right" | "bottom-left" | "top-right"
+   companion-labels)         ; "always" | "cue"
   #:transparent)
 
 ;; v1 has exactly one reminder experience: gentle character-delivered cues.
 ;; The old force-break/duration/skip fields are gone by design.
 (define (default-config)
-  (reminder-config 45 30 5 10 #t 30 20 #t #t #t #f "auto"))
+  (reminder-config 45 30 5 10 #t 30 20 #t #t #t #f "auto"
+                   "M" "subtle" "bottom-right" "cue"))
 
 (define (clamp v lo hi) (min (max v lo) hi))
 
 (define (valid-language? v) (and (string? v) (member v '("auto" "zh" "en"))))
+
+(define (valid-choice? v choices)
+  (and (string? v) (member v choices) #t))
+
+(define companion-size-choices '("S" "M" "L"))
+(define companion-motion-choices '("still" "subtle" "lively"))
+(define companion-dock-choices '("bottom-right" "bottom-left" "top-right"))
+(define companion-labels-choices '("always" "cue"))
 
 (define (bool-field c accessor)
   (define v (accessor c))
@@ -72,7 +85,15 @@
    (bool-field c reminder-config-auto-check-updates)
    (bool-field c reminder-config-welcome-shown)
    (let ([lang (reminder-config-language c)])
-     (if (valid-language? lang) lang "auto"))))
+     (if (valid-language? lang) lang "auto"))
+   (let ([v (reminder-config-companion-size c)])
+     (if (valid-choice? v companion-size-choices) v "M"))
+   (let ([v (reminder-config-companion-motion c)])
+     (if (valid-choice? v companion-motion-choices) v "subtle"))
+   (let ([v (reminder-config-companion-dock c)])
+     (if (valid-choice? v companion-dock-choices) v "bottom-right"))
+   (let ([v (reminder-config-companion-labels c)])
+     (if (valid-choice? v companion-labels-choices) v "cue"))))
 
 (define (config->jsexpr c)
   (define clamped (clamp-config c))
@@ -88,7 +109,11 @@
           'SoundEnabled (reminder-config-sound-enabled clamped)
           'AutoCheckUpdates (reminder-config-auto-check-updates clamped)
           'WelcomeShown (reminder-config-welcome-shown clamped)
-          'Language (reminder-config-language clamped)))
+          'Language (reminder-config-language clamped)
+          'CompanionSize (reminder-config-companion-size clamped)
+          'CompanionMotion (reminder-config-companion-motion clamped)
+          'CompanionDock (reminder-config-companion-dock clamped)
+          'CompanionLabels (reminder-config-companion-labels clamped)))
 
 ;; Tolerant reader with a hard version gate: a file written by another schema
 ;; (v0.x PascalCase, future versions) is foreign — use defaults, never guess.
@@ -117,7 +142,15 @@
       (bool-field 'AutoCheckUpdates #t)
       (bool-field 'WelcomeShown #f)
       (let ([lang (hash-ref js 'Language "auto")])
-        (if (valid-language? lang) lang "auto")))]
+        (if (valid-language? lang) lang "auto"))
+      (let ([v (hash-ref js 'CompanionSize "M")])
+        (if (valid-choice? v companion-size-choices) v "M"))
+      (let ([v (hash-ref js 'CompanionMotion "subtle")])
+        (if (valid-choice? v companion-motion-choices) v "subtle"))
+      (let ([v (hash-ref js 'CompanionDock "bottom-right")])
+        (if (valid-choice? v companion-dock-choices) v "bottom-right"))
+      (let ([v (hash-ref js 'CompanionLabels "cue")])
+        (if (valid-choice? v companion-labels-choices) v "cue")))]
     [else (default-config)]))
 
 (define (config-path directory)

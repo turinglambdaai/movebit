@@ -187,15 +187,19 @@
 ;; Done: self-reported acknowledgement. A sit claim ends the counted
 ;; continuous session (the user says they got up); water/micro claims touch
 ;; no timer beyond the cue itself. Never fires stats — a click is not proof.
+;; Returns the acknowledged kinds, or #f when the id was unknown/settled.
 (define (orchestrator-acknowledge-cue! o id)
   (define record (find-cue o id))
-  (when (and record (open? record))
-    (set-status! o record 'acknowledged)
-    (when (memq 'sit (cue-record-kinds record))
-      (scheduler-end-session! (movebit-orchestrator-scheduler o))
-      (sync-ack-day! o)
-      (set-movebit-orchestrator-sit-acks-today!
-       o (add1 (movebit-orchestrator-sit-acks-today o))))))
+  (and record
+       (open? record)
+       (let ([kinds (cue-record-kinds record)])
+         (set-status! o record 'acknowledged)
+         (when (memq 'sit kinds)
+           (scheduler-end-session! (movebit-orchestrator-scheduler o))
+           (sync-ack-day! o)
+           (set-movebit-orchestrator-sit-acks-today!
+            o (add1 (movebit-orchestrator-sit-acks-today o))))
+         kinds)))
 
 ;; Later: defer every merged kind by the configured snooze of ACTIVE time.
 (define (orchestrator-snooze-cue! o id)
