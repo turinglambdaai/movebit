@@ -78,9 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.model = model
 
         model.onReady = { [weak self] in self?.handleReady() }
-        model.onConfigChanged = { [weak self] in self?.rebuildMenuBar() }
+        model.onConfigChanged = { [weak self] in self?.handleConfigChanged() }
         model.onCue = { [weak self] cue in self?.handleHealthCue(cue) }
         model.onPendingCuesChanged = { [weak self] in self?.syncCuePresentation() }
+        model.onSitAcknowledged = { [weak self] count in
+            self?.handleSitAcknowledged(count)
+        }
         // Restart-install handoff: the backend staged the update and spawned
         // the apply helper; quitting lets it swap the bundle and relaunch.
         model.onQuitRequested = { [weak self] in self?.quit() }
@@ -103,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleReady() {
         guard let model else { return }
         companion = CompanionController()
+        syncCompanionConfig()
         companion?.showIdle()
         if ProcessInfo.processInfo.environment["MOVEBIT_ACCEPTANCE"] == "1" {
             showMainWindow()
@@ -152,7 +156,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let cue = model.pendingCues.last {
             items.append(.action(label: cueActionLabel(cue, done: L10n.t("TrayCueDone")),
                                  identifier: "tray-cue-done",
-                                 handler: { [weak self] in self?.model?.acknowledgeCue(cue.id) }))
+                                 handler: { [weak self] in
+                                     self?.model?.acknowledgeCue(cue.id)
+                                     self?.companion?.showAck()
+                                 }))
             items.append(.action(label: L10n.t("TrayCueLater"),
                                  identifier: "tray-cue-later",
                                  handler: { [weak self] in self?.model?.snoozeCue(cue.id) }))
@@ -166,7 +173,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     handler: { [weak self] in self?.model?.togglePause() }),
             .action(label: model.quiet ? L10n.t("TrayFocusOff") : L10n.t("TrayFocusOn"),
                     identifier: "tray-focus",
-                    handler: { [weak self] in self?.model?.setQuiet(!self!.model!.quiet) }),
+                    handler: { [weak self] in
+                        guard let self, let model = self.model else { return }
+                        let next = !model.quiet
+                        model.setQuiet(next)
+                        self.companion?.setQuiet(next)
+                    }),
             .action(label: L10n.t("TrayExit"), identifier: "tray-exit",
                     handler: { [weak self] in self?.quit() }),
         ])
@@ -199,6 +211,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             companion?.showIdle()
         }
         rebuildMenuBar()
+    }
+
+    /// Push the v1 companion presentation settings into the character.
+    private func syncCompanionConfig() {
+        guard let config = model?.config else { return }
+        companion?.applyConfig(size: config.companion_size,
+                               motion: config.companion_motion,
+                               dock: config.companion_dock,
+                               labels: config.companion_labels)
+    }
+
+    private func handleConfigChanged() {
+        syncCompanionConfig()
+        rebuildMenuBar()
+    }
+
+    /// A milestone of SELF-REPORTED sit acknowledgments: one quiet cheer.
+    /// A cheer claims nothing clinical (charter #51).
+    private func handleSitAcknowledged(_ count: Int64) {
+        guard let model, CopyPool.celebrateAt.contains(count) else { return }
+        showToast(title: L10n.t("NotifCheerTitle"),
+                  lines: [L10n.t("NotifCheerBody", "\(count)",
+                                  CopyFormat.duration(model.today.active_mins))],
+                  accent: .sit)
     }
 
     func quit() {
@@ -269,9 +305,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let model else { return }
 
         if cue.delivery == .character {
-            companion?.show(gesture: CompanionGesture.from(action: cue.action),
-                            message: cueMessage(cue),
-                            animated: cue.animated)
+            companion?.show(state: cue.action.mubiState,
+                            message: cueMessage(cue))
             model.cueDisplayed(cue.id)
             return
         }

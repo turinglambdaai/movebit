@@ -48,7 +48,11 @@
     "statusSaved": "✓ 已保存 · {0:HH:mm:ss}",
     "statusApplied": "✓ 已应用 · {0:HH:mm:ss}",
     "statusSaveFailed": "⚠ 已在本次运行中生效，但写入配置文件失败",
-    "motion": "角色动效"
+    "motion": "角色动效",
+    "mubiSize": "沐比大小",
+    "mubiMotion": "角色动效",
+    "mubiDock": "停靠位置",
+    "mubiLabels": "文字标签"
   },
   "lang": {
     "auto": "跟随系统"
@@ -243,5 +247,15 @@
       8
     ],
     "lateNightWindow": "22:00-06:00"
+  },
+  "mubi": {
+    "motionStill": "静止",
+    "motionSubtle": "轻柔",
+    "motionLively": "活泼",
+    "dockBottomRight": "右下",
+    "dockBottomLeft": "左下",
+    "dockTopRight": "右上",
+    "labelsCue": "仅提醒时",
+    "labelsAlways": "常显"
   }
 }
