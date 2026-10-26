@@ -34,6 +34,10 @@ target_include_directories(RivetHost PRIVATE
 
 target_link_libraries(RivetHost PRIVATE
   rivet::platform
+  # The Mubi companion positions through Xlib on X11 (GTK4 has no
+  # gtk_window_move); X11 comes with the GTK4 x11 backend everywhere the
+  # host runs.
+  X11
 )
 
 target_compile_options(RivetHost PRIVATE -Wall -Wextra -Wpedantic)
