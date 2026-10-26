@@ -47,9 +47,9 @@
 ;; the fullscreen-break copy came out and the Focus/motion/done keys went in.
 (define ui-keys (filter (lambda (k) (not (string-prefix? k "copy."))) zh-keys))
 (define copy-keys (filter (lambda (k) (string-prefix? k "copy.")) zh-keys))
-(unless (= (length ui-keys) 161)
+(unless (= (length ui-keys) 164)
   (set! failed? #t)
-  (eprintf "expected 161 UI keys, got ~a~n" (length ui-keys)))
+  (eprintf "expected 164 UI keys, got ~a~n" (length ui-keys)))
 (unless (and (>= (length copy-keys) 6)
              (hash-has-key? (hash-ref zh 'copy) 'celebrateAt))
   (set! failed? #t)
@@ -76,4 +76,4 @@
     (eprintf "copy.celebrateAt must be [3, 5, 8]~n")))
 
 (when failed? (exit 1))
-(printf "i18n OK: 167 contract keys (161 UI + copy), pools verbatim, zh/en parity~n")
+(printf "i18n OK: 170 contract keys (164 UI + copy), pools verbatim, zh/en parity~n")

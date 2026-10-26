@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var onboardingState: OnboardingState?
     private var menuBar: RivetMenuBarController?
+    private var companion: CompanionController?
     private var toastController: ToastPanelController?
     private var microController: MicroPanelController?
     // Retained for the process lifetime: dropping it releases the lease.
@@ -79,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onReady = { [weak self] in self?.handleReady() }
         model.onConfigChanged = { [weak self] in self?.rebuildMenuBar() }
         model.onCue = { [weak self] cue in self?.handleHealthCue(cue) }
+        model.onPendingCuesChanged = { [weak self] in self?.syncCuePresentation() }
         // Restart-install handoff: the backend staged the update and spawned
         // the apply helper; quitting lets it swap the bundle and relaunch.
         model.onQuitRequested = { [weak self] in self?.quit() }
@@ -100,6 +102,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handleReady() {
         guard let model else { return }
+        companion = CompanionController()
+        companion?.showIdle()
         if ProcessInfo.processInfo.environment["MOVEBIT_ACCEPTANCE"] == "1" {
             showMainWindow()
             return
@@ -138,9 +142,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenuBar() {
         guard let model else { return }
-        let items: [RivetMenuItem] = [
+        var items: [RivetMenuItem] = [
             .action(label: L10n.t("TrayOpen"), identifier: "tray-open",
                     handler: { [weak self] in self?.showMainWindow() }),
+        ]
+        // Mandatory reminder controls (issue #54): the character surface is
+        // fully pointer-through, so Done/Later/Hide live here, acting on the
+        // newest open cue. Always accessible, even mid-presentation.
+        if let cue = model.pendingCues.last {
+            items.append(.action(label: cueActionLabel(cue, done: L10n.t("TrayCueDone")),
+                                 identifier: "tray-cue-done",
+                                 handler: { [weak self] in self?.model?.acknowledgeCue(cue.id) }))
+            items.append(.action(label: L10n.t("TrayCueLater"),
+                                 identifier: "tray-cue-later",
+                                 handler: { [weak self] in self?.model?.snoozeCue(cue.id) }))
+            items.append(.action(label: L10n.t("TrayCueHide"),
+                                 identifier: "tray-cue-hide",
+                                 handler: { [weak self] in self?.model?.dismissCue(cue.id) }))
+        }
+        items.append(contentsOf: [
             .action(label: model.paused.paused ? L10n.t("TrayResume") : L10n.t("TrayPause"),
                     identifier: "tray-pause",
                     handler: { [weak self] in self?.model?.togglePause() }),
@@ -149,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     handler: { [weak self] in self?.model?.setQuiet(!self!.model!.quiet) }),
             .action(label: L10n.t("TrayExit"), identifier: "tray-exit",
                     handler: { [weak self] in self?.quit() }),
-        ]
+        ])
         if let menuBar {
             menuBar.update(items: items)
         } else {
@@ -157,6 +177,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             controller.install(icon: MenuBarIcon.droplet, items: items)
             menuBar = controller
         }
+    }
+
+    /// "Done — drink water" style label: the control names BOTH the action
+    /// and the health advice, so the tray is self-explanatory.
+    private func cueActionLabel(_ cue: HealthCue, done: String) -> String {
+        let advice: String
+        switch cue.action {
+        case .drink_water: advice = L10n.t("NotifWaterTitle")
+        case .rest_eyes: advice = L10n.t("MicroHint")
+        default: advice = L10n.t("NotifSitTitle")
+        }
+        return "\(done) · \(advice)"
+    }
+
+    /// The open-cue ledger changed: idle the character when nothing is open
+    /// (acknowledged, snoozed, hidden, expired or quiet-settled) and refresh
+    /// the tray's mandatory cue controls.
+    private func syncCuePresentation() {
+        if model?.pendingCues.isEmpty != false {
+            companion?.showIdle()
+        }
+        rebuildMenuBar()
     }
 
     func quit() {
@@ -218,14 +260,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: health cues
-    // The backend planned the delivery; the host only renders it. Delivery
-    // 'notification' and 'character' both surface through the transitional
-    // panels below — R2 swaps these for the edge-docked character.
+    // The backend planned the delivery; the host only renders it. The
+    // character path is the v1 default; the non-blocking cards stay as the
+    // notification fallback (a future "hide character" setting can report
+    // surface-supported = false and the backend plans notifications).
 
     private func handleHealthCue(_ cue: HealthCue) {
         guard let model else { return }
-        let kinds: [ReminderKind] = cue.kinds
 
+        if cue.delivery == .character {
+            companion?.show(gesture: CompanionGesture.from(action: cue.action),
+                            message: cueMessage(cue),
+                            animated: cue.animated)
+            model.cueDisplayed(cue.id)
+            return
+        }
+
+        // Notification fallback (transitional cards, R1-era presentation).
+        let kinds: [ReminderKind] = cue.kinds
         if kinds == [.micro] {
             // Micro-only cue: the eye-rest card; finishing it acknowledges.
             microController?.onDone = { [weak self] id in self?.model?.acknowledgeCue(id) }
@@ -257,6 +309,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                            snoozeMinutes: model.config.snooze_minutes,
                                            cueId: cue.id))
         model.cueDisplayed(cue.id)
+    }
+
+    /// The actionable health advice in the character's speech bubble — plain
+    /// text, independent of the gesture animation.
+    private func cueMessage(_ cue: HealthCue) -> String {
+        switch cue.action {
+        case .drink_water: return CopyPool.pickWater()
+        case .rest_eyes: return L10n.t("MicroHint")
+        default:
+            return L10n.t("NotifSitTitle")
+        }
     }
 
     /// Per-kind line + a rotating pool line.

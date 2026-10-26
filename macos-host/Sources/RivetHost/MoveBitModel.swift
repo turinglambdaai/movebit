@@ -94,7 +94,10 @@ final class MoveBitModel: ObservableObject {
     @Published var paused = PauseState(paused: false, until_ms: nil)
     @Published var loops: [LoopInfo] = []
     /// Cues currently pending or on screen (the backend's reconciliation view).
-    @Published var pendingCues: [HealthCue] = []
+    /// All writes go through `setPendingCues` so presentation observers fire.
+    @Published var pendingCues: [HealthCue] = [] {
+        didSet { onPendingCuesChanged?() }
+    }
     @Published var quiet = false
     @Published var history: [DayStats] = []
     @Published var historyDays = 7
@@ -106,6 +109,9 @@ final class MoveBitModel: ObservableObject {
     var onReady: (() -> Void)?
     var onConfigChanged: (() -> Void)?
     var onCue: ((HealthCue) -> Void)?
+    /// The open-cue ledger changed: the tray cue actions and the companion's
+    /// idle/cue pose re-derive from `pendingCues`.
+    var onPendingCuesChanged: (() -> Void)?
     /// The restart-install handoff: after the backend staged the payload and
     /// spawned the apply helper, the host must quit so the helper can swap
     /// the bundle and relaunch.

@@ -134,7 +134,10 @@
     "paused": "MoveBit · {0}已暂停至 {1:HH:mm}",
     "updatePrefix": "有更新 {0} · ",
     "focusOn": "开启专注",
-    "focusOff": "关闭专注"
+    "focusOff": "关闭专注",
+    "cueDone": "做到了",
+    "cueLater": "稍后再说",
+    "cueHide": "隐藏"
   },
   "notif": {
     "windowTitle": "MoveBit 提醒",
