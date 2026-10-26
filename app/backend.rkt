@@ -24,6 +24,7 @@
          racket/path
          racket/string
          "../racket/movebit/autostart.rkt"
+         "../racket/movebit/companion-cue.rkt"
          "../racket/movebit/config.rkt"
          "../racket/movebit/history.rkt"
          "../racket/movebit/idle.rkt"
@@ -109,17 +110,31 @@
 
 (define-enum ReminderKind (sit water micro))
 
+;; Semantic suggested health action of a cue, independent of appearance.
+(define-enum CueAction (stand-and-stretch drink-water rest-eyes))
+;; Presentation route the backend planned for the cue: the character surface,
+;; a non-blocking system notification (unsupported/unsafe surface), or silent
+;; queuing while Focus/presentation mode is active.
+(define-enum CueDelivery (character notification quiet))
+
+(define-record HealthCue
+  ([id : Int64]
+   [kinds : (List ReminderKind)]
+   [action : CueAction]
+   [delivery : CueDelivery]
+   [animated : Bool]
+   [due-at-ms : Int64]
+   [expires-at-ms : Int64]))
+
 (define-record ReminderConfig
   ([sit-reminder-minutes : Int64]
    [water-reminder-minutes : Int64]
    [away-reset-minutes : Int64]
-   [force-break-enabled : Bool]
-   [break-duration-minutes : Int64]
-   [skip-after-seconds : Int64]
    [snooze-minutes : Int64]
    [micro-break-enabled : Bool]
    [micro-break-interval-minutes : Int64]
    [micro-break-duration-seconds : Int64]
+   [motion-enabled : Bool]
    [sound-enabled : Bool]
    [auto-check-updates : Bool]
    [welcome-shown : Bool]
@@ -141,22 +156,6 @@
   ([kind : ReminderKind]
    [due-in-active-mins : (Optional Int64)]
    [accumulated-mins : Int64]))
-
-(define-record BreakState
-  ([ends-at-ms : Int64]
-   [skip-after-ms : Int64]
-   [started-at-ms : Int64]))
-
-(define-record RemindersDue
-  ([kinds : (List ReminderKind)]
-   [merged : Bool]))
-
-(define-record BreakStarted
-  ([duration-ms : Int64]
-   [skip-after-ms : Int64]))
-
-(define-record BreakEnded
-  ([completed : Bool]))
 
 (define-record RuntimeInfo
   ([data-dir : String]
@@ -204,13 +203,11 @@
    (reminder-config-sit-reminder-minutes c)
    (reminder-config-water-reminder-minutes c)
    (reminder-config-away-reset-minutes c)
-   (reminder-config-force-break-enabled c)
-   (reminder-config-break-duration-minutes c)
-   (reminder-config-skip-after-seconds c)
    (reminder-config-snooze-minutes c)
    (reminder-config-micro-break-enabled c)
    (reminder-config-micro-break-interval-minutes c)
    (reminder-config-micro-break-duration-seconds c)
+   (reminder-config-motion-enabled c)
    (reminder-config-sound-enabled c)
    (reminder-config-auto-check-updates c)
    (reminder-config-welcome-shown c)
@@ -222,13 +219,11 @@
     (record-ref dto 'sit-reminder-minutes)
     (record-ref dto 'water-reminder-minutes)
     (record-ref dto 'away-reset-minutes)
-    (record-ref dto 'force-break-enabled)
-    (record-ref dto 'break-duration-minutes)
-    (record-ref dto 'skip-after-seconds)
     (record-ref dto 'snooze-minutes)
     (record-ref dto 'micro-break-enabled)
     (record-ref dto 'micro-break-interval-minutes)
     (record-ref dto 'micro-break-duration-seconds)
+    (record-ref dto 'motion-enabled)
     (record-ref dto 'sound-enabled)
     (record-ref dto 'auto-check-updates)
     (record-ref dto 'welcome-shown)
@@ -260,6 +255,18 @@
 (define (kind->symbol kind) (enum-case kind))
 (define (symbol->kind k) (ReminderKind k))
 
+;; cue-record → wire DTO. The planned presentation travels WITH the cue so a
+;; host that reconnects mid-lifecycle renders the same decision.
+(define (cue->dto c)
+  (define planned (cue-record-planned c))
+  (HealthCue (cue-record-id c)
+             (map symbol->kind (cue-record-kinds c))
+             (CueAction (companion-cue-action planned))
+             (CueDelivery (companion-cue-delivery planned))
+             (and (companion-cue-animated? planned) #t)
+             (cue-record-created-ms c)
+             (+ (cue-record-created-ms c) cue-expiry-ms)))
+
 ;; --- States (kept in sync with the runtime; hosts sync via $state) --------
 ;; Defined after the conversion helpers; `init` publishes the real values.
 
@@ -272,14 +279,16 @@
 (define-state paused : PauseState
   (PauseState #f (void)))
 (define-state loops : (List LoopInfo) '())
-(define-state break-active : (Optional BreakState) (void))
+;; The cues currently on screen (pending or displayed): the reconciliation
+;; view hosts read on launch and after any action.
+(define-state pending-cues : (List HealthCue) '())
 
 ;; --- Events ---------------------------------------------------------------
 
 (define-event tick-stats : DayStats)
-(define-event reminders-due : RemindersDue)
-(define-event break-started : BreakStarted)
-(define-event break-ended : BreakEnded)
+;; A due, merged reminder moment to show NOW (delivery ≠ quiet). The cue's
+;; full lifecycle is visible through the pending-cues state.
+(define-event health-cue : HealthCue)
 (define-event day-completed : DayStats)
 (define-event config-changed : ReminderConfig)
 
@@ -355,15 +364,9 @@
                   (PauseState #t until)
                   (PauseState #f (void)))))
 
-(define (publish-break! rt)
+(define (publish-pending-cues! rt)
   (define o (runtime-orchestrator rt))
-  (define info (orchestrator-break-info o))
-  (state-set! break-active
-              (if info
-                  (BreakState (break-info-ends-at-ms info)
-                              (break-info-skip-after-ms info)
-                              (break-info-started-at-ms info))
-                  (void))))
+  (state-set! pending-cues (map cue->dto (orchestrator-open-cues o))))
 
 ;; Periodic flush (~every 5 minutes), exit flush, update-restart flush.
 (define (flush-today! rt)
@@ -403,15 +406,10 @@
     (define o
       (make-orchestrator scheduler
                          (current-now-ms)
-                         #:on-break-started
-                         (lambda (duration-ms skip-after-ms)
-                           (break-started (BreakStarted duration-ms skip-after-ms)))
-                         #:on-break-ended
-                         (lambda (completed?) (break-ended (BreakEnded completed?)))
-                         #:on-reminders-due
-                         (lambda (kinds merged?)
-                           (reminders-due
-                            (RemindersDue (map symbol->kind kinds) merged?)))
+                         #:on-cue
+                         (lambda (record)
+                           (health-cue (cue->dto record))
+                           (publish-pending-cues! rt))
                          #:on-flush
                          (lambda () (flush-today! rt))))
     (define rt (runtime scheduler o history data-dir device-id idle))
@@ -429,7 +427,7 @@
     (state-set! active-config (config->dto loaded-config))
     (publish-stats! rt)
     (publish-paused! rt)
-    (publish-break! rt)
+    (publish-pending-cues! rt)
     (unless (unbox tick-thread-box)
       (set-box! tick-thread-box
                 (thread (lambda () (tick-loop rt)))))
@@ -449,31 +447,56 @@
       (orchestrator-tick! (runtime-orchestrator rt))
       (publish-stats! rt)
       (publish-paused! rt)
-      (publish-break! rt))
+      (publish-pending-cues! rt))
     (loop)))
 
-;; --- Reminder actions -----------------------------------------------------
+;; --- Cue actions -----------------------------------------------------------
+;; The cue lifecycle (issue #55): Done acknowledges (self-reported), Later
+;; snoozes every merged kind, Hide expires without claiming completion, and
+;; the host confirms rendering so the ledger distinguishes pending/displayed.
 
-(define-rpc (skip-break : Void)
+(define-rpc (acknowledge-cue [id : Int64] : Void)
   (define rt (require-runtime))
-  (orchestrator-skip-break! (runtime-orchestrator rt))
+  (orchestrator-acknowledge-cue! (runtime-orchestrator rt) id)
+  (publish-pending-cues! rt)
   (publish-stats! rt)
-  (publish-break! rt)
   (void))
 
-(define-rpc (complete-break : Void)
-  ;; Host may request this when its countdown UI finishes; the scheduler stays
-  ;; authoritative (a request while no break runs is a harmless no-op).
+(define-rpc (snooze-cue [id : Int64] : Void)
   (define rt (require-runtime))
-  (orchestrator-complete-break! (runtime-orchestrator rt))
-  (publish-stats! rt)
-  (publish-break! rt)
-  (void))
-
-(define-rpc (snooze [kind : ReminderKind] : Void)
-  (define rt (require-runtime))
-  (orchestrator-snooze! (runtime-orchestrator rt) (kind->symbol kind))
+  (orchestrator-snooze-cue! (runtime-orchestrator rt) id)
+  (publish-pending-cues! rt)
   (state-set! loops (loops->dto rt))
+  (void))
+
+(define-rpc (dismiss-cue [id : Int64] : Void)
+  (define rt (require-runtime))
+  (orchestrator-dismiss-cue! (runtime-orchestrator rt) id)
+  (publish-pending-cues! rt)
+  (void))
+
+(define-rpc (cue-displayed [id : Int64] : Void)
+  (define rt (require-runtime))
+  (orchestrator-cue-displayed! (runtime-orchestrator rt) id)
+  (publish-pending-cues! rt)
+  (void))
+
+;; Focus/presentation silence. When it ends, queued cues collapse into one
+;; bounded summary cue that arrives via the health-cue event.
+(define-rpc (set-quiet [enabled : Bool] : Void)
+  (define rt (require-runtime))
+  (orchestrator-set-quiet! (runtime-orchestrator rt) enabled)
+  (publish-pending-cues! rt)
+  (void))
+
+;; Host capability report (character surface safety, OS Reduce Motion).
+(define-rpc (set-host-capability [character-surface-supported : Bool]
+                                 [reduce-motion : Bool] : Void)
+  (define rt (require-runtime))
+  (orchestrator-set-host-capability!
+   (runtime-orchestrator rt)
+   #:surface-supported? character-surface-supported
+   #:reduce-motion? reduce-motion)
   (void))
 
 (define-rpc (pause-1h : Void)
@@ -658,11 +681,15 @@
     (~a "config: sit " (reminder-config-sit-reminder-minutes c)
         "m water " (reminder-config-water-reminder-minutes c)
         "m away " (reminder-config-away-reset-minutes c)
-        "m force " (reminder-config-force-break-enabled c)
-        " micro " (reminder-config-micro-break-enabled c)
+        "m micro " (reminder-config-micro-break-enabled c)
+        " motion " (reminder-config-motion-enabled c)
         " language " (reminder-config-language c))
     (~a "paused: " (scheduler-paused-until-ms scheduler))
-    (~a "break-active: " (orchestrator-break-active? (runtime-orchestrator rt))))
+    (~a "quiet: " (movebit-orchestrator-quiet? (runtime-orchestrator rt))
+        " · open cues: "
+        (length (orchestrator-open-cues (runtime-orchestrator rt))))
+    (~a "sit-acks today: "
+        (orchestrator-sit-acks-today (runtime-orchestrator rt))))
    "\n"))
 
 ;; Hosts call this on exit / before an update restart so at most a few seconds

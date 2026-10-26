@@ -33,12 +33,6 @@ struct MainWindow : MainWindowT<MainWindow> {
   void Away_ValueChanged(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const& args);
-  void Break_ValueChanged(
-      winrt::Windows::Foundation::IInspectable const& sender,
-      Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const& args);
-  void Skip_ValueChanged(
-      winrt::Windows::Foundation::IInspectable const& sender,
-      Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const& args);
   void Snooze_ValueChanged(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const& args);
@@ -48,10 +42,10 @@ struct MainWindow : MainWindowT<MainWindow> {
   void MicroDuration_ValueChanged(
       winrt::Windows::Foundation::IInspectable const& sender,
       Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const& args);
-  void Force_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
-                     Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void Micro_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
                      Microsoft::UI::Xaml::RoutedEventArgs const& args);
+  void Motion_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
+                      Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void Sound_Toggled(winrt::Windows::Foundation::IInspectable const& sender,
                      Microsoft::UI::Xaml::RoutedEventArgs const& args);
   void Autostart_Toggled(
@@ -85,13 +79,10 @@ struct MainWindow : MainWindowT<MainWindow> {
   void SubscribeEvents();
   void Bootstrap();
   void HandleEvent(std::string const& name, rivet::Value const& value);
-  void HandleRemindersDue(rivet_app::RemindersDue const& due);
+  void HandleHealthCue(rivet_app::HealthCue const& cue);
+  void CueDisplayed(std::int64_t id);
   void ApplyConfig(rivet_app::ReminderConfig const& changed, bool announce);
   void RefreshStatesAfterTick();
-  // Emergency exit reconciliation: the skip RPC failed backend-side, so the
-  // intent is retried on live ticks until the break ends without re-locking.
-  void EmergencySkipBreak();
-  void ReconcilePendingBreakSkip();
   void ReloadHistory();
   void ReloadAutostart();
   void ReloadDataDir();
@@ -126,7 +117,6 @@ struct MainWindow : MainWindowT<MainWindow> {
   bool updating_settings_ = false;
   bool suppressing_numberbox_ = false;
 
-  BreakOverlay overlay_;
   ToastCard toast_;
   MicroCard micro_;
   OnboardingWizard onboarding_;

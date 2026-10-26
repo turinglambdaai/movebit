@@ -69,17 +69,6 @@ inline std::string pick_micro() {
                       : l10n::pick("CopyMicroPool", 9);
 }
 
-inline std::string pick_break_hint() {
-  return l10n::pick("CopyBreakHintPool", 10);
-}
-
-inline bool celebrated(std::int64_t count) {
-  for (std::int64_t at : {3, 5, 8}) {
-    if (count == at) return true;
-  }
-  return false;
-}
-
 inline std::string day_key(std::int64_t epoch_ms) {
   return l10n::format_epoch(epoch_ms, "%Y-%m-%d");
 }
@@ -179,15 +168,16 @@ inline InsightSummary insight_summary(Slices const& slices) {
 }
 
 struct Model {
-  // Pre-bootstrap placeholder = the gentle shipped default; the backend
-  // overwrites it with the real persisted config right after init.
+  // Pre-bootstrap placeholder = the shipped default; the backend overwrites
+  // it with the real persisted config right after init.
   rivet_app::ReminderConfig config{
-      45, 30, 5, false, 5, 20, 10, true, 30, 20, true, true, false, "auto"};
-  bool pending_break_skip = false;
+      45, 30, 5, 10, true, 30, 20, true, true, true, false, "auto"};
   rivet_app::DayStats today{"", 0, 0, 0, 0, 0};
   rivet_app::PauseState paused{false, std::nullopt};
   std::vector<rivet_app::LoopInfo> loops;
-  std::optional<rivet_app::BreakState> break_active;
+  // Cues currently pending or on screen (backend reconciliation view).
+  std::vector<rivet_app::HealthCue> pending_cues;
+  bool quiet = false;
   std::vector<rivet_app::DayStats> history;
   int history_days = 7;
   bool autostart = false;

@@ -123,27 +123,16 @@
   (check-equal? (day-stats-active-ms (car archives)) (* 65 minute-ms))
   (check-equal? (h-active-ms h) (* 10 minute-ms)))
 
-;; Forced_break_elapsed_time_can_be_discarded_without_losing_cycle_progress
+;; A_self_reported_stand_up_ends_the_continuous_session_but_not_the_cycles
 (let ([h (make-harness #:sit 60 #:water 300)])
   (h-step-minutes! h 20)
-  (h-advance! h (* 30 minute-ms)) ; simulated time under the break overlay
-  (scheduler-discard-elapsed! (h-scheduler h))
-  (h-step-minutes! h 20)
-  (check-equal? (h-active-ms h) (* 40 minute-ms))
-  (check-equal? (h-sit-cycle-ms h) (* 40 minute-ms))
-  (check-equal? (h-fired h) '()))
-
-;; Completed_break_restarts_all_reminder_cycles
-(let ([h (make-harness #:sit 300 #:water 300)])
-  (h-patch-config! h #:micro-enabled #t #:micro-interval 30)
-  (h-step-minutes! h 25)
-  (h-advance! h (* 5 minute-ms))
-  (scheduler-complete-break! (h-scheduler h))
-  (h-step-minutes! h 29)
+  (scheduler-end-session! (h-scheduler h))
+  (check-equal? (h-session-ms h) 0)
+  ;; cycles keep their progress: Done on a cue is a report, not a cycle reset
+  (check-equal? (h-sit-cycle-ms h) (* 20 minute-ms))
   (check-equal? (h-fired h) '())
-  (h-step-minutes! h 2 1)
-  (check-equal? (h-fired-kinds h) '(micro))
-  (check-equal? (h-active-ms h) (* 56 minute-ms))) ; 25 + 29 + 2; break excluded
+  ;; accumulated active time is untouched: only the session counter resets
+  (check-equal? (h-active-ms h) (* 20 minute-ms)))
 
 ;; RestoreToday_seeds_persisted_morning_activity_into_a_fresh_session
 (let ([h (make-harness)])

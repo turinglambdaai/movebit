@@ -5,15 +5,14 @@ import RivetSystem
 
 /// Copy-pool identifiers emitted by gen-swift-strings.mjs (indexed keys).
 enum CopyPool {
-    static let breakHints = ("CopyBreakHintPool", 10)
     static let sitToasts = ("CopySitToastPool", 6)
     static let water = ("CopyWaterPool", 8)
     static let micro = ("CopyMicroPool", 9)
     static let lateNightWater = ("CopyLateNightWaterPool", 3)
     static let lateNightMicro = ("CopyLateNightMicroPool", 3)
 
-    /// After 22:00 the droplet drops the jokes (parity with BreakCopy.IsLateNight,
-    /// 22:00-06:00 per copy.lateNightWindow).
+    /// After 22:00 the droplet drops the jokes (22:00-06:00 per
+    /// copy.lateNightWindow).
     static var isLateNight: Bool {
         let hour = Calendar.current.component(.hour, from: Date())
         return hour >= 22 || hour < 6
@@ -28,9 +27,6 @@ enum CopyPool {
         isLateNight ? L10n.pick(lateNightMicro.0, lateNightMicro.1)
                     : L10n.pick(micro.0, micro.1)
     }
-
-    /// Completed sit-break counts worth a celebration (parity with CelebrateAt).
-    static let celebrateAt: [Int64] = [3, 5, 8]
 }
 
 enum CopyFormat {
@@ -71,9 +67,9 @@ final class MoveBitModel: ObservableObject {
         }
 
         func ready(config: ReminderConfig, today: DayStats, paused: PauseState,
-                   loops: [LoopInfo], breakActive: BreakState?) {
+                   loops: [LoopInfo], pendingCues: [HealthCue]) {
             model?.bootstrap(config: config, today: today, paused: paused,
-                             loops: loops, breakActive: breakActive)
+                             loops: loops, pendingCues: pendingCues)
         }
 
         func fail(_ message: String) {
@@ -90,15 +86,16 @@ final class MoveBitModel: ObservableObject {
                                     longest_session_mins: 0)
     @Published var config = ReminderConfig(
         sit_reminder_minutes: 45, water_reminder_minutes: 30, away_reset_minutes: 5,
-        // Pre-bootstrap placeholder = the gentle shipped default; the backend
+        // Pre-bootstrap placeholder = the shipped default; the backend
         // overwrites it with the real persisted config right after init.
-        force_break_enabled: false, break_duration_minutes: 5, skip_after_seconds: 20,
         snooze_minutes: 10, micro_break_enabled: true, micro_break_interval_minutes: 30,
-        micro_break_duration_seconds: 20, sound_enabled: true, auto_check_updates: true,
-        welcome_shown: false, language: "auto")
+        micro_break_duration_seconds: 20, motion_enabled: true, sound_enabled: true,
+        auto_check_updates: true, welcome_shown: false, language: "auto")
     @Published var paused = PauseState(paused: false, until_ms: nil)
     @Published var loops: [LoopInfo] = []
-    @Published var breakActive: BreakState?
+    /// Cues currently pending or on screen (the backend's reconciliation view).
+    @Published var pendingCues: [HealthCue] = []
+    @Published var quiet = false
     @Published var history: [DayStats] = []
     @Published var historyDays = 7
     @Published var autostart = false
@@ -108,9 +105,7 @@ final class MoveBitModel: ObservableObject {
     // Window-level requests handled by the AppDelegate (it owns the NSWindows).
     var onReady: (() -> Void)?
     var onConfigChanged: (() -> Void)?
-    var onRemindersDue: ((RemindersDue) -> Void)?
-    var onBreakStarted: (() -> Void)?
-    var onBreakEnded: ((Bool) -> Void)?
+    var onCue: ((HealthCue) -> Void)?
     /// The restart-install handoff: after the backend staged the payload and
     /// spawned the apply helper, the host must quit so the helper can swap
     /// the bundle and relaunch.
@@ -118,9 +113,6 @@ final class MoveBitModel: ObservableObject {
 
     private var backend: EmbeddedRacketBackend?
     private var language = "auto"
-    /// An emergency exit whose skip RPC never reached the backend; flushed on
-    /// the next live tick so the break ends without re-locking the displays.
-    private var pendingBreakSkip = false
 
     var resolvedLanguage: String {
         if language == "auto" {
@@ -174,13 +166,21 @@ final class MoveBitModel: ObservableObject {
                     try? await api.set_install_dir(
                         path: Bundle.main.bundleURL.deletingLastPathComponent()
                             .path)
+                    // This host ships the safe character surface; the OS
+                    // Reduce Motion report is polled on changes (static cue
+                    // fallback), and the backend plans every delivery.
+                    let reduceMotion =
+                        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+                    try? await api.set_host_capability(
+                        character_surface_supported: true, reduce_motion: reduceMotion)
                     async let config = api.get_active_config()
                     async let today = api.get_today()
                     async let paused = api.get_paused()
                     async let loops = api.get_loops()
-                    async let breakActive = api.get_break_active()
-                    let (c, t, p, l, b) = try await (config, today, paused, loops, breakActive)
-                    await relay.ready(config: c, today: t, paused: p, loops: l, breakActive: b)
+                    async let pendingCues = api.get_pending_cues()
+                    let (c, t, p, l, q) = try await (config, today, paused, loops, pendingCues)
+                    await relay.ready(config: c, today: t, paused: p,
+                                      loops: l, pendingCues: q)
                 } catch {
                     await relay.fail(String(describing: error))
                 }
@@ -191,12 +191,12 @@ final class MoveBitModel: ObservableObject {
     }
 
     private func bootstrap(config: ReminderConfig, today: DayStats, paused: PauseState,
-                           loops: [LoopInfo], breakActive: BreakState?) {
+                           loops: [LoopInfo], pendingCues: [HealthCue]) {
         self.config = config
         self.today = today
         self.paused = paused
         self.loops = loops
-        self.breakActive = breakActive
+        self.pendingCues = pendingCues
         language = config.language
         L10n.language = resolvedLanguage
         ready = true
@@ -215,37 +215,19 @@ final class MoveBitModel: ObservableObject {
         switch event {
         case .tick_stats(let stats):
             today = stats
-            // The tick thread also republishes loops/paused/break-active states.
+            // The tick thread also republishes loops/paused/pending-cues states.
             Task {
                 if let api = api() {
                     if let l = try? await api.get_loops() { loops = l }
                     if let p = try? await api.get_paused() { paused = p }
-                    if let b = try? await api.get_break_active() { breakActive = b }
-                    reconcilePendingBreakSkip()
+                    if let q = try? await api.get_pending_cues() { pendingCues = q }
                 }
             }
-        case .reminders_due(let due):
-            onRemindersDue?(due)
-        case .break_started(let started):
-            // ends-at / skip-after / started-at come from the authoritative
-            // state; if the state read races ahead of the publish, fall back
-            // to the event payload so the lock is never silently skipped.
-            Task {
-                var state = try? await api()?.get_break_active()
-                if state == nil {
-                    let now = Int64(Date().timeIntervalSince1970 * 1000)
-                    state = BreakState(ends_at_ms: now + started.duration_ms,
-                                       skip_after_ms: started.skip_after_ms,
-                                       started_at_ms: now)
-                }
-                if let state {
-                    breakActive = state
-                    onBreakStarted?()
-                }
-            }
-        case .break_ended(let ended):
-            breakActive = nil
-            onBreakEnded?(ended.completed)
+        case .health_cue(let cue):
+            // The backend planned the delivery (character / notification /
+            // quiet); quiet cues never arrive here, they queue backend-side.
+            pendingCues.append(cue)
+            onCue?(cue)
         case .day_completed(let stats):
             today = stats
             Task { await reloadHistory() }
@@ -324,61 +306,53 @@ final class MoveBitModel: ObservableObject {
         }
     }
 
-    // MARK: reminder actions
+    // MARK: cue actions (the v1 lifecycle: Done / Later / Hide)
 
-    func skipBreak() {
-        guard let api = api() else { return }
-        Task { try? await api.skip_break() }
-    }
-
-    /// Emergency exit: the host already tore the cover down locally, so the
-    /// displays are usable no matter what happens here. This only tells the
-    /// backend (skip semantics = snooze sit, no instant re-lock); when the
-    /// backend is unreachable the intent is remembered and flushed by the
-    /// next live tick (reconcilePendingBreakSkip).
-    func emergencySkipBreak() {
-        guard let api = api() else {
-            pendingBreakSkip = true
-            return
-        }
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await api.skip_break()
-                self.pendingBreakSkip = false
-            } catch {
-                self.pendingBreakSkip = true
-            }
-        }
-    }
-
-    /// A live tick proves the backend is back: finish a remembered emergency
-    /// exit — retry the skip while the backend still holds the break, drop it
-    /// once the break has ended on its own. Skip on a finished break is a
-    /// harmless no-op backend-side.
-    private func reconcilePendingBreakSkip() {
-        guard pendingBreakSkip else { return }
-        if breakActive != nil {
-            emergencySkipBreak()
-        } else {
-            pendingBreakSkip = false
-        }
-    }
-
-    /// Host countdown reached zero: the scheduler stays authoritative, this only
-    /// nudges it (no-op when no break runs).
-    func completeBreak() {
-        guard let api = api() else { return }
-        Task { try? await api.complete_break() }
-    }
-
-    func snooze(_ kinds: [ReminderKind]) {
+    /// Done — self-reported acknowledgement. The backend never counts it as
+    /// proof that water was drunk or a break taken.
+    func acknowledgeCue(_ id: Int64) {
         guard let api = api() else { return }
         Task {
-            for kind in kinds {
-                try? await api.snooze(kind: kind)
-            }
+            try? await api.acknowledge_cue(id: id)
+            if let q = try? await api.get_pending_cues() { pendingCues = q }
+        }
+    }
+
+    /// Later — defers every kind merged into the cue by the snooze minutes.
+    func snoozeCue(_ id: Int64) {
+        guard let api = api() else { return }
+        Task {
+            try? await api.snooze_cue(id: id)
             if let l = try? await api.get_loops() { loops = l }
+            if let q = try? await api.get_pending_cues() { pendingCues = q }
+        }
+    }
+
+    /// Hide — removes the cue without claiming completion and without
+    /// deferring; the next reminder arrives on its normal schedule.
+    func dismissCue(_ id: Int64) {
+        guard let api = api() else { return }
+        Task {
+            try? await api.dismiss_cue(id: id)
+            if let q = try? await api.get_pending_cues() { pendingCues = q }
+        }
+    }
+
+    /// Host report: the cue is actually visible (pending → displayed).
+    func cueDisplayed(_ id: Int64) {
+        guard let api = api() else { return }
+        Task { try? await api.cue_displayed(id: id) }
+    }
+
+    /// Focus/presentation silence. While quiet the backend queues cues and
+    /// emits nothing; leaving quiet delivers one bounded summary cue.
+    func setQuiet(_ enabled: Bool) {
+        guard let api = api() else { return }
+        quiet = enabled
+        Task {
+            try? await api.set_quiet(enabled: enabled)
+            if let q = try? await api.get_pending_cues() { pendingCues = q }
+            onConfigChanged?()
         }
     }
 

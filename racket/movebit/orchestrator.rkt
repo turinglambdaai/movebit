@@ -1,47 +1,73 @@
 #lang racket/base
 
 ;; App-level orchestration around the scheduler: the same-tick merge rule and
-;; the forced-break lifecycle.
-;; The orchestrator is pure domain logic — no UI, no rivet — so the same rules
-;; run identically on every host shell.
+;; the v1 cue lifecycle. The orchestrator is pure domain logic — no UI, no
+;; rivet — so the same rules run identically on every host shell.
 ;;
-;; One interruption per tick, ever: a sit event that starts a forced break
-;; swallows the rest (the host closes its toasts/micro window), and otherwise
-;; every kind due in this tick merges into ONE reminders-due payload; a
-;; micro-only tick produces a dedicated micro event. Snoozing a merged toast
-;; postpones all merged kinds.
+;; Every tick's due reminders merge into ONE cue (kinds preserved, priority
+;; ordered; snoozing a merged cue defers all of its kinds). Each cue then
+;; moves through the explicit lifecycle pinned by issue #55:
+;;
+;;   due → pending → displayed → acknowledged | snoozed | expired
+;;
+;; `pending` = created, not yet confirmed on screen; `displayed` = the host
+;; reported the cue visible. Done (acknowledge) is SELF-REPORTED — it never
+;; proves water was drunk or a break taken, and it does not advance stats
+;; (stats count fired reminders). Later (snooze) defers every merged kind by
+;; the configured snooze via the scheduler's active-time semantics. Hide
+;; (dismiss) and the ten-minute timeout both expire the cue without claiming
+;; completion — the reminder's cycle already restarted at fire time, so the
+;; next reminder arrives on the normal schedule and nothing is silently lost.
+;;
+;; Focus/presentation silence (quiet) changes presentation only: cues created
+;; while quiet stay `pending` and are NOT emitted to the host. When quiet
+;; ends they collapse into ONE bounded summary cue (companion-cue.rkt) —
+;; never a pile-up. Quiet never fabricates completion and never drops a
+;; due reminder's meaning.
 
-(require "config.rkt"
+(require "companion-cue.rkt"
+         "config.rkt"
          "history.rkt"
-         "scheduler.rkt")
+         "scheduler.rkt"
+         "timeutil.rkt")
 
-(provide (struct-out break-info)
+(provide (struct-out cue-record)
          (struct-out movebit-orchestrator)
          make-orchestrator
          orchestrator-tick!
-         orchestrator-skip-break!
-         orchestrator-complete-break!
-         orchestrator-snooze!
+         orchestrator-acknowledge-cue!
+         orchestrator-snooze-cue!
+         orchestrator-dismiss-cue!
+         orchestrator-cue-displayed!
+         orchestrator-set-quiet!
+         orchestrator-set-host-capability!
          orchestrator-pause-1h!
          orchestrator-resume!
          orchestrator-restore-today!
          orchestrator-flush!
-         orchestrator-break-active?
-         orchestrator-break-info
+         orchestrator-open-cues
+         orchestrator-find-cue
+         orchestrator-sit-acks-today
          should-celebrate?)
 
-(struct break-info (ends-at-ms skip-after-ms started-at-ms) #:transparent)
+;; id (monotone), all due kinds, the planned presentation, creation time and
+;; lifecycle status. `planned` is frozen at creation: the delivery decision
+;; shown to the user never mutates retroactively.
+(struct cue-record (id kinds planned created-ms status) #:transparent)
 
 (struct movebit-orchestrator
   (scheduler
    now                    ; (-> integer-ms), same clock as the scheduler
-   break                  ; #f or break-info
-   break-count-today      ; sit-break counter the starting event carried
+   cues                   ; ledger, newest first (cue-record)
+   next-cue-id            ; monotone integer payload id
+   quiet?                 ; focus/presentation silence
+   surface-supported?     ; host-reported character-surface capability
+   reduce-motion?         ; host-reported OS Reduce Motion
+   sit-acks-today         ; acknowledged sit cues today (celebrations only)
+   ack-day-key            ; the date-key the ack counter belongs to
    pending                ; reversed list of (kind count active-ms) this tick
    flush-counter          ; stats flush roughly every 10 ticks (~5 minutes)
-   on-break-started       ; #f or (duration-ms skip-after-ms) -> any
-   on-break-ended         ; #f or (completed?) -> any
-   on-reminders-due       ; #f or ((kind ...) merged?) -> any
+   on-cue                 ; #f or (cue-record) -> any — show this cue NOW
    on-stats-changed       ; #f or (-> any) after each stateful tick
    on-flush)              ; #f or (-> any): persist today's stats now
   #:transparent
@@ -49,11 +75,10 @@
 
 (define ticks-per-flush 10)          ; ~5 minutes at the 30 s tick
 (define hour-ms (* 60 60 1000))
+(define ledger-cap 100)              ; keep diagnostics bounded
 
 (define (make-orchestrator scheduler now
-                            #:on-break-started [on-break-started #f]
-                            #:on-break-ended [on-break-ended #f]
-                            #:on-reminders-due [on-reminders-due #f]
+                            #:on-cue [on-cue #f]
                             #:on-stats-changed [on-stats-changed #f]
                             #:on-flush [on-flush #f])
   ;; Wire the scheduler's reminder events into the per-tick batch once, the
@@ -61,9 +86,9 @@
   ;; installed callback (tests, diagnostics) stays in the chain.
   (define previous-on-reminder (movebit-scheduler-on-reminder scheduler))
   (define o
-    (movebit-orchestrator scheduler now #f 0 '() 0
-                          on-break-started on-break-ended on-reminders-due
-                          on-stats-changed on-flush))
+    (movebit-orchestrator scheduler now '() 1 #f #t #f 0
+                          (ms->date-key (now)) '() 0
+                          on-cue on-stats-changed on-flush))
   (set-movebit-scheduler-on-reminder!
    scheduler
    (lambda (kind count active-ms)
@@ -74,12 +99,55 @@
 (define (orch-config o)
   (scheduler-config (movebit-orchestrator-scheduler o)))
 
-(define (orchestrator-break-active? o)
-  (and (movebit-orchestrator-break o) #t))
+;; Effective static-motion input: the OS Reduce Motion report OR the user's
+;; in-app motion preference both force a static cue.
+(define (effective-reduce-motion? o)
+  (or (movebit-orchestrator-reduce-motion? o)
+      (not (reminder-config-motion-enabled (orch-config o)))))
 
-;; #f when no forced break is running, else break-info.
-(define (orchestrator-break-info o)
-  (movebit-orchestrator-break o))
+(define (plan-for o kinds)
+  (plan-companion-cue
+   kinds
+   #:quiet? (movebit-orchestrator-quiet? o)
+   #:surface-supported? (movebit-orchestrator-surface-supported? o)
+   #:reduce-motion? (effective-reduce-motion? o)))
+
+;; --- cue ledger -------------------------------------------------------------
+
+(define (find-cue o id)
+  (findf (lambda (c) (= (cue-record-id c) id)) (movebit-orchestrator-cues o)))
+
+(define (open? c) (memq (cue-record-status c) '(pending displayed)))
+
+(define (orchestrator-open-cues o)
+  ;; Oldest first, open only — the "what is on screen right now" view.
+  (reverse (filter open? (movebit-orchestrator-cues o))))
+
+(define (orchestrator-find-cue o id)
+  (find-cue o id))
+
+(define (orchestrator-sit-acks-today o)
+  (movebit-orchestrator-sit-acks-today o))
+
+(define (add-to-ledger! o planned now)
+  (define id (movebit-orchestrator-next-cue-id o))
+  (set-movebit-orchestrator-next-cue-id! o (add1 id))
+  (define record (cue-record id (companion-cue-kinds planned) planned now 'pending))
+  (set-movebit-orchestrator-cues! o (cons record (movebit-orchestrator-cues o)))
+  ;; Bound the ledger: once the cap is exceeded drop the oldest entries.
+  (let loop ([cs (movebit-orchestrator-cues o)])
+    (when (> (length cs) ledger-cap)
+      (set-movebit-orchestrator-cues! o (reverse (cdr (reverse cs))))
+      (loop (movebit-orchestrator-cues o))))
+  record)
+
+(define (set-status! o record status)
+  (set-movebit-orchestrator-cues!
+   o
+   (for/list ([c (in-list (movebit-orchestrator-cues o))])
+     (if (eq? c record) (struct-copy cue-record c [status status]) c))))
+
+;; --- same-tick merge rule ---------------------------------------------------
 
 ;; Collect scheduler reminder callbacks into the per-tick batch.
 (define (collect-reminder! o kind count active-ms)
@@ -98,90 +166,117 @@
     (define kind (car e))
     (if (memq kind acc) acc (append acc (list kind)))))
 
-(define (first-of-kind events kind)
-  (findf (lambda (e) (eq? (car e) kind)) events))
-
-;; One interruption per tick, ever. Port of FlushTickReminders.
+;; One cue per tick, ever: every kind due this tick merges into ONE cue with
+;; all meanings preserved (each kind keeps its own Later/snooze semantics).
 (define (flush-tick-reminders! o)
   (define events (take-pending! o))
   (when (pair? events)
     (define kinds (dedupe-kinds events))
-    (define sit-due (memq 'sit kinds))
-    (define water-due (memq 'water kinds))
-    (define micro-due (memq 'micro kinds))
-    (cond
-      ;; A forced break takes over: it is its own notification, and it swallows
-      ;; every other due reminder this tick.
-      [(and sit-due (reminder-config-force-break-enabled (orch-config o)))
-       (start-forced-break! o (first-of-kind events 'sit))]
-      ;; Micro-only tick: the host shows a micro card instead of a toast.
-      [(and (not sit-due) (not water-due) micro-due)
-       (fire-reminders-due! o '(micro) #f)]
-      ;; Otherwise merge everything due into one toast; snoozing it postpones
-      ;; all merged kinds.
-      [else
-       (fire-reminders-due! o kinds (> (length kinds) 1))])))
+    (define planned (plan-for o kinds))
+    (when planned
+      (define record
+        (add-to-ledger! o planned ((movebit-orchestrator-now o))))
+      ;; A quiet cue is queued, not shown; the host hears about it when
+      ;; Focus ends (as part of the summary), never as a live interruption.
+      (unless (eq? (companion-cue-delivery planned) 'quiet)
+        (define cb (movebit-orchestrator-on-cue o))
+        (when cb (cb record))))))
 
-(define (fire-reminders-due! o kinds merged?)
-  (define cb (movebit-orchestrator-on-reminders-due o))
-  (when cb (cb kinds merged?)))
+;; --- lifecycle actions ------------------------------------------------------
 
-;; Port of StartForcedBreak (minus the screen enumeration, which stays
-;; host-side; if the host cannot enumerate screens it degrades to a toast).
-(define (start-forced-break! o sit-event)
-  ;; A full-screen break has priority over transient nudges/toasts that may
-  ;; already be visible from a previous cycle: finish (not complete) any break.
-  (when (orchestrator-break-active? o)
-    (finish-break! o #f))
-  (define config (orch-config o))
+;; Done: self-reported acknowledgement. A sit claim ends the counted
+;; continuous session (the user says they got up); water/micro claims touch
+;; no timer beyond the cue itself. Never fires stats — a click is not proof.
+(define (orchestrator-acknowledge-cue! o id)
+  (define record (find-cue o id))
+  (when (and record (open? record))
+    (set-status! o record 'acknowledged)
+    (when (memq 'sit (cue-record-kinds record))
+      (scheduler-end-session! (movebit-orchestrator-scheduler o))
+      (sync-ack-day! o)
+      (set-movebit-orchestrator-sit-acks-today!
+       o (add1 (movebit-orchestrator-sit-acks-today o))))))
+
+;; Later: defer every merged kind by the configured snooze of ACTIVE time.
+(define (orchestrator-snooze-cue! o id)
+  (define record (find-cue o id))
+  (when (and record (open? record))
+    (for ([kind (in-list (cue-record-kinds record))])
+      (scheduler-snooze! (movebit-orchestrator-scheduler o) kind))
+    (set-status! o record 'snoozed)))
+
+;; Hide: remove the cue WITHOUT claiming completion and without deferring —
+;; the cycle already restarted at fire time, so the next reminder comes on
+;; the normal schedule.
+(define (orchestrator-dismiss-cue! o id)
+  (define record (find-cue o id))
+  (when (and record (open? record))
+    (set-status! o record 'expired)))
+
+;; Host reports the cue actually visible: pending → displayed.
+(define (orchestrator-cue-displayed! o id)
+  (define record (find-cue o id))
+  (when (and record (eq? (cue-record-status record) 'pending))
+    (set-status! o record 'displayed)))
+
+;; Focus/presentation silence. Entering quiet only flips the flag — already
+;; open cues were emitted before quiet and stay on screen per host policy.
+;; LEAVING quiet collapses the queued-but-unshown cues into one summary cue;
+;; the superseded entries expire (their kinds ride along, nothing is lost).
+(define (orchestrator-set-quiet! o enabled?)
+  (unless (boolean? enabled?)
+    (raise-argument-error 'orchestrator-set-quiet! "boolean?" enabled?))
+  (define was (movebit-orchestrator-quiet? o))
+  (set-movebit-orchestrator-quiet?! o enabled?)
+  (when (and was (not enabled?))
+    (define summary-kinds
+      (summarize-open-cues
+       (for/list ([c (in-list (filter open? (movebit-orchestrator-cues o)))])
+         (open-cue (cue-record-id c) (cue-record-kinds c)
+                   (cue-record-status c) (cue-record-created-ms c)))))
+    (when summary-kinds
+      (for ([c (in-list (filter open? (movebit-orchestrator-cues o)))])
+        (set-status! o c 'expired))
+      (define planned (plan-for o summary-kinds))
+      (when planned
+        (define record
+          (add-to-ledger! o planned ((movebit-orchestrator-now o))))
+        (define cb (movebit-orchestrator-on-cue o))
+        (when cb (cb record))))))
+
+;; Host capability report: can this platform render a safe character surface,
+;; and does the OS currently request reduced motion? Both feed the NEXT
+;; planned cue; existing cues keep their frozen presentation.
+(define (orchestrator-set-host-capability! o
+                                            #:surface-supported? [surface? #f]
+                                            #:reduce-motion? [reduce-motion? #f])
+  (when (boolean? surface?)
+    (set-movebit-orchestrator-surface-supported?! o surface?))
+  (when (boolean? reduce-motion?)
+    (set-movebit-orchestrator-reduce-motion?! o reduce-motion?)))
+
+;; --- tick -------------------------------------------------------------------
+
+;; Roll the celebration counter when the scheduler's day rolled over.
+(define (sync-ack-day! o)
+  (define today (ms->date-key ((movebit-orchestrator-now o))))
+  (unless (string=? today (movebit-orchestrator-ack-day-key o))
+    (set-movebit-orchestrator-ack-day-key! o today)
+    (set-movebit-orchestrator-sit-acks-today! o 0)))
+
+;; Expire open cues past the policy window (timeout, not completion).
+(define (expire-stale-cues! o)
   (define now ((movebit-orchestrator-now o)))
-  (define duration-ms (* 60000 (reminder-config-break-duration-minutes config)))
-  (define skip-after-ms (* 1000 (reminder-config-skip-after-seconds config)))
-  (set-movebit-orchestrator-break!
-   o (break-info (+ now duration-ms) skip-after-ms now))
-  (set-movebit-orchestrator-break-count-today! o (list-ref sit-event 1))
-  (define cb (movebit-orchestrator-on-break-started o))
-  (when cb (cb duration-ms skip-after-ms)))
+  (for ([c (in-list (filter open? (movebit-orchestrator-cues o)))])
+    (when (>= (- now (cue-record-created-ms c)) cue-expiry-ms)
+      (set-status! o c 'expired))))
 
-;; Port of OnBreakSkipped: skipping a forced break equals Snooze(sit).
-(define (orchestrator-skip-break! o)
-  (when (orchestrator-break-active? o)
-    (finish-break! o #f)
-    (scheduler-snooze! (movebit-orchestrator-scheduler o) 'sit)))
-
-;; Countdown finished (host requested) — a completed break is a real break:
-;; restart every reminder cycle, like returning after being away.
-(define (orchestrator-complete-break! o)
-  (when (orchestrator-break-active? o)
-    (finish-break! o #t)))
-
-;; Port of FinishBreakInternal. While a break is active the scheduler never
-;; ticks (rest is not work); skipping still discards elapsed wall time.
-(define (finish-break! o completed?)
-  (set-movebit-orchestrator-break! o #f)
-  (set-movebit-orchestrator-break-count-today! o 0)
-  (define scheduler (movebit-orchestrator-scheduler o))
-  (if completed?
-      (scheduler-complete-break! scheduler)
-      (scheduler-discard-elapsed! scheduler))
-  (define cb (movebit-orchestrator-on-break-ended o))
-  (when cb (cb completed?)))
-
-;; Advance one tick: under an active break the scheduler's wall-clock anchor
-;; stays current without advancing any cycle or daily active time. Break
-;; expiry is detected here so the backend stays authoritative even when the
-;; host countdown window is gone. Port of OnTimerTick (minus UI refresh).
+;; Advance one tick: scheduler, same-tick cue merge, expiry, stats flush.
 (define (orchestrator-tick! o)
-  (define break (movebit-orchestrator-break o))
-  (define now ((movebit-orchestrator-now o)))
-  (cond
-    [break
-     (if (>= now (break-info-ends-at-ms break))
-         (orchestrator-complete-break! o)
-         (scheduler-discard-elapsed! (movebit-orchestrator-scheduler o)))]
-    [else
-     (scheduler-tick! (movebit-orchestrator-scheduler o))])
+  (sync-ack-day! o)
+  (scheduler-tick! (movebit-orchestrator-scheduler o))
   (flush-tick-reminders! o)
+  (expire-stale-cues! o)
 
   ;; Flush today's stats every ~5 minutes so a crash or power loss never
   ;; costs more than a few minutes of history.
@@ -192,12 +287,6 @@
 
   (define cb (movebit-orchestrator-on-stats-changed o))
   (when cb (cb)))
-
-;; Snooze from a toast: a merged toast stands in for every timer due this
-;; tick, so the host snoozes each merged kind. Skipping a forced break is
-;; Snooze(sit) (see orchestrator-skip-break!).
-(define (orchestrator-snooze! o kind)
-  (scheduler-snooze! (movebit-orchestrator-scheduler o) kind))
 
 (define (orchestrator-pause-1h! o)
   (scheduler-pause-for! (movebit-orchestrator-scheduler o) hour-ms))
@@ -215,9 +304,10 @@
   (define cb (movebit-orchestrator-on-flush o))
   (when cb (cb)))
 
-;; Milestone celebrations fire at 3/5/8 completed sit breaks per day; the
-;; host owns the copy, the orchestrator owns the decision.
+;; Milestone celebrations fire at 3/5/8 self-reported sit acknowledgments
+;; per day; the host owns the copy, the orchestrator owns the decision.
 (define celebrate-at '(3 5 8))
 
-(define (should-celebrate? completed-today)
-  (and (integer? completed-today) (memq completed-today celebrate-at) #t))
+(define (should-celebrate? acknowledged-sit-today)
+  (and (integer? acknowledged-sit-today)
+       (memq acknowledged-sit-today celebrate-at) #t))

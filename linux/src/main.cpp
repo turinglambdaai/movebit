@@ -11,8 +11,6 @@
 //     main window is the hub (closing it flushes and quits).
 //   • Toast/micro cards are frameless keep-above windows; GTK4 removed
 //     toplevel positioning, so the WM chooses placement.
-//   • The main window uses the fixed warm-light palette; the overlay uses the
-//     fixed dark palette, exactly like the old Avalonia app.
 #include <gtk/gtk.h>
 #include <pango/pangocairo.h>
 
@@ -101,13 +99,6 @@ std::string pick_micro() {
                       : l10n::pick("CopyMicroPool", 9);
 }
 
-bool celebrated(std::int64_t count) {
-  for (std::int64_t at : {3, 5, 8}) {
-    if (count == at) return true;
-  }
-  return false;
-}
-
 std::string day_key(std::int64_t epoch_ms) {
   return l10n::format_epoch(epoch_ms, "%Y-%m-%d");
 }
@@ -116,11 +107,13 @@ std::string day_key(std::int64_t epoch_ms) {
 
 struct Model {
   rivet_app::ReminderConfig config{
-      45, 30, 5, true, 5, 20, 10, true, 30, 20, true, true, false, "auto"};
+      45, 30, 5, 10, true, 30, 20, true, true, true, false, "auto"};
   rivet_app::DayStats today{"", 0, 0, 0, 0, 0};
   rivet_app::PauseState paused{false, std::nullopt};
   std::vector<rivet_app::LoopInfo> loops;
-  std::optional<rivet_app::BreakState> break_active;
+  // Cues currently pending or on screen (backend reconciliation view).
+  std::vector<rivet_app::HealthCue> pending_cues;
+  bool quiet = false;
   std::vector<rivet_app::DayStats> history;
   int history_days = 7;
   bool autostart = false;
@@ -157,48 +150,29 @@ struct AppState {
   std::string language{"zh"};
   bool updating_settings{false};
 
-  // Break overlay (one window per monitor).
-  std::vector<GtkWindow*> overlay_windows;
-  guint overlay_tick_id{0};
-  rivet_app::BreakState overlay_state{};
-  std::int64_t overlay_total_sec = 0;
-  std::int64_t overlay_remaining_sec = 0;
-  bool overlay_skip_available = false;
-  bool overlay_goodbye = false;
-  bool overlay_completed_nudged = false;
-  // An emergency exit whose skip RPC never reached the backend; flushed on
-  // the next live tick so the break ends without re-locking the monitors.
-  bool overlay_pending_skip = false;
-  std::string overlay_hint;
-  GtkDrawingArea* overlay_ring{nullptr};
-  GtkLabel* overlay_emoji{nullptr};
-  GtkLabel* overlay_title{nullptr};
-  GtkLabel* overlay_hint_label{nullptr};
-  GtkButton* overlay_emergency_button{nullptr};
-  GtkButton* overlay_skip_button{nullptr};
-
-  // Toast (bottom reminder card).
+  // Toast (bottom reminder card). cue_id carries the v1 lifecycle payload;
+  // 0 marks a plain informational toast without actions.
   GtkWindow* toast_window{nullptr};
   guint toast_timeout_id{0};
   rivet_app::ReminderKind toast_accent = rivet_app::ReminderKind::sit;
-  std::vector<rivet_app::ReminderKind> toast_kinds;
+  std::int64_t toast_cue_id = 0;
   GtkLabel* toast_title_label{nullptr};
   GtkBox* toast_lines_box{nullptr};
   GtkButton* toast_snooze_button{nullptr};
 
-  // Micro break (small top card).
+  // Micro eye-rest card.
   GtkWindow* micro_window{nullptr};
   guint micro_timeout_id{0};
   double micro_progress = 1.0;
   std::int64_t micro_total_ms = 1000;
+  std::int64_t micro_cue_id = 0;
   GtkProgressBar* micro_bar{nullptr};
 
   // Onboarding wizard.
   GtkWindow* onboarding_window{nullptr};
   int onboarding_page = 0;
-  // Fresh profiles start gentle: the strong modes are an explicit opt-in.
-  std::string onboarding_mode = "gentle";
   std::int64_t onboarding_water = 30;
+  std::int64_t onboarding_sit = 45;
   bool onboarding_sound = true;
   GtkStack* onboarding_stack{nullptr};
   GtkButton* onboarding_skip{nullptr};
@@ -400,12 +374,10 @@ struct MainWidgets {
   GtkSpinButton* sit_spin{nullptr};
   GtkSpinButton* water_spin{nullptr};
   GtkSpinButton* away_spin{nullptr};
-  GtkSpinButton* break_spin{nullptr};
-  GtkSpinButton* skip_spin{nullptr};
   GtkSpinButton* snooze_spin{nullptr};
   GtkSpinButton* micro_interval_spin{nullptr};
   GtkSpinButton* micro_duration_spin{nullptr};
-  GtkSwitch* force_switch{nullptr};
+  GtkSwitch* motion_switch{nullptr};
   GtkSwitch* micro_switch{nullptr};
   GtkSwitch* sound_switch{nullptr};
   GtkSwitch* autostart_switch{nullptr};
@@ -532,20 +504,6 @@ void on_away_changed(GtkSpinButton* spin, gpointer) {
         static_cast<std::int64_t>(gtk_spin_button_get_value(spin));
   });
 }
-void on_break_changed(GtkSpinButton* spin, gpointer) {
-  if (g_state.updating_settings) return;
-  mutate_config([&](auto& d) {
-    d.break_duration_minutes =
-        static_cast<std::int64_t>(gtk_spin_button_get_value(spin));
-  });
-}
-void on_skip_changed(GtkSpinButton* spin, gpointer) {
-  if (g_state.updating_settings) return;
-  mutate_config([&](auto& d) {
-    d.skip_after_seconds =
-        static_cast<std::int64_t>(gtk_spin_button_get_value(spin));
-  });
-}
 void on_snooze_changed(GtkSpinButton* spin, gpointer) {
   if (g_state.updating_settings) return;
   mutate_config([&](auto& d) {
@@ -567,9 +525,9 @@ void on_micro_duration_changed(GtkSpinButton* spin, gpointer) {
         static_cast<std::int64_t>(gtk_spin_button_get_value(spin));
   });
 }
-int on_force_set(GtkSwitch*, gboolean state, gpointer) {
+int on_motion_set(GtkSwitch*, gboolean state, gpointer) {
   if (!g_state.updating_settings) {
-    mutate_config([&](auto& d) { d.force_break_enabled = state != FALSE; });
+    mutate_config([&](auto& d) { d.motion_enabled = state != FALSE; });
   }
   return FALSE;
 }
@@ -874,12 +832,10 @@ void refresh_settings_widgets() {
     gtk_spin_button_set_value(mw.sit_spin, c.sit_reminder_minutes);
     gtk_spin_button_set_value(mw.water_spin, c.water_reminder_minutes);
     gtk_spin_button_set_value(mw.away_spin, c.away_reset_minutes);
-    gtk_spin_button_set_value(mw.break_spin, c.break_duration_minutes);
-    gtk_spin_button_set_value(mw.skip_spin, c.skip_after_seconds);
     gtk_spin_button_set_value(mw.snooze_spin, c.snooze_minutes);
     gtk_spin_button_set_value(mw.micro_interval_spin, c.micro_break_interval_minutes);
     gtk_spin_button_set_value(mw.micro_duration_spin, c.micro_break_duration_seconds);
-    gtk_switch_set_active(mw.force_switch, c.force_break_enabled);
+    gtk_switch_set_active(mw.motion_switch, c.motion_enabled);
     gtk_switch_set_active(mw.micro_switch, c.micro_break_enabled);
     gtk_switch_set_active(mw.sound_switch, c.sound_enabled);
     gtk_switch_set_active(mw.autostart_switch, g_state.model.autostart);
@@ -1601,15 +1557,9 @@ void build_main_content() {
     mw.away_spin = add_stepper_row(card, l10n::t("SetAwayReset").c_str(),
                                    c.away_reset_minutes, 1, 60, 1,
                                    G_CALLBACK(on_away_changed));
-    mw.force_switch = add_toggle_row(card, l10n::t("SetForce").c_str(),
-                                     c.force_break_enabled,
-                                     G_CALLBACK(on_force_set));
-    mw.break_spin = add_stepper_row(card, l10n::t("SetBreakDuration").c_str(),
-                                    c.break_duration_minutes, 1, 30, 1,
-                                    G_CALLBACK(on_break_changed));
-    mw.skip_spin = add_stepper_row(card, l10n::t("SetSkipDelay").c_str(),
-                                   c.skip_after_seconds, 0, 120, 5,
-                                   G_CALLBACK(on_skip_changed));
+    mw.motion_switch = add_toggle_row(card, l10n::t("SetMotion").c_str(),
+                                      c.motion_enabled,
+                                      G_CALLBACK(on_motion_set));
     mw.snooze_spin = add_stepper_row(card, l10n::t("SetSnooze").c_str(),
                                      c.snooze_minutes, 5, 60, 5,
                                      G_CALLBACK(on_snooze_changed));
@@ -1741,13 +1691,7 @@ void apply_global_css() {
     .sit-bar { min-height: 9px; }
     .sit-bar progress { background: #C25E3E; border-radius: 4px; }
     .sit-bar trough { background: #EAE6DC; border-radius: 4px; }
-    .overlay-bg { background: linear-gradient(135deg, #141B2E, #1B1233, #0D1220); }
-    .overlay-title { font-size: 30px; font-weight: 600; color: #F0EEE6; }
-    .overlay-hint { font-size: 18px; color: #B8B2C7; }
-    .overlay-caption { font-size: 12.5px; color: #6E6884; }
-    .overlay-skip { font-size: 13.5px; color: #8A849E; background: transparent;
                     border: 1px solid #3A3550; border-radius: 8px; padding: 7px 16px; }
-    .overlay-emergency { font-size: 13.5px; font-weight: 600; color: #CFC8E4;
                          background: #1A1730; border: 1px solid #5A527A;
                          border-radius: 8px; padding: 7px 16px; }
     .toast-bg { background: #FFFDFB; border-radius: 14px; border: 1px solid #E2DCCC; }
@@ -1785,285 +1729,13 @@ void apply_global_css() {
   g_object_unref(provider);
 }
 
-// ---- break overlay ------------------------------------------------------------
-
-void overlay_close_all() {
-  if (g_state.overlay_tick_id != 0) {
-    g_source_remove(g_state.overlay_tick_id);
-    g_state.overlay_tick_id = 0;
-  }
-  for (auto* window : g_state.overlay_windows) {
-    gtk_window_destroy(window);
-  }
-  g_state.overlay_windows.clear();
-  g_state.overlay_ring = nullptr;
-  g_state.overlay_emoji = nullptr;
-  g_state.overlay_title = nullptr;
-  g_state.overlay_hint_label = nullptr;
-  g_state.overlay_emergency_button = nullptr;
-  g_state.overlay_skip_button = nullptr;
-}
-
-/// Emergency exit: tear the cover down FIRST so usable windows are back on
-/// every monitor even if the backend never answers; the skip is then
-/// best-effort (refresh_states_after_tick reconciles a lost skip when the
-/// backend returns).
-void overlay_emergency_exit() {
-  if (g_state.overlay_goodbye || g_state.overlay_windows.empty()) return;
-  overlay_close_all();
-  if (g_state.api == nullptr) {
-    g_state.overlay_pending_skip = true;
-    return;
-  }
-  (void)g_state.api->skip_break_async([](rivet_app::Result<void> r) {
-    bool const failed = !r.succeeded();
-    dispatch_ui([failed] { g_state.overlay_pending_skip = failed; });
-  });
-}
-
-void overlay_finish(bool completed) {
-  if (!completed) {
-    overlay_close_all();
-    return;
-  }
-  g_state.overlay_goodbye = true;
-  if (g_state.overlay_emoji != nullptr) {
-    gtk_label_set_text(g_state.overlay_emoji, "💪");
-    gtk_label_set_text(g_state.overlay_title, l10n::t("BrkDone").c_str());
-    gtk_label_set_text(g_state.overlay_hint_label, l10n::t("BrkGoodbye").c_str());
-    if (g_state.overlay_emergency_button != nullptr) {
-      gtk_widget_set_visible(GTK_WIDGET(g_state.overlay_emergency_button), FALSE);
-    }
-    if (g_state.overlay_skip_button != nullptr) {
-      gtk_widget_set_visible(GTK_WIDGET(g_state.overlay_skip_button), FALSE);
-    }
-    if (g_state.overlay_ring != nullptr) {
-      gtk_widget_queue_draw(GTK_WIDGET(g_state.overlay_ring));
-    }
-  }
-  g_timeout_add(950, +[](gpointer) -> int {
-    overlay_close_all();
-    return G_SOURCE_REMOVE;
-  }, nullptr);
-}
-
-void draw_overlay_ring(GtkDrawingArea*, cairo_t* cr, int width, int height,
-                       gpointer) {
-  double const cx = width / 2.0;
-  double const cy = height / 2.0;
-  double const halo_r = std::min(width, height) / 2.0 - 2.0;
-  double const ring_r = halo_r - 16.0;
-  double const fraction =
-      g_state.overlay_total_sec > 0
-          ? static_cast<double>(g_state.overlay_remaining_sec) /
-                static_cast<double>(g_state.overlay_total_sec)
-          : 0.0;
-
-  auto sand = [&](double alpha) {
-    cairo_set_source_rgba(cr, 0xE8 / 255.0, 0xB7 / 255.0, 0x7A / 255.0, alpha);
-  };
-  // Halo.
-  sand(g_state.overlay_goodbye ? 1.0 : 0.35);
-  cairo_set_line_width(cr, 2.0);
-  cairo_arc(cr, cx, cy, halo_r, 0, 2 * M_PI);
-  cairo_stroke(cr);
-  // Track.
-  cairo_set_source_rgba(cr, 0x2A / 255.0, 0x28 / 255.0, 0x40 / 255.0, 1.0);
-  cairo_set_line_width(cr, 10.0);
-  cairo_arc(cr, cx, cy, ring_r, 0, 2 * M_PI);
-  cairo_stroke(cr);
-  // Progress.
-  sand(g_state.overlay_goodbye ? 0.35 : 1.0);
-  cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-  cairo_arc(cr, cx, cy, ring_r, -M_PI / 2.0,
-            -M_PI / 2.0 + fraction * 2 * M_PI);
-  cairo_stroke(cr);
-
-  // Remaining time in the middle.
-  char text[16];
-  std::snprintf(text, sizeof(text), "%d:%02d",
-                static_cast<int>(g_state.overlay_remaining_sec / 60),
-                static_cast<int>(g_state.overlay_remaining_sec % 60));
-  PangoLayout* layout = pango_cairo_create_layout(cr);
-  PangoAttrList* attrs = pango_attr_list_new();
-  pango_attr_list_insert(attrs, pango_attr_size_new_absolute(58 * PANGO_SCALE));
-  pango_attr_list_insert(attrs, pango_attr_weight_new(PANGO_WEIGHT_BOLD));
-  pango_layout_set_attributes(layout, attrs);
-  pango_attr_list_unref(attrs);
-  pango_layout_set_font_description(
-      layout, pango_font_description_from_string("Monospace"));
-  pango_layout_set_text(layout, g_state.overlay_goodbye ? "💪" : text, -1);
-  int tw = 0, th = 0;
-  pango_layout_get_pixel_size(layout, &tw, &th);
-  cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0);
-  cairo_move_to(cr, cx - tw / 2.0, cy - th / 2.0);
-  pango_cairo_show_layout(cr, layout);
-  g_object_unref(layout);
-}
-
-void overlay_tick() {
-  auto const& state = g_state.overlay_state;
-  std::int64_t const now = now_ms();
-  g_state.overlay_remaining_sec =
-      std::max<std::int64_t>(0, (state.ends_at_ms - now) / 1000);
-  g_state.overlay_skip_available =
-      now >= state.started_at_ms + state.skip_after_ms;
-  if (g_state.overlay_skip_button != nullptr) {
-    gtk_widget_set_visible(GTK_WIDGET(g_state.overlay_skip_button),
-                           g_state.overlay_skip_available &&
-                               !g_state.overlay_goodbye);
-  }
-  if (g_state.overlay_ring != nullptr) {
-    gtk_widget_queue_draw(GTK_WIDGET(g_state.overlay_ring));
-  }
-
-  std::int64_t const elapsed = std::max<std::int64_t>(0, (now - state.started_at_ms) / 1000);
-  if (elapsed > 0 && elapsed % 25 == 0 && elapsed != g_state.overlay_total_sec &&
-      g_state.overlay_hint_label != nullptr) {
-    g_state.overlay_hint = l10n::pick("CopyBreakHintPool", 10);
-    gtk_label_set_text(g_state.overlay_hint_label, g_state.overlay_hint.c_str());
-  }
-
-  if (g_state.overlay_remaining_sec <= 0) {
-    // Nudge the scheduler once; it stays authoritative for break-ended.
-    if (!g_state.overlay_completed_nudged) {
-      g_state.overlay_completed_nudged = true;
-      if (g_state.api != nullptr) {
-        (void)g_state.api->complete_break_async([](rivet_app::Result<void>) {});
-      }
-    }
-    // Watchdog: if the event never arrives (backend tick gap), close.
-    if (now > state.ends_at_ms + 5000) {
-      overlay_close_all();
-    }
-  }
-}
-
-void on_overlay_skip(GtkButton*, gpointer) {
-  if (g_state.api == nullptr) return;
-  (void)g_state.api->skip_break_async([](rivet_app::Result<void>) {});
-}
-
-/// Builds the overlay windows. Returns false when no monitor is available
-/// (the caller falls back to a toast, parity with the old StartForcedBreak).
-bool overlay_show(rivet_app::BreakState const& state,
-                  std::int64_t snooze_minutes,
-                  GtkApplication* app) {
-  GdkDisplay* display = gdk_display_get_default();
-  GListModel* monitors = gdk_display_get_monitors(display);
-  auto const count = g_list_model_get_n_items(monitors);
-  if (count == 0) return false;
-
-  overlay_close_all();
-  g_state.overlay_state = state;
-  g_state.overlay_total_sec =
-      std::max<std::int64_t>(0, (state.ends_at_ms - state.started_at_ms) / 1000);
-  g_state.overlay_remaining_sec = g_state.overlay_total_sec;
-  g_state.overlay_skip_available = false;
-  g_state.overlay_goodbye = false;
-  g_state.overlay_completed_nudged = false;
-  g_state.overlay_pending_skip = false;  // a new break is a fresh cycle
-  g_state.overlay_hint = l10n::pick("CopyBreakHintPool", 10);
-
-  for (guint i = 0; i < count; ++i) {
-    GdkMonitor* monitor = GDK_MONITOR(g_list_model_get_item(monitors, i));
-    auto* window = gtk_application_window_new(app);
-    gtk_widget_add_css_class(GTK_WIDGET(window), "overlay-bg");
-    gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
-    gtk_window_set_default_size(GTK_WINDOW(window), 200, 200);
-    gtk_window_fullscreen_on_monitor(GTK_WINDOW(window), monitor);
-    g_object_unref(monitor);
-
-    auto* root = gtk_box_new(GTK_ORIENTATION_VERTICAL, 22);
-    gtk_widget_set_valign(root, GTK_ALIGN_CENTER);
-    gtk_widget_set_halign(root, GTK_ALIGN_CENTER);
-    gtk_widget_set_margin_bottom(root, 40);
-
-    auto* emoji = gtk_label_new("💧");
-    gtk_widget_add_css_class(emoji, "overlay-hint");
-    auto* title = gtk_label_new(l10n::t("BrkTitle").c_str());
-    gtk_widget_add_css_class(title, "overlay-title");
-    auto* ring = gtk_drawing_area_new();
-    gtk_widget_set_size_request(ring, 300, 300);
-    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(ring), draw_overlay_ring,
-                                   nullptr, nullptr);
-    auto* hint = gtk_label_new(g_state.overlay_hint.c_str());
-    gtk_widget_add_css_class(hint, "overlay-hint");
-    gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
-    gtk_label_set_max_width_chars(GTK_LABEL(hint), 40);
-    gtk_label_set_justify(GTK_LABEL(hint), GTK_JUSTIFY_CENTER);
-    auto* caption = gtk_label_new(l10n::t("BrkAutoUnlock").c_str());
-    gtk_widget_add_css_class(caption, "overlay-caption");
-    auto* until = gtk_label_new(l10n::t("BrkUntilUnlock").c_str());
-    gtk_widget_add_css_class(until, "overlay-caption");
-
-    auto* skip = gtk_button_new_with_label(
-        l10n::t("BrkSkip", {l10n::A(snooze_minutes)}).c_str());
-    gtk_widget_add_css_class(skip, "overlay-skip");
-    gtk_widget_set_visible(skip, FALSE);
-    g_signal_connect(skip, "clicked", G_CALLBACK(on_overlay_skip), nullptr);
-
-    // Immediate, visible, keyboard- and AT-reachable exit — independent of
-    // the backend connection.
-    auto* emergency = gtk_button_new_with_label(l10n::t("BrkEmergency").c_str());
-    gtk_widget_add_css_class(emergency, "overlay-emergency");
-    g_signal_connect(emergency, "clicked",
-                     G_CALLBACK(+[](GtkButton*, gpointer) { overlay_emergency_exit(); }),
-                     nullptr);
-
-    box_append(GTK_BOX(root), emoji);
-    box_append(GTK_BOX(root), title);
-    box_append(GTK_BOX(root), ring);
-    box_append(GTK_BOX(root), hint);
-    box_append(GTK_BOX(root), caption);
-    box_append(GTK_BOX(root), emergency);
-    box_append(GTK_BOX(root), skip);
-    box_append(GTK_BOX(root), until);
-    gtk_window_set_child(GTK_WINDOW(window), root);
-
-    // Escape exits immediately. The key controller lives on the window, so it
-    // fires no matter which child holds focus.
-    auto* exit_key = gtk_event_controller_key_new();
-    g_signal_connect(
-        exit_key, "key-pressed",
-        G_CALLBACK(+[](GtkEventControllerKey*, guint keyval, guint, GdkModifierType,
-                       gpointer) -> gboolean {
-          if (keyval == GDK_KEY_Escape) {
-            overlay_emergency_exit();
-            return TRUE;
-          }
-          return FALSE;
-        }),
-        nullptr);
-    gtk_widget_add_controller(GTK_WIDGET(window), exit_key);
-
-    gtk_window_present(GTK_WINDOW(window));
-
-    if (i == 0) {
-      g_state.overlay_ring = GTK_DRAWING_AREA(ring);
-      g_state.overlay_emoji = GTK_LABEL(emoji);
-      g_state.overlay_title = GTK_LABEL(title);
-      g_state.overlay_hint_label = GTK_LABEL(hint);
-      g_state.overlay_emergency_button = GTK_BUTTON(emergency);
-      g_state.overlay_skip_button = GTK_BUTTON(skip);
-    }
-    g_state.overlay_windows.push_back(GTK_WINDOW(window));
-  }
-
-  g_state.overlay_tick_id = g_timeout_add(
-      500,
-      +[](gpointer) -> int {
-        overlay_tick();
-        return g_state.overlay_windows.empty() ? G_SOURCE_REMOVE
-                                               : G_SOURCE_CONTINUE;
-      },
-      nullptr);
-  return true;
-}
-
 // ---- toast --------------------------------------------------------------------
 
+void on_toast_hide(GtkButton*, gpointer);
+void cue_displayed(std::int64_t id);
+
 void toast_dismiss() {
+  g_state.toast_cue_id = 0;
   if (g_state.toast_timeout_id != 0) {
     g_source_remove(g_state.toast_timeout_id);
     g_state.toast_timeout_id = 0;
@@ -2085,26 +1757,42 @@ void toast_restart_auto_close() {
       9000,
       +[](gpointer) -> int {
         g_state.toast_timeout_id = 0;
-        toast_dismiss();
+        on_toast_hide(nullptr, nullptr);
         return G_SOURCE_REMOVE;
       },
       nullptr);
 }
 
+// Later: defers every kind merged into the cue by the snooze minutes.
 void on_toast_snooze(GtkButton*, gpointer) {
-  auto kinds = g_state.toast_kinds;
-  auto snooze_minutes = g_state.model.config.snooze_minutes;
-  (void)snooze_minutes;
-  if (g_state.api != nullptr && !kinds.empty()) {
-    for (auto kind : kinds) {
-      (void)g_state.api->snooze_async(kind, [](rivet_app::Result<void>) {});
-    }
+  auto cue_id = g_state.toast_cue_id;
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->snooze_cue_async(cue_id, [](rivet_app::Result<void>) {});
     (void)g_state.api->get_loops_async([](rivet_app::Result<std::vector<rivet_app::LoopInfo>> r) {
       on_result(std::move(r), [](std::vector<rivet_app::LoopInfo> const& loops) {
         g_state.model.loops = loops;
         refresh_today_card();
       });
     });
+  }
+  toast_dismiss();
+}
+
+// Done: self-reported acknowledgement — never proof of a real break.
+void on_toast_done(GtkButton*, gpointer) {
+  auto cue_id = g_state.toast_cue_id;
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->acknowledge_cue_async(cue_id,
+                                             [](rivet_app::Result<void>) {});
+  }
+  toast_dismiss();
+}
+
+// Hide: no completion claimed, no deferral; the normal schedule continues.
+void on_toast_hide(GtkButton*, gpointer) {
+  auto cue_id = g_state.toast_cue_id;
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->dismiss_cue_async(cue_id, [](rivet_app::Result<void>) {});
   }
   toast_dismiss();
 }
@@ -2118,14 +1806,13 @@ GtkWindow* toast_window_new(GtkApplication* app) {
 }
 
 void toast_show(std::string const& title, std::vector<std::string> const& lines,
-                rivet_app::ReminderKind accent,
-                std::vector<rivet_app::ReminderKind> kinds,
+                rivet_app::ReminderKind accent, std::int64_t cue_id,
                 std::int64_t snooze_minutes, GtkApplication* app) {
   toast_dismiss();
   auto* window = toast_window_new(app);
   g_state.toast_window = window;
   g_state.toast_accent = accent;
-  g_state.toast_kinds = kinds;
+  g_state.toast_cue_id = cue_id;
 
   auto* root = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
   auto* accent_bar = gtk_label_new("");
@@ -2165,20 +1852,29 @@ void toast_show(std::string const& title, std::vector<std::string> const& lines,
 
   auto* buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
   gtk_widget_set_halign(buttons, GTK_ALIGN_END);
-  if (!kinds.empty()) {
+  if (cue_id != 0) {
+    auto* hide = gtk_button_new_with_label(l10n::t("NotifHide").c_str());
+    gtk_widget_add_css_class(hide, "toast-btn-muted");
+    g_signal_connect(hide, "clicked", G_CALLBACK(on_toast_hide), nullptr);
+    box_append(GTK_BOX(buttons), hide);
     auto* snooze = gtk_button_new_with_label(
         l10n::t("NotifSnooze", {l10n::A(snooze_minutes)}).c_str());
     gtk_widget_add_css_class(snooze, "toast-btn-muted");
     g_signal_connect(snooze, "clicked", G_CALLBACK(on_toast_snooze), nullptr);
     box_append(GTK_BOX(buttons), snooze);
     g_state.toast_snooze_button = GTK_BUTTON(snooze);
+    auto* done = gtk_button_new_with_label(l10n::t("NotifDone").c_str());
+    gtk_widget_add_css_class(done, "toast-btn");
+    g_signal_connect(done, "clicked", G_CALLBACK(on_toast_done), nullptr);
+    box_append(GTK_BOX(buttons), done);
+  } else {
+    auto* got_it = gtk_button_new_with_label(l10n::t("NotifGotIt").c_str());
+    gtk_widget_add_css_class(got_it, "toast-btn");
+    g_signal_connect(
+        got_it, "clicked",
+        G_CALLBACK(+[](GtkButton*, gpointer) { toast_dismiss(); }), nullptr);
+    box_append(GTK_BOX(buttons), got_it);
   }
-  auto* got_it = gtk_button_new_with_label(l10n::t("NotifGotIt").c_str());
-  gtk_widget_add_css_class(got_it, "toast-btn");
-  g_signal_connect(
-      got_it, "clicked",
-      G_CALLBACK(+[](GtkButton*, gpointer) { toast_dismiss(); }), nullptr);
-  box_append(GTK_BOX(buttons), got_it);
   box_append(GTK_BOX(body), buttons);
   box_append(GTK_BOX(root), body);
   gtk_window_set_child(GTK_WINDOW(window), root);
@@ -2203,7 +1899,7 @@ void toast_show(std::string const& title, std::vector<std::string> const& lines,
 
 // ---- micro break ----------------------------------------------------------------
 
-void micro_dismiss() {
+void micro_close() {
   if (g_state.micro_timeout_id != 0) {
     g_source_remove(g_state.micro_timeout_id);
     g_state.micro_timeout_id = 0;
@@ -2213,11 +1909,32 @@ void micro_dismiss() {
     g_state.micro_window = nullptr;
     g_state.micro_bar = nullptr;
   }
+  g_state.micro_cue_id = 0;
+}
+
+// The eye rest ran its course: acknowledge the cue (self-reported).
+void micro_finish() {
+  auto cue_id = g_state.micro_cue_id;
+  micro_close();
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->acknowledge_cue_async(cue_id,
+                                             [](rivet_app::Result<void>) {});
+  }
+}
+
+// Click / Esc / a newer cue: end early as a Hide — no completion claimed.
+void micro_dismiss() {
+  auto cue_id = g_state.micro_cue_id;
+  micro_close();
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->dismiss_cue_async(cue_id, [](rivet_app::Result<void>) {});
+  }
 }
 
 void micro_show(std::int64_t duration_seconds, std::string const& title,
-                GtkApplication* app) {
+                std::int64_t cue_id, GtkApplication* app) {
   micro_dismiss();
+  g_state.micro_cue_id = cue_id;
   auto* window = gtk_application_window_new(app);
   gtk_widget_add_css_class(GTK_WIDGET(window), "micro-bg");
   gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
@@ -2283,7 +2000,7 @@ void micro_show(std::int64_t duration_seconds, std::string const& title,
           gtk_progress_bar_set_fraction(g_state.micro_bar, g_state.micro_progress);
         }
         if (g_state.micro_progress <= 0.0) {
-          micro_dismiss();
+          micro_finish();
           return G_SOURCE_REMOVE;
         }
         return G_SOURCE_CONTINUE;
@@ -2294,48 +2011,59 @@ void micro_show(std::int64_t duration_seconds, std::string const& title,
 
 // ---- reminders due ----------------------------------------------------------------
 
-void handle_reminders_due(rivet_app::RemindersDue const& due,
-                          GtkApplication* app) {
+void handle_health_cue(rivet_app::HealthCue const& cue, GtkApplication* app) {
+  // The backend planned the delivery; the host only renders it. Transitional
+  // cards here — R4 swaps these for the edge-docked character.
   auto const& model = g_state.model;
-  if (due.kinds.size() == 1 && due.kinds[0] == rivet_app::ReminderKind::micro) {
-    micro_show(model.config.micro_break_duration_seconds, pick_micro(), app);
+  auto const& kinds = cue.kinds;
+  if (kinds.size() == 1 && kinds[0] == rivet_app::ReminderKind::micro) {
+    micro_show(model.config.micro_break_duration_seconds, pick_micro(),
+               cue.id, app);
+    cue_displayed(cue.id);
     return;
   }
 
   std::vector<std::string> lines;
-  if (std::find(due.kinds.begin(), due.kinds.end(), rivet_app::ReminderKind::sit) !=
-      due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::sit) !=
+      kinds.end()) {
     lines.push_back(l10n::t("NotifSitBody",
                             {l10n::A(format_duration(model.today.active_mins)),
                              l10n::A(model.today.sit_breaks)}));
     lines.push_back(l10n::pick("CopySitToastPool", 6));
   }
-  if (std::find(due.kinds.begin(), due.kinds.end(), rivet_app::ReminderKind::water) !=
-      due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::water) !=
+      kinds.end()) {
     lines.push_back(l10n::t("NotifWaterCount", {l10n::A(model.today.water_reminders)}));
     lines.push_back(pick_water());
   }
-  if (std::find(due.kinds.begin(), due.kinds.end(), rivet_app::ReminderKind::micro) !=
-      due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::micro) !=
+      kinds.end()) {
     lines.push_back(pick_micro());
   }
 
   std::string title = l10n::t("NotifSitTitle");
   rivet_app::ReminderKind accent = rivet_app::ReminderKind::sit;
-  if (std::find(due.kinds.begin(), due.kinds.end(), rivet_app::ReminderKind::water) !=
-      due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::water) !=
+      kinds.end()) {
     title = l10n::t("NotifWaterTitle");
     accent = rivet_app::ReminderKind::water;
   }
 
   // Sound parity: the old Avalonia app was silent on non-Windows platforms,
   // so no bell here regardless of sound_enabled.
-  toast_show(title, lines, accent, due.kinds, model.config.snooze_minutes, app);
+  toast_show(title, lines, accent, cue.id, model.config.snooze_minutes, app);
+  cue_displayed(cue.id);
 }
 
 void show_toast_plain(std::string const& title, std::vector<std::string> const& lines,
                       rivet_app::ReminderKind accent, GtkApplication* app) {
-  toast_show(title, lines, accent, {}, g_state.model.config.snooze_minutes, app);
+  toast_show(title, lines, accent, 0, g_state.model.config.snooze_minutes, app);
+}
+
+void cue_displayed(std::int64_t id) {
+  if (g_state.api != nullptr && id != 0) {
+    (void)g_state.api->cue_displayed_async(id, [](rivet_app::Result<void>) {});
+  }
 }
 
 // ---- events --------------------------------------------------------------------
@@ -2372,31 +2100,11 @@ void refresh_states_after_tick() {
           refresh_pause_button();
         });
       });
-  (void)g_state.api->get_break_active_async(
-      [](rivet_app::Result<std::optional<rivet_app::BreakState>> r) {
+  (void)g_state.api->get_pending_cues_async(
+      [](rivet_app::Result<std::vector<rivet_app::HealthCue>> r) {
         on_result(std::move(r),
-                  [](std::optional<rivet_app::BreakState> const& b) {
-                    g_state.model.break_active = b;
-                    // A live tick proves the backend is back: finish a
-                    // remembered emergency exit — retry the skip while the
-                    // backend still holds the break, drop it once the break
-                    // ended on its own (a skip on no break is a harmless
-                    // backend no-op).
-                    if (g_state.overlay_pending_skip) {
-                      if (g_state.model.break_active.has_value()) {
-                        if (g_state.api != nullptr) {
-                          (void)g_state.api->skip_break_async(
-                              [](rivet_app::Result<void> r2) {
-                                bool const failed = !r2.succeeded();
-                                dispatch_ui([failed] {
-                                  g_state.overlay_pending_skip = failed;
-                                });
-                              });
-                        }
-                      } else {
-                        g_state.overlay_pending_skip = false;
-                      }
-                    }
+                  [](std::vector<rivet_app::HealthCue> const& cues) {
+                    g_state.model.pending_cues = cues;
                   });
       });
 }
@@ -2418,55 +2126,8 @@ void handle_event(std::string const& name, rivet::Value const& value,
               refresh_insight_card();
               refresh_states_after_tick();
             });
-          } else if constexpr (std::is_same_v<T, rivet_app::Reminders_dueEvent>) {
-            dispatch_ui([app, due = e.value] { handle_reminders_due(due, app); });
-          } else if constexpr (std::is_same_v<T, rivet_app::Break_startedEvent>) {
-            dispatch_ui([app, started = e.value] {
-              // ends-at / skip-after / started-at come from the authoritative
-              // state; if the state read races ahead of the publish, fall back
-              // to the event payload so the lock is never silently skipped.
-              if (g_state.api == nullptr) return;
-              (void)g_state.api->get_break_active_async(
-                  [app, started](
-                      rivet_app::Result<std::optional<rivet_app::BreakState>> r) {
-                    dispatch_ui([app, started, r = std::move(r)]() mutable {
-                      std::optional<rivet_app::BreakState> state;
-                      try {
-                        if (r.succeeded()) state = r.get();
-                      } catch (...) {
-                      }
-                      if (!state.has_value()) {
-                        auto const now = now_ms();
-                        state = rivet_app::BreakState{
-                            now + started.duration_ms, started.skip_after_ms,
-                            now};
-                      }
-                      g_state.model.break_active = state;
-                      // The full-screen break outranks transient nudges.
-                      toast_dismiss();
-                      micro_dismiss();
-                      if (!overlay_show(*state, g_state.model.config.snooze_minutes,
-                                        app)) {
-                        show_toast_plain(
-                            l10n::t("NotifSitTitle"),
-                            {l10n::t("NotifSitFallback")},
-                            rivet_app::ReminderKind::sit, app);
-                      }
-                    });
-                  });
-            });
-          } else if constexpr (std::is_same_v<T, rivet_app::Break_endedEvent>) {
-            dispatch_ui([app, ended = e.value] {
-              overlay_finish(ended.completed);
-              if (ended.completed && celebrated(g_state.model.today.sit_breaks)) {
-                show_toast_plain(
-                    l10n::t("NotifCheerTitle"),
-                    {l10n::t("NotifCheerBody",
-                             {l10n::A(g_state.model.today.sit_breaks),
-                              l10n::A(format_duration(g_state.model.today.active_mins))})},
-                    rivet_app::ReminderKind::sit, app);
-              }
-            });
+          } else if constexpr (std::is_same_v<T, rivet_app::Health_cueEvent>) {
+            dispatch_ui([app, cue = e.value] { handle_health_cue(cue, app); });
           } else if constexpr (std::is_same_v<T, rivet_app::Day_completedEvent>) {
             dispatch_ui([stats = e.value] {
               g_state.model.today = stats;
@@ -2503,17 +2164,11 @@ void apply_config(rivet_app::ReminderConfig const& changed, bool announce,
 
 void onboarding_persist(bool welcome_shown) {
   auto& s = g_state;
-  auto const sit = s.onboarding_mode == "gentle" ? 60
-                   : s.onboarding_mode == "strict" ? 30
-                                                   : 45;
-  auto const force = s.onboarding_mode != "gentle";
-  auto const break_min = s.onboarding_mode == "gentle" ? 3 : 5;
-  // One set-config call writes the whole pact (parity with OnboardingState.persist).
+  // One set-config call writes the whole first-run choice. There is no
+  // strictness pact in v1: one gentle, non-blocking reminder experience.
   mutate_config([&](auto& d) {
-    d.sit_reminder_minutes = sit;
+    d.sit_reminder_minutes = s.onboarding_sit;
     d.water_reminder_minutes = s.onboarding_water;
-    d.force_break_enabled = force;
-    d.break_duration_minutes = break_min;
     d.sound_enabled = s.onboarding_sound;
     d.welcome_shown = welcome_shown;
   });
@@ -2536,8 +2191,8 @@ void onboarding_show(GtkApplication* app) {
   }
   auto& s = g_state;
   s.onboarding_page = 0;
-  s.onboarding_mode = "gentle";
   s.onboarding_water = 30;
+  s.onboarding_sit = 45;
   s.onboarding_sound = true;
 
   auto* window = gtk_application_window_new(app);
@@ -2584,63 +2239,7 @@ void onboarding_show(GtkApplication* app) {
     gtk_stack_add_named(GTK_STACK(stack), page, "0");
   }
 
-  // Page 1: strictness pact.
-  {
-    auto* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
-    gtk_widget_set_valign(page, GTK_ALIGN_START);
-    auto* title = gtk_label_new(l10n::t("ObStrictTitle").c_str());
-    gtk_widget_add_css_class(title, "ob-title");
-    gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
-    box_append(GTK_BOX(page), title);
-    auto* q = gtk_label_new(l10n::t("ObStrictQ").c_str());
-    gtk_widget_add_css_class(q, "ob-text");
-    gtk_label_set_xalign(GTK_LABEL(q), 0.0f);
-    box_append(GTK_BOX(page), q);
-
-    struct ModeSpec {
-      char const* id;
-      char const* title_key;
-      char const* desc_key;
-      char const* badge_key;
-    };
-    ModeSpec const modes[] = {
-        {"gentle", "ObModeGentle", "ObModeGentleDesc", nullptr},
-        {"standard", "ObModeStandard", "ObModeStandardDesc", "ObBadgeRecommended"},
-        {"strict", "ObModeStrict", "ObModeStrictDesc", "ObBadgeEvidence"},
-    };
-    for (auto const& mode : modes) {
-      std::string label = l10n::t(mode.title_key);
-      if (mode.badge_key != nullptr) {
-        label += "  ·  " + l10n::t(mode.badge_key);
-      }
-      label += "\n";
-      label += l10n::t(mode.desc_key);
-      auto* card = gtk_button_new_with_label(label.c_str());
-      bool const selected = s.onboarding_mode == mode.id;
-      gtk_widget_add_css_class(card, selected ? "ob-card-selected" : "ob-card");
-      auto* child = gtk_button_get_child(GTK_BUTTON(card));
-      gtk_label_set_wrap(GTK_LABEL(child), TRUE);
-      gtk_label_set_xalign(GTK_LABEL(child), 0.0f);
-      g_object_set_data_full(G_OBJECT(card), "mode-id",
-                             g_strdup(mode.id), g_free);
-      g_signal_connect(
-          card, "clicked",
-          G_CALLBACK(+[](GtkButton* button, gpointer) {
-            g_state.onboarding_mode =
-                static_cast<char const*>(g_object_get_data(G_OBJECT(button), "mode-id"));
-          }),
-          nullptr);
-      box_append(GTK_BOX(page), card);
-    }
-    auto* footnote = gtk_label_new(l10n::t("ObStrictFootnote").c_str());
-    gtk_widget_add_css_class(footnote, "ob-caption");
-    gtk_label_set_wrap(GTK_LABEL(footnote), TRUE);
-    gtk_label_set_xalign(GTK_LABEL(footnote), 0.0f);
-    box_append(GTK_BOX(page), footnote);
-    gtk_stack_add_named(GTK_STACK(stack), page, "1");
-  }
-
-  // Page 2: water + sound.
+  // Page 1: reminders — water cadence, sit cadence, sound.
   {
     auto* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
     gtk_widget_set_valign(page, GTK_ALIGN_START);
@@ -2669,6 +2268,27 @@ void onboarding_show(GtkApplication* app) {
       box_append(GTK_BOX(row), card);
     }
     box_append(GTK_BOX(page), row);
+    auto* sit_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    for (auto minutes : {45, 60, 90}) {
+      std::string label =
+          l10n::t(minutes == 45 ? "ObSit45" : minutes == 60 ? "ObSit60" : "ObSit90");
+      auto* card = gtk_button_new_with_label(label.c_str());
+      gtk_widget_add_css_class(
+          card, s.onboarding_sit == minutes ? "ob-card-selected" : "ob-card");
+      auto* child = gtk_button_get_child(GTK_BUTTON(card));
+      gtk_label_set_xalign(GTK_LABEL(child), 0.5f);
+      g_object_set_data(G_OBJECT(card), "sit",
+                        GINT_TO_POINTER(static_cast<gint>(minutes)));
+      g_signal_connect(
+          card, "clicked",
+          G_CALLBACK(+[](GtkButton* button, gpointer) {
+            g_state.onboarding_sit = static_cast<std::int64_t>(
+                GPOINTER_TO_INT(g_object_get_data(G_OBJECT(button), "sit")));
+          }),
+          nullptr);
+      box_append(GTK_BOX(sit_row), card);
+    }
+    box_append(GTK_BOX(page), sit_row);
     auto* sound_title = gtk_label_new(l10n::t("ObSoundTitle").c_str());
     gtk_widget_add_css_class(sound_title, "ob-strong");
     gtk_label_set_xalign(GTK_LABEL(sound_title), 0.0f);
@@ -2688,10 +2308,10 @@ void onboarding_show(GtkApplication* app) {
     gtk_widget_add_css_class(sound_hint, "ob-text");
     box_append(GTK_BOX(sound_row), sound_hint);
     box_append(GTK_BOX(page), sound_row);
-    gtk_stack_add_named(GTK_STACK(stack), page, "2");
+    gtk_stack_add_named(GTK_STACK(stack), page, "1");
   }
 
-  // Page 3: pact summary.
+  // Page 2: contract summary.
   {
     auto* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
     gtk_widget_set_valign(page, GTK_ALIGN_START);
@@ -2713,10 +2333,10 @@ void onboarding_show(GtkApplication* app) {
     gtk_label_set_wrap(GTK_LABEL(outro), TRUE);
     gtk_label_set_xalign(GTK_LABEL(outro), 0.0f);
     box_append(GTK_BOX(page), outro);
-    gtk_stack_add_named(GTK_STACK(stack), page, "3");
+    gtk_stack_add_named(GTK_STACK(stack), page, "2");
   }
 
-  auto* dots = gtk_label_new("●○○○");
+  auto* dots = gtk_label_new("●○○");
   gtk_widget_add_css_class(dots, "dot-active");
   s.onboarding_dots = GTK_LABEL(dots);
 
@@ -2726,8 +2346,8 @@ void onboarding_show(GtkApplication* app) {
   g_signal_connect(
       skip, "clicked",
       G_CALLBACK(+[](GtkButton*, gpointer user_data) {
-        g_state.onboarding_mode = "standard";
         g_state.onboarding_water = 30;
+        g_state.onboarding_sit = 45;
         g_state.onboarding_sound = true;
         onboarding_finish(GTK_APPLICATION(user_data));
       }),
@@ -2739,7 +2359,7 @@ void onboarding_show(GtkApplication* app) {
       next, "clicked",
       G_CALLBACK(+[](GtkButton* button, gpointer) {
         auto* app = GTK_APPLICATION(g_object_get_data(G_OBJECT(button), "app"));
-        constexpr int kLastPage = 3;
+        constexpr int kLastPage = 2;
         if (g_state.onboarding_page >= kLastPage) {
           onboarding_finish(app);
           return;
@@ -2747,14 +2367,8 @@ void onboarding_show(GtkApplication* app) {
         g_state.onboarding_page += 1;
         if (g_state.onboarding_page == kLastPage) {
           // Build the contract summary for the current selections.
-          auto const sit = g_state.onboarding_mode == "gentle" ? 60
-                           : g_state.onboarding_mode == "strict" ? 30
-                                                                 : 45;
-          auto const force = g_state.onboarding_mode != "gentle";
-          auto const break_min = g_state.onboarding_mode == "gentle" ? 3 : 5;
           std::string text;
-          text += force ? l10n::t("ObSummaryForced", {l10n::A(sit), l10n::A(break_min)})
-                        : l10n::t("ObSummaryToast", {l10n::A(sit)});
+          text += l10n::t("ObSummaryToast", {l10n::A(g_state.onboarding_sit)});
           text += "\n";
           text += l10n::t("ObSummaryWater", {l10n::A(g_state.onboarding_water)});
           text += "\n";
@@ -2942,11 +2556,11 @@ int on_backend_finished(gpointer user_data) {
                                   [app](rivet_app::Result<std::vector<rivet_app::LoopInfo>> l) {
                                     on_result(std::move(l), [app](std::vector<rivet_app::LoopInfo> const& loops) {
                                       g_state.model.loops = loops;
-                                      (void)g_state.api->get_break_active_async(
-                                          [app](rivet_app::Result<std::optional<rivet_app::BreakState>> b) {
-                                            on_result(std::move(b), [app](std::optional<rivet_app::BreakState> const& bstate) {
-                                              dispatch_ui([app, bstate] {
-                                                g_state.model.break_active = bstate;
+                                      (void)g_state.api->get_pending_cues_async(
+                                          [app](rivet_app::Result<std::vector<rivet_app::HealthCue>> q) {
+                                            on_result(std::move(q), [app](std::vector<rivet_app::HealthCue> const& cues) {
+                                              dispatch_ui([app, cues] {
+                                                g_state.model.pending_cues = cues;
                                                 bootstrap(app);
                                               });
                                             });
@@ -2961,6 +2575,11 @@ int on_backend_finished(gpointer user_data) {
           });
     });
   };
+  // Honest capability report (issue #54): GTK4 has no proven safe character
+  // surface yet — Wayland cannot reliably position top-levels or guarantee
+  // click-through — so delivery plans as a notification until R4 proves it.
+  (void)g_state.api->set_host_capability_async(false, false,
+                                               [](rivet_app::Result<void>) {});
   (void)g_state.api->initialize_async(chain);
   return G_SOURCE_REMOVE;
 }
@@ -3059,7 +2678,6 @@ void on_shutdown(GApplication*, gpointer) {
   g_state.shutting_down.store(true, std::memory_order_release);
   toast_dismiss();
   micro_dismiss();
-  overlay_close_all();
   if (g_state.startup_thread.joinable()) {
     g_state.startup_thread.join();
   }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)";output="$repo/.rivet/acceptance/linux";data="$output/data";exe="$(find "$repo/dist" -type f -name RivetHost -perm -u+x -print -quit)"
-mkdir -p "$output" "$data";printf '%s\n' '{"WelcomeShown":true,"Language":"en","AutoCheckUpdates":false}' > "$data/config.json"
+mkdir -p "$output" "$data";printf '%s\n' '{"SchemaVersion":2,"WelcomeShown":true,"Language":"en","AutoCheckUpdates":false}' > "$data/config.json"
 export HOME="$output/home-$$" XDG_CONFIG_HOME="$output/config-$$" XDG_DATA_HOME="$output/share-$$" XDG_CACHE_HOME="$output/cache-$$" XDG_RUNTIME_DIR="${RUNNER_TEMP:-/tmp}/movebit-runtime-$$" WAYLAND_DISPLAY=wayland-movebit GDK_BACKEND=wayland GTK_A11Y=atspi NO_AT_BRIDGE=0 LANG=C.UTF-8 MOVEBIT_DATA_DIR="$data" MOVEBIT_BOOTSTRAP_DIR="$data" MOVEBIT_ACCEPTANCE=1
 unset DISPLAY;mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR";chmod 700 "$XDG_RUNTIME_DIR"
 weston --backend=headless-backend.so --socket="$WAYLAND_DISPLAY" --idle-time=0 --log="$output/weston.log" & weston_pid=$!;app_pid='';atspi_pid=''

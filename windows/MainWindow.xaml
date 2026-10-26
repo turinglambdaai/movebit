@@ -297,47 +297,6 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" x:Name="SetForceLabel"
-                                           Text="Force break" FontSize="13"
-                                           Foreground="#26241F" />
-                                <ToggleSwitch Grid.Column="1" x:Name="ForceSwitch"
-                                              MinWidth="0" HorizontalAlignment="Right"
-                                              OnContent="" OffContent=""
-                                              Toggled="Force_Toggled" />
-                            </Grid>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" x:Name="SetBreakLabel"
-                                           Text="Break duration" FontSize="13"
-                                           Foreground="#26241F" />
-                                <NumberBox Grid.Column="1" x:Name="BreakBox"
-                                           Minimum="1" Maximum="30" SmallChange="1"
-                                           Value="5" SpinButtonPlacementMode="Compact"
-                                           Width="120"
-                                           ValueChanged="Break_ValueChanged" />
-                            </Grid>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" x:Name="SetSkipLabel"
-                                           Text="Skip delay" FontSize="13"
-                                           Foreground="#26241F" />
-                                <NumberBox Grid.Column="1" x:Name="SkipBox"
-                                           Minimum="0" Maximum="120" SmallChange="5"
-                                           Value="20" SpinButtonPlacementMode="Compact"
-                                           Width="120"
-                                           ValueChanged="Skip_ValueChanged" />
-                            </Grid>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" x:Name="SetSnoozeLabel"
                                            Text="Snooze" FontSize="13"
                                            Foreground="#26241F" />
@@ -379,6 +338,19 @@
                                            Value="20" SpinButtonPlacementMode="Compact"
                                            Width="96"
                                            ValueChanged="MicroDuration_ValueChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" x:Name="SetMotionLabel"
+                                           Text="Character motion" FontSize="13"
+                                           Foreground="#26241F" />
+                                <ToggleSwitch Grid.Column="1" x:Name="MotionSwitch"
+                                              MinWidth="0" HorizontalAlignment="Right"
+                                              OnContent="" OffContent=""
+                                              Toggled="Motion_Toggled" />
                             </Grid>
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>

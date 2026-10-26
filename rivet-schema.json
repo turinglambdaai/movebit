@@ -3,6 +3,22 @@
   "enums": [
     {
       "cases": [
+        "stand-and-stretch",
+        "drink-water",
+        "rest-eyes"
+      ],
+      "name": "CueAction"
+    },
+    {
+      "cases": [
+        "character",
+        "notification",
+        "quiet"
+      ],
+      "name": "CueDelivery"
+    },
+    {
+      "cases": [
         "sit",
         "water",
         "micro"
@@ -11,20 +27,6 @@
     }
   ],
   "events": [
-    {
-      "name": "break-ended",
-      "type": {
-        "kind": "record",
-        "name": "BreakEnded"
-      }
-    },
-    {
-      "name": "break-started",
-      "type": {
-        "kind": "record",
-        "name": "BreakStarted"
-      }
-    },
     {
       "name": "config-changed",
       "type": {
@@ -40,10 +42,10 @@
       }
     },
     {
-      "name": "reminders-due",
+      "name": "health-cue",
       "type": {
         "kind": "record",
-        "name": "RemindersDue"
+        "name": "HealthCue"
       }
     },
     {
@@ -57,63 +59,6 @@
   "format": "rivet-schema",
   "format-version": 1,
   "records": [
-    {
-      "fields": [
-        {
-          "name": "completed",
-          "type": {
-            "kind": "scalar",
-            "name": "Bool"
-          }
-        }
-      ],
-      "name": "BreakEnded"
-    },
-    {
-      "fields": [
-        {
-          "name": "duration-ms",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        },
-        {
-          "name": "skip-after-ms",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        }
-      ],
-      "name": "BreakStarted"
-    },
-    {
-      "fields": [
-        {
-          "name": "ends-at-ms",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        },
-        {
-          "name": "skip-after-ms",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        },
-        {
-          "name": "started-at-ms",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        }
-      ],
-      "name": "BreakState"
-    },
     {
       "fields": [
         {
@@ -160,6 +105,63 @@
         }
       ],
       "name": "DayStats"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "kinds",
+          "type": {
+            "element": {
+              "kind": "record",
+              "name": "ReminderKind"
+            },
+            "kind": "list"
+          }
+        },
+        {
+          "name": "action",
+          "type": {
+            "kind": "record",
+            "name": "CueAction"
+          }
+        },
+        {
+          "name": "delivery",
+          "type": {
+            "kind": "record",
+            "name": "CueDelivery"
+          }
+        },
+        {
+          "name": "animated",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "due-at-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        },
+        {
+          "name": "expires-at-ms",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "HealthCue"
     },
     {
       "fields": [
@@ -236,27 +238,6 @@
           }
         },
         {
-          "name": "force-break-enabled",
-          "type": {
-            "kind": "scalar",
-            "name": "Bool"
-          }
-        },
-        {
-          "name": "break-duration-minutes",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        },
-        {
-          "name": "skip-after-seconds",
-          "type": {
-            "kind": "scalar",
-            "name": "Int64"
-          }
-        },
-        {
           "name": "snooze-minutes",
           "type": {
             "kind": "scalar",
@@ -282,6 +263,13 @@
           "type": {
             "kind": "scalar",
             "name": "Int64"
+          }
+        },
+        {
+          "name": "motion-enabled",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
           }
         },
         {
@@ -314,28 +302,6 @@
         }
       ],
       "name": "ReminderConfig"
-    },
-    {
-      "fields": [
-        {
-          "name": "kinds",
-          "type": {
-            "element": {
-              "kind": "record",
-              "name": "ReminderKind"
-            },
-            "kind": "list"
-          }
-        },
-        {
-          "name": "merged",
-          "type": {
-            "kind": "scalar",
-            "name": "Bool"
-          }
-        }
-      ],
-      "name": "RemindersDue"
     },
     {
       "fields": [
@@ -477,6 +443,22 @@
   ],
   "rpcs": [
     {
+      "arguments": [
+        {
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "acknowledge-cue",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
       "arguments": [],
       "name": "check-updates",
       "result": {
@@ -485,8 +467,32 @@
       }
     },
     {
-      "arguments": [],
-      "name": "complete-break",
+      "arguments": [
+        {
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "cue-displayed",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [
+        {
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          }
+        }
+      ],
+      "name": "dismiss-cue",
       "result": {
         "kind": "scalar",
         "name": "Void"
@@ -634,6 +640,29 @@
     {
       "arguments": [
         {
+          "name": "character-surface-supported",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        },
+        {
+          "name": "reduce-motion",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        }
+      ],
+      "name": "set-host-capability",
+      "result": {
+        "kind": "scalar",
+        "name": "Void"
+      }
+    },
+    {
+      "arguments": [
+        {
           "name": "path",
           "type": {
             "kind": "scalar",
@@ -648,8 +677,16 @@
       }
     },
     {
-      "arguments": [],
-      "name": "skip-break",
+      "arguments": [
+        {
+          "name": "enabled",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          }
+        }
+      ],
+      "name": "set-quiet",
       "result": {
         "kind": "scalar",
         "name": "Void"
@@ -658,14 +695,14 @@
     {
       "arguments": [
         {
-          "name": "kind",
+          "name": "id",
           "type": {
-            "kind": "record",
-            "name": "ReminderKind"
+            "kind": "scalar",
+            "name": "Int64"
           }
         }
       ],
-      "name": "snooze",
+      "name": "snooze-cue",
       "result": {
         "kind": "scalar",
         "name": "Void"
@@ -690,16 +727,6 @@
       }
     },
     {
-      "name": "break-active",
-      "type": {
-        "element": {
-          "kind": "record",
-          "name": "BreakState"
-        },
-        "kind": "optional"
-      }
-    },
-    {
       "name": "loops",
       "type": {
         "element": {
@@ -714,6 +741,16 @@
       "type": {
         "kind": "record",
         "name": "PauseState"
+      }
+    },
+    {
+      "name": "pending-cues",
+      "type": {
+        "element": {
+          "kind": "record",
+          "name": "HealthCue"
+        },
+        "kind": "list"
       }
     },
     {

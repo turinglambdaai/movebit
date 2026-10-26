@@ -1,12 +1,11 @@
 #pragma once
 
-// Code-built transient windows for the WinUI MoveBit host: the forced-break
-// fullscreen overlay, the reminder toast, and the micro-break card. Built in
-// code (no XAML/idl) so each is one header; all methods must be called on the
-// UI thread, and all of them are owned by MainWindow (which outlives them),
-// so handlers capture `this` directly. Mirrors the SwiftUI Overlays.swift
-// behavior, with documented v1 simplifications: the countdown ring is a text
-// + progress bar instead of a ring.
+// Code-built transient windows for the WinUI MoveBit host: the reminder
+// toast and the micro eye-rest card. Built in code (no XAML/idl) so each is
+// one header; all methods must be called on the UI thread, and all of them
+// are owned by MainWindow (which outlives them), so handlers capture `this`
+// directly. Mirrors the SwiftUI Overlays.swift behavior. The v1 reboot
+// (issue #55) removed the forced-break fullscreen overlay from this file.
 
 #include "pch.h"
 #include "MoveBitModel.h"
@@ -151,218 +150,28 @@ inline void apply_window_icon(Window const& window) {
 }
 
 }  // namespace
-
-// ---- forced break overlay ----------------------------------------------------
-// One fullscreen dark window per display; countdown text + progress bar. Two
-// separate exits: an immediate emergency exit (Esc accelerator or the
-// always-visible button) that closes every window locally before the backend
-// hears about it — the cover never outlives the user's say-so, even with the
-// RPC connection gone — and the delayed ordinary Skip, which goes through the
-// backend as before. Completed runs the droplet goodbye; the scheduler stays
-// authoritative for break-ended (watchdog closes at +5 s).
-
-struct BreakOverlay {
-  std::vector<Window> windows;
-  Controls::TextBlock title_text{nullptr};
-  Controls::TextBlock hint_text{nullptr};
-  Controls::TextBlock countdown_text{nullptr};
-  Controls::ProgressBar ring_bar{nullptr};
-  Controls::Button emergency_button{nullptr};
-  Controls::Button skip_button{nullptr};
-  rivet_app::BreakState state{};
-  std::int64_t total_sec = 0;
-  bool completed_nudged = false;
-  bool goodbye = false;
-  std::function<void()> on_skip;
-  std::function<void()> on_emergency_exit;
-  std::function<void()> on_complete;
-  Microsoft::UI::Dispatching::DispatcherQueueTimer timer{nullptr};
-  Microsoft::UI::Dispatching::DispatcherQueueTimer goodbye_timer{nullptr};
-
-  bool Show(rivet_app::BreakState const& break_state,
-            std::int64_t snooze) {
-    CloseAll();
-    auto displays = Microsoft::UI::Windowing::DisplayArea::FindAll();
-    if (displays.Size() == 0) return false;
-
-    state = break_state;
-    total_sec = std::max<std::int64_t>(
-        0, (state.ends_at_ms - state.started_at_ms) / 1000);
-    completed_nudged = false;
-    goodbye = false;
-
-    for (std::int32_t i = 0; i < static_cast<std::int32_t>(displays.Size()); ++i) {
-      auto const area = displays.GetAt(i);
-      Window window;
-      auto app_window = window.AppWindow();
-      app_window.Move({area.WorkArea().X, area.WorkArea().Y});
-      app_window.Resize(
-          {area.WorkArea().Width, area.WorkArea().Height});
-
-      Controls::Grid root;
-      root.Background(brush_from("#0D1220"));
-      Controls::StackPanel center;
-      center.VerticalAlignment(VerticalAlignment::Center);
-      center.HorizontalAlignment(HorizontalAlignment::Center);
-      center.Spacing(22);
-
-      auto emoji = make_text(L"💧", 60, false, "#F0EEE6");
-      title_text = make_text(winrt::to_hstring(l10n::t("BrkTitle")), 30, true,
-                             "#F0EEE6");
-      countdown_text = make_text(L"0:00", 64, true, "#FFFFFF");
-      ring_bar = make_progress("#E8B77A");
-      ring_bar.Width(300);
-      hint_text = make_text(wide(movebit::pick_break_hint()), 18, false,
-                            "#B8B2C7");
-      hint_text.MaxWidth(520);
-      hint_text.TextAlignment(TextAlignment::Center);
-
-      center.Children().Append(emoji);
-      center.Children().Append(title_text);
-      center.Children().Append(countdown_text);
-      center.Children().Append(ring_bar);
-      center.Children().Append(hint_text);
-      center.Children().Append(make_text(
-          winrt::to_hstring(l10n::t("BrkAutoUnlock")), 12.5, false,
-          "#6E6884"));
-
-      skip_button = make_button(
-          wide(l10n::t("BrkSkip", {l10n::A(snooze)})), "#1A1730", "#8A849E",
-          true);
-      skip_button.Visibility(Visibility::Collapsed);
-      skip_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
-        if (on_skip) on_skip();
-      });
-
-      // Immediate, visible, keyboard- and AT-reachable exit — independent of
-      // the backend connection.
-      emergency_button = make_button(winrt::to_hstring(l10n::t("BrkEmergency")),
-                                     "#1A1730", "#CFC8E4", true);
-      emergency_button.BorderBrush(brush_from("#5A527A"));
-      emergency_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
-        EmergencyExit();
-      });
-
-      Controls::StackPanel bottom;
-      bottom.Orientation(Controls::Orientation::Horizontal);
-      bottom.VerticalAlignment(VerticalAlignment::Bottom);
-      bottom.HorizontalAlignment(HorizontalAlignment::Center);
-      bottom.Spacing(12);
-      bottom.Margin(Thickness{0, 0, 0, 48});
-      bottom.Children().Append(emergency_button);
-      bottom.Children().Append(skip_button);
-
-      // Escape exits immediately, regardless of which element holds focus.
-      // KeyboardAccelerator lives in Xaml::Input in WinUI 3.
-      Input::KeyboardAccelerator escape;
-      escape.Key(Windows::System::VirtualKey::Escape);
-      escape.Invoked([this](IInspectable const&,
-                            Input::KeyboardAcceleratorInvokedEventArgs const& args) {
-        args.Handled(true);
-        EmergencyExit();
-      });
-      root.KeyboardAccelerators().Append(escape);
-
-      root.Children().Append(center);
-      root.Children().Append(bottom);
-      window.Content(root);
-      app_window.SetPresenter(
-          Microsoft::UI::Windowing::AppWindowPresenterKind::FullScreen);
-      window.Activate();
-      windows.push_back(window);
-    }
-
-    timer = make_timer(std::chrono::milliseconds(500), true, [this] { Tick(); });
-    timer.Start();
-    return true;
-  }
-
-  /// Emergency exit: tear the cover down FIRST so usable windows are back on
-  /// every display even if the backend never answers; the skip is then
-  /// best-effort (MainWindow reconciles a lost skip when the backend returns).
-  void EmergencyExit() {
-    if (goodbye || windows.empty()) return;
-    CloseAll();
-    if (on_emergency_exit) on_emergency_exit();
-  }
-
-  void Tick() {
-    if (goodbye || windows.empty()) return;
-    auto const now = movebit::now_ms();
-    auto const remaining =
-        std::max<std::int64_t>(0, (state.ends_at_ms - now) / 1000);
-    wchar_t text[16];
-    swprintf_s(text, L"%d:%02d", static_cast<int>(remaining / 60),
-               static_cast<int>(remaining % 60));
-    countdown_text.Text(text);
-    ring_bar.Value(total_sec > 0 ? static_cast<double>(remaining) / total_sec
-                                 : 0.0);
-    skip_button.Visibility(
-        now >= state.started_at_ms + state.skip_after_ms
-            ? Visibility::Visible
-            : Visibility::Collapsed);
-
-    if (remaining <= 0) {
-      if (!completed_nudged) {
-        completed_nudged = true;
-        if (on_complete) on_complete();
-      }
-      // Watchdog: if the event never arrives (backend tick gap), close.
-      if (now > state.ends_at_ms + 5000) CloseAll();
-    }
-  }
-
-  void Finish(bool completed) {
-    if (!completed) {
-      CloseAll();
-      return;
-    }
-    goodbye = true;
-    title_text.Text(winrt::to_hstring(l10n::t("BrkDone")));
-    hint_text.Text(winrt::to_hstring(l10n::t("BrkGoodbye")));
-    countdown_text.Text(L"💪");
-    emergency_button.Visibility(Visibility::Collapsed);
-    skip_button.Visibility(Visibility::Collapsed);
-    ring_bar.Opacity(0.35);
-    goodbye_timer = make_timer(std::chrono::milliseconds(950), false,
-                               [this] { CloseAll(); });
-    goodbye_timer.Start();
-  }
-
-  void CloseAll() {
-    if (timer) timer.Stop();
-    if (goodbye_timer) goodbye_timer.Stop();
-    for (auto& window : windows) {
-      window.Close();
-    }
-    windows.clear();
-    title_text = {nullptr};
-    hint_text = {nullptr};
-    countdown_text = {nullptr};
-    ring_bar = {nullptr};
-    emergency_button = {nullptr};
-    skip_button = {nullptr};
-  }
-};
-
 // ---- reminder toast -----------------------------------------------------------
-// One card stands in for every kind due this tick; snoozing a merged toast
-// postpones every merged kind. 9 s auto-close.
+// One card stands in for every kind due this tick. The buttons map to the v1
+// cue lifecycle: Done acknowledges (self-reported), Later snoozes every
+// merged kind, Hide removes the card without claiming completion; the 9 s
+// auto-close is a Hide. Transitional presentation (issue #55 R1): the R2
+// character replaces this card on macOS first.
 
 struct ToastCard {
   Window window{nullptr};
   Controls::TextBlock title_text{nullptr};
   Controls::StackPanel lines_panel{nullptr};
-  std::vector<rivet_app::ReminderKind> kinds;
-  std::function<void(std::vector<rivet_app::ReminderKind> const&)> on_snooze;
+  std::int64_t cue_id = 0;
+  std::function<void(std::int64_t)> on_done;
+  std::function<void(std::int64_t)> on_snooze;
+  std::function<void(std::int64_t)> on_hide;
   Microsoft::UI::Dispatching::DispatcherQueueTimer timer{nullptr};
 
   void Show(std::string const& title, std::vector<std::string> const& lines,
-            rivet_app::ReminderKind accent,
-            std::vector<rivet_app::ReminderKind> merged_kinds,
+            rivet_app::ReminderKind accent, std::int64_t id,
             std::int64_t snooze_minutes) {
     Dismiss();
-    kinds = std::move(merged_kinds);
+    cue_id = id;
 
     window = Window{};
     strip_chrome(window);
@@ -396,24 +205,38 @@ struct ToastCard {
     buttons.Orientation(Controls::Orientation::Horizontal);
     buttons.HorizontalAlignment(HorizontalAlignment::Right);
     buttons.Spacing(10);
-    if (!kinds.empty()) {
+    if (cue_id != 0) {
+      auto hide_button =
+          make_button(winrt::to_hstring(l10n::t("NotifHide")), "#FFFDFB",
+                      "#A39E8C", false);
+      hide_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
+        HideTapped();
+      });
+      buttons.Children().Append(hide_button);
       auto snooze_button = make_button(
           wide(l10n::t("NotifSnooze", {l10n::A(snooze_minutes)})), "#FFFDFB",
           "#6E6A5E", true);
       snooze_button.BorderBrush(brush_from("#E2DCCC"));
       snooze_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
-        if (on_snooze) on_snooze(kinds);
-        Dismiss();
+        SnoozeTapped();
       });
       buttons.Children().Append(snooze_button);
+      auto done_button =
+          make_button(winrt::to_hstring(l10n::t("NotifDone")), "#F3EEE3",
+                      "#26241F", false);
+      done_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
+        DoneTapped();
+      });
+      buttons.Children().Append(done_button);
+    } else {
+      auto got_it =
+          make_button(winrt::to_hstring(l10n::t("NotifGotIt")), "#F3EEE3",
+                      "#26241F", false);
+      got_it.Click([this](IInspectable const&, RoutedEventArgs const&) {
+        Dismiss();
+      });
+      buttons.Children().Append(got_it);
     }
-    auto got_it =
-        make_button(winrt::to_hstring(l10n::t("NotifGotIt")), "#F3EEE3",
-                    "#26241F", false);
-    got_it.Click([this](IInspectable const&, RoutedEventArgs const&) {
-      Dismiss();
-    });
-    buttons.Children().Append(got_it);
     body.Children().Append(buttons);
 
     // Accent bar on the left edge.
@@ -436,13 +259,32 @@ struct ToastCard {
 
     if (!timer) {
       timer = make_timer(std::chrono::milliseconds(9000), false,
-                         [this] { Dismiss(); });
+                         [this] { HideTapped(); });
     }
     timer.Stop();
     timer.Start();
   }
 
+  void DoneTapped() {
+    auto id = cue_id;
+    Dismiss();
+    if (id != 0 && on_done) on_done(id);
+  }
+
+  void SnoozeTapped() {
+    auto id = cue_id;
+    Dismiss();
+    if (id != 0 && on_snooze) on_snooze(id);
+  }
+
+  void HideTapped() {
+    auto id = cue_id;
+    Dismiss();
+    if (id != 0 && on_hide) on_hide(id);
+  }
+
   void Dismiss() {
+    cue_id = 0;
     if (timer) timer.Stop();
     if (window) {
       window.Close();
@@ -453,19 +295,25 @@ struct ToastCard {
   }
 };
 
-// ---- micro break ---------------------------------------------------------------
-// Small top-center card with a shrinking progress bar. Click / timeout
-// dismisses; never locks, never steals focus, silent by design.
+// ---- micro eye-rest card -------------------------------------------------------
+// Small top-center card with a shrinking progress bar: rest your eyes while
+// it runs. Letting it finish acknowledges the cue; clicking ends it early as
+// a Hide. Never locks, never steals focus, silent by design.
 
 struct MicroCard {
   Window window{nullptr};
   Controls::ProgressBar bar{nullptr};
   double progress = 1.0;
   std::int64_t total_ms = 1000;
+  std::int64_t cue_id = 0;
+  std::function<void(std::int64_t)> on_done;
+  std::function<void(std::int64_t)> on_hide;
   Microsoft::UI::Dispatching::DispatcherQueueTimer timer{nullptr};
 
-  void Show(std::int64_t duration_seconds, std::string const& title) {
+  void Show(std::int64_t duration_seconds, std::string const& title,
+            std::int64_t id) {
     Dismiss();
+    cue_id = id;
     window = Window{};
     strip_chrome(window);
 
@@ -501,10 +349,10 @@ struct MicroCard {
     root.Children().Append(body);
     window.Content(root);
 
-    // Click anywhere dismisses.
+    // Click anywhere ends the rest early as a Hide.
     root.PointerPressed([this](IInspectable const&,
                                Input::PointerRoutedEventArgs const&) {
-      Dismiss();
+      HideTapped();
     });
 
     total_ms = std::max<std::int64_t>(1, duration_seconds) * 1000;
@@ -515,12 +363,25 @@ struct MicroCard {
     timer = make_timer(std::chrono::milliseconds(250), true, [this] {
       progress = std::max(0.0, progress - 250.0 / total_ms);
       if (bar) bar.Value(progress);
-      if (progress <= 0.0) Dismiss();
+      if (progress <= 0.0) DoneTapped();
     });
     timer.Start();
   }
 
+  void DoneTapped() {
+    auto id = cue_id;
+    Dismiss();
+    if (id != 0 && on_done) on_done(id);
+  }
+
+  void HideTapped() {
+    auto id = cue_id;
+    Dismiss();
+    if (id != 0 && on_hide) on_hide(id);
+  }
+
   void Dismiss() {
+    cue_id = 0;
     if (timer) timer.Stop();
     if (window) {
       window.Close();

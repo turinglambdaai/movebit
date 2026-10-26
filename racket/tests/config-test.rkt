@@ -1,6 +1,7 @@
 #lang racket/base
 
-;; Port of MoveBit.Tests/ConfigStoreTests.cs.
+;; MoveBit v1 config schema tests: version gate, clamping, tolerance and the
+;; clean-install contract (a foreign file is defaults, never guessed at).
 
 (require rackunit
          racket/file
@@ -13,24 +14,25 @@
 
 ;; Save_and_load_roundtrip_all_settings
 (let* ([dir (make-temp-dir "cfg")]
-       [expected (reminder-config 50 40 7 #f 4 35 25 #f 25 30 #f #f #t "auto")])
+       [expected (reminder-config 50 40 7 25 #f 25 30 #f #f #f #t "auto")])
   (check-true (save-config dir expected))
   (define actual (load-config dir))
   (check-equal? (reminder-config-sit-reminder-minutes actual) 50)
   (check-equal? (reminder-config-water-reminder-minutes actual) 40)
   (check-equal? (reminder-config-away-reset-minutes actual) 7)
-  (check-false (reminder-config-force-break-enabled actual))
-  (check-equal? (reminder-config-break-duration-minutes actual) 4)
-  (check-equal? (reminder-config-skip-after-seconds actual) 35)
   (check-equal? (reminder-config-snooze-minutes actual) 25)
   (check-false (reminder-config-micro-break-enabled actual))
   (check-equal? (reminder-config-micro-break-interval-minutes actual) 25)
   (check-equal? (reminder-config-micro-break-duration-seconds actual) 30)
+  (check-false (reminder-config-motion-enabled actual))
   (check-false (reminder-config-sound-enabled actual))
   (check-false (reminder-config-auto-check-updates actual))
   (check-true (reminder-config-welcome-shown actual))
   ;; atomic write: no .tmp residue
   (check-false (file-exists? (build-path dir "config.json.tmp")))
+  ;; every write stamps the schema version
+  (define on-disk (call-with-input-file (config-path dir) read-json))
+  (check-equal? (hash-ref on-disk 'SchemaVersion) config-schema-version)
   (delete-directory/files dir))
 
 ;; TrySave_returns_false_when_config_directory_is_a_file
@@ -46,24 +48,24 @@
   (call-with-output-file path
     (lambda (out)
       (write-json
-       (hasheq 'SitReminderMinutes 1
+       (hasheq 'SchemaVersion config-schema-version
+               'SitReminderMinutes 1
                'WaterReminderMinutes 999
                'AwayResetMinutes 0
-               'BreakDurationMinutes 100
-               'SkipAfterSeconds -10
                'SnoozeMinutes 999
                'MicroBreakIntervalMinutes 1
-               'MicroBreakDurationSeconds 999)
+               'MicroBreakDurationSeconds 999
+               'MotionEnabled "yes")
        out)))
   (define actual (load-config dir))
   (check-equal? (reminder-config-sit-reminder-minutes actual) 10)
   (check-equal? (reminder-config-water-reminder-minutes actual) 180)
   (check-equal? (reminder-config-away-reset-minutes actual) 1)
-  (check-equal? (reminder-config-break-duration-minutes actual) 30)
-  (check-equal? (reminder-config-skip-after-seconds actual) 0)
   (check-equal? (reminder-config-snooze-minutes actual) 60)
   (check-equal? (reminder-config-micro-break-interval-minutes actual) 10)
   (check-equal? (reminder-config-micro-break-duration-seconds actual) 60)
+  ;; wrong-typed boolean keeps the default, it is not coerced
+  (check-true (reminder-config-motion-enabled actual))
   (check-true (reminder-config-auto-check-updates actual))
   (delete-directory/files dir))
 
@@ -75,58 +77,68 @@
   (check-equal? (reminder-config-sit-reminder-minutes actual) 45)
   (check-equal? (reminder-config-water-reminder-minutes actual) 30)
   (check-equal? (reminder-config-snooze-minutes actual) 10)
-  (check-false (reminder-config-force-break-enabled actual))
+  (check-true (reminder-config-motion-enabled actual))
   (check-true (reminder-config-auto-check-updates actual))
   (delete-directory/files dir))
 
-;; Fresh_profile_defaults_to_gentle_no_forced_breaks
-(let* ([dir (make-temp-dir "fresh")]
-       [fresh (default-config)])
-  (check-false (reminder-config-force-break-enabled fresh))
-  (save-config dir fresh)
-  ;; A round-tripped fresh profile keeps force-break off.
-  (check-false (reminder-config-force-break-enabled (load-config dir)))
-  (delete-directory/files dir))
+;; v1_has_one_gentle_experience_no_forced_break_fields_exist
+(let* ([fresh (default-config)])
+  ;; The struct has no force-break/duration/skip accessors at all — the old
+  ;; fullscreen contract cannot come back through config. The default motion
+  ;; and sound experience is on; onboarding has not run yet.
+  (check-true (reminder-config-motion-enabled fresh))
+  (check-true (reminder-config-sound-enabled fresh))
+  (check-false (reminder-config-welcome-shown fresh)))
 
-;; Partial_legacy_file_without_force_key_stays_gentle
-(let* ([dir (make-temp-dir "noforcekey")]
+;; Legacy_v0x_PascalCase_file_without_version_marker_is_foreign
+(let* ([dir (make-temp-dir "legacy")]
        [path (build-path dir "config.json")])
   (display-to-file #<<EOF
 {
   "SitReminderMinutes": 60,
-  "WelcomeShown": true
-}
-EOF
-                   path)
-  ;; No ForceBreakEnabled key = no recorded choice; the gentle default wins.
-  (check-false (reminder-config-force-break-enabled (load-config dir)))
-  (delete-directory/files dir))
-
-;; Explicit_opt_in_survives_upgrade
-(let* ([dir (make-temp-dir "optin")]
-       [path (build-path dir "config.json")])
-  (display-to-file #<<EOF
-{
-  "SitReminderMinutes": 45,
   "ForceBreakEnabled": true,
+  "BreakDurationMinutes": 25,
+  "SkipAfterSeconds": 90,
   "WelcomeShown": true
 }
 EOF
                    path)
-  ;; A recorded preference is never silently overwritten.
-  (check-true (reminder-config-force-break-enabled (load-config dir)))
+  ;; v0.x had no real users: an old file is NOT migrated. A fresh v1 profile
+  ;; starts with defaults; the next save overwrites the foreign file.
+  (define actual (load-config dir))
+  (check-equal? actual (default-config))
+  (check-false (reminder-config-welcome-shown actual))
   (delete-directory/files dir))
 
-;; Config_from_before_snooze_setting_uses_default_delay
+;; Unknown_future_schema_version_is_also_rejected
+(let* ([dir (make-temp-dir "future")]
+       [path (build-path dir "config.json")])
+  (call-with-output-file path
+    (lambda (out)
+      (write-json (hash-set (config->jsexpr (default-config))
+                            'SchemaVersion
+                            (add1 config-schema-version))
+                  out)))
+  (check-equal? (load-config dir) (default-config))
+  (delete-directory/files dir))
+
+;; Missing_version_marker_falls_back_even_if_everything_else_matches
+(let* ([dir (make-temp-dir "noversion")]
+       [path (build-path dir "config.json")])
+  (call-with-output-file path
+    (lambda (out)
+      (write-json (hash-remove (config->jsexpr (default-config)) 'SchemaVersion)
+                  out)))
+  (check-equal? (load-config dir) (default-config))
+  (delete-directory/files dir))
+
+;; Partial_v1_file_keeps_defaults_for_missing_keys
 (let* ([dir (make-temp-dir "partial")]
        [path (build-path dir "config.json")])
-  (display-to-file #<<EOF
-{
-  "SitReminderMinutes": 60,
-  "WelcomeShown": true
-}
-EOF
-                   path)
+  (display-to-file
+   (format "{\"SchemaVersion\": ~a, \"SitReminderMinutes\": 60, \"WelcomeShown\": true}"
+           config-schema-version)
+   path)
   (define actual (load-config dir))
   (check-equal? (reminder-config-sit-reminder-minutes actual) 60)
   (check-equal? (reminder-config-snooze-minutes actual) 10)
@@ -135,10 +147,11 @@ EOF
 
 ;; Save_clamps_out_of_range_values_too (clamp on save, per the port contract)
 (let* ([dir (make-temp-dir "saveclamp")])
-  (save-config dir (reminder-config 1 999 0 #t 100 -10 999 #t 1 999 #t #t #f "klingon"))
+  (save-config dir (reminder-config 1 999 0 999 #t 1 999 "x" #t #t #f "klingon"))
   (define actual (load-config dir))
   (check-equal? (reminder-config-sit-reminder-minutes actual) 10)
   (check-equal? (reminder-config-water-reminder-minutes actual) 180)
   (check-equal? (reminder-config-snooze-minutes actual) 60)
+  (check-true (reminder-config-motion-enabled actual))
   (check-equal? (reminder-config-language actual) "auto")
   (delete-directory/files dir))

@@ -1,9 +1,11 @@
 #pragma once
 
-// Four-step first-run wizard, code-built (no XAML/idl): meet the droplet ->
-// strictness pact -> water + sound -> contract summary. Mirrors the SwiftUI
-// OnboardingView; closing the window midway persists the current selections
-// (MainWindow handles Closed -> persist + settle toast).
+// Three-step first-run wizard, code-built (no XAML/idl): meet MoveBit ->
+// reminders (water cadence, sit cadence, sound) -> contract summary. Mirrors
+// the SwiftUI OnboardingView; closing the window midway persists the current
+// selections (MainWindow handles Closed -> persist + settle toast).
+// The v1 reboot (issue #55) removed the strictness pact: there is exactly one
+// gentle, non-blocking reminder experience.
 
 #include "pch.h"
 #include "MoveBitModel.h"
@@ -19,15 +21,12 @@ using namespace winrt::Microsoft::UI::Xaml;
 struct OnboardingWizard {
   Window window{nullptr};
   int page = 0;
-  // Fresh profiles start gentle: the strong modes are an explicit opt-in
-  // (selecting the Standard/Strict card), never a silent default.
-  std::string mode = "gentle";
   std::int64_t water = 30;
+  std::int64_t sit = 45;
   bool sound = true;
 
   Controls::StackPanel page_host{nullptr};
   Controls::StackPanel intro_page{nullptr};
-  Controls::StackPanel strict_page{nullptr};
   Controls::StackPanel water_page{nullptr};
   Controls::StackPanel pact_page{nullptr};
   Controls::TextBlock dots{nullptr};
@@ -35,20 +34,20 @@ struct OnboardingWizard {
   Controls::Button skip_button{nullptr};
   Controls::Button next_button{nullptr};
   Controls::ToggleSwitch sound_switch{nullptr};
-  Controls::Button gentle_button{nullptr};
-  Controls::Button standard_button{nullptr};
-  Controls::Button strict_button{nullptr};
   Controls::Button water30{nullptr};
   Controls::Button water45{nullptr};
   Controls::Button water60{nullptr};
-  std::function<void(std::string const& mode, std::int64_t water, bool sound)>
+  Controls::Button sit45{nullptr};
+  Controls::Button sit60{nullptr};
+  Controls::Button sit90{nullptr};
+  std::function<void(std::int64_t sit, std::int64_t water, bool sound)>
       on_finish;
   // Fired when the window closes any other way (title-bar X): closing counts
   // as seen, so the wizard cannot nag on every launch (old-app parity).
   std::function<void()> on_cancel;
   bool finished_ = false;
 
-  constexpr static int kLastPage = 3;
+  constexpr static int kLastPage = 2;
 
   void Show() {
     if (window) {
@@ -80,12 +79,11 @@ struct OnboardingWizard {
     page_host = Controls::StackPanel{};
     page_host.Spacing(12);
     BuildIntroPage();
-    BuildStrictPage();
     BuildWaterPage();
     BuildPactPage();
     page_host.Children().Append(intro_page);
 
-    dots = make_text(L"● ○ ○ ○", 14, false, "#C25E3E");
+    dots = make_text(L"● ○ ○", 14, false, "#C25E3E");
 
     Controls::StackPanel controls;
     controls.Orientation(Controls::Orientation::Horizontal);
@@ -141,74 +139,17 @@ struct OnboardingWizard {
     intro_page.Children().Append(steps);
   }
 
-  Controls::Button make_mode_button(std::string const& id,
-                                    std::string const& title,
-                                    std::string const& badge,
-                                    std::string const& desc) {
-    winrt::hstring text = wide(title);
-    if (!badge.empty()) text = text + L"  ·  " + wide(badge);
-    text = text + L"\n" + wide(desc);
-    auto button = make_button(text, "#FFFFFF", "#26241F", true);
-    button.BorderBrush(brush_from("#EAE2D6"));
-    button.CornerRadius(CornerRadius{12, 12, 12, 12});
-    button.Padding(Thickness{14, 14, 14, 14});
-    button.HorizontalAlignment(HorizontalAlignment::Stretch);
-    button.Click([this, id](IInspectable const&, RoutedEventArgs const&) {
-      mode = id;
-      RefreshModeCards();
-    });
-    return button;
-  }
-
-  void BuildStrictPage() {
-    strict_page = Controls::StackPanel{};
-    strict_page.Spacing(12);
-    strict_page.Children().Append(
-        make_text(winrt::to_hstring(l10n::t("ObStrictTitle")), 22, true,
-                  "#26241F"));
-    auto q = make_text(winrt::to_hstring(l10n::t("ObStrictQ")), 13, false,
-                       "#6E6A5E");
-    q.HorizontalAlignment(HorizontalAlignment::Left);
-    strict_page.Children().Append(q);
-    gentle_button = make_mode_button("gentle", l10n::t("ObModeGentle"), "",
-                                     l10n::t("ObModeGentleDesc"));
-    standard_button = make_mode_button(
-        "standard", l10n::t("ObModeStandard"), l10n::t("ObBadgeRecommended"),
-        l10n::t("ObModeStandardDesc"));
-    strict_button = make_mode_button("strict", l10n::t("ObModeStrict"),
-                                     l10n::t("ObBadgeEvidence"),
-                                     l10n::t("ObModeStrictDesc"));
-    strict_page.Children().Append(gentle_button);
-    strict_page.Children().Append(standard_button);
-    strict_page.Children().Append(strict_button);
-    auto footnote = make_text(
-        winrt::to_hstring(l10n::t("ObStrictFootnote")), 11, false, "#A39B8D");
-    footnote.HorizontalAlignment(HorizontalAlignment::Left);
-    strict_page.Children().Append(footnote);
-    RefreshModeCards();
-  }
-
-  void RefreshModeCards() {
-    auto style = [&](Controls::Button const& button, bool selected) {
-      button.Background(brush_from(selected ? "#FBEFE2" : "#FFFFFF"));
-      button.BorderBrush(brush_from(selected ? "#C25E3E" : "#EAE2D6"));
-      button.Foreground(brush_from(selected ? "#C25E3E" : "#26241F"));
-    };
-    style(gentle_button, mode == "gentle");
-    style(standard_button, mode == "standard");
-    style(strict_button, mode == "strict");
-  }
-
-  Controls::Button make_water_button(int minutes,
-                                     std::string const& label) {
+  Controls::Button make_choice_button(std::int64_t value,
+                                      std::int64_t* target,
+                                      std::string const& label) {
     auto button = make_button(wide(label), "#FFFFFF", "#26241F", true);
     button.BorderBrush(brush_from("#EAE2D6"));
     button.CornerRadius(CornerRadius{12, 12, 12, 12});
     button.Padding(Thickness{14, 12, 14, 12});
     button.HorizontalAlignment(HorizontalAlignment::Stretch);
-    button.Click([this, minutes](IInspectable const&, RoutedEventArgs const&) {
-      water = minutes;
-      RefreshWaterButtons();
+    button.Click([this, value, target](IInspectable const&, RoutedEventArgs const&) {
+      *target = value;
+      RefreshChoiceButtons();
     });
     return button;
   }
@@ -222,16 +163,24 @@ struct OnboardingWizard {
     Controls::StackPanel row;
     row.Orientation(Controls::Orientation::Horizontal);
     row.Spacing(10);
-    water30 = make_water_button(
-        30, l10n::t("ObMin30"));
-    water45 = make_water_button(
-        45, l10n::t("ObMin45"));
-    water60 = make_water_button(
-        60, l10n::t("ObMin60"));
+    water30 = make_choice_button(30, &water, l10n::t("ObMin30"));
+    water45 = make_choice_button(45, &water, l10n::t("ObMin45"));
+    water60 = make_choice_button(60, &water, l10n::t("ObMin60"));
     row.Children().Append(water30);
     row.Children().Append(water45);
     row.Children().Append(water60);
     water_page.Children().Append(row);
+
+    Controls::StackPanel sit_row;
+    sit_row.Orientation(Controls::Orientation::Horizontal);
+    sit_row.Spacing(10);
+    sit45 = make_choice_button(45, &sit, l10n::t("ObSit45"));
+    sit60 = make_choice_button(60, &sit, l10n::t("ObSit60"));
+    sit90 = make_choice_button(90, &sit, l10n::t("ObSit90"));
+    sit_row.Children().Append(sit45);
+    sit_row.Children().Append(sit60);
+    sit_row.Children().Append(sit90);
+    water_page.Children().Append(sit_row);
 
     auto sound_title = make_text(
         winrt::to_hstring(l10n::t("ObSoundTitle")), 15, true, "#26241F");
@@ -250,19 +199,23 @@ struct OnboardingWizard {
                           false, "#6E6A5E");
     sound_row.Children().Append(hint);
     water_page.Children().Append(sound_row);
-    RefreshWaterButtons();
+    RefreshChoiceButtons();
   }
 
-  void RefreshWaterButtons() {
-    auto style = [&](Controls::Button const& button, int minutes) {
-      bool const selected = water == minutes;
+  void RefreshChoiceButtons() {
+    auto style = [&](Controls::Button const& button, std::int64_t value,
+                     std::int64_t const& target) {
+      bool const selected = target == value;
       button.Background(brush_from(selected ? "#FBEFE2" : "#FFFFFF"));
       button.BorderBrush(brush_from(selected ? "#C25E3E" : "#EAE2D6"));
       button.Foreground(brush_from(selected ? "#C25E3E" : "#26241F"));
     };
-    style(water30, 30);
-    style(water45, 45);
-    style(water60, 60);
+    style(water30, 30, water);
+    style(water45, 45, water);
+    style(water60, 60, water);
+    style(sit45, 45, sit);
+    style(sit60, 60, sit);
+    style(sit90, 90, sit);
   }
 
   void BuildPactPage() {
@@ -287,26 +240,17 @@ struct OnboardingWizard {
     pact_page.Children().Append(outro);
   }
 
-  std::int64_t SitMinutes() const {
-    return mode == "gentle" ? 60 : mode == "strict" ? 30 : 45;
-  }
-  bool ForceEnabled() const { return mode != "gentle"; }
-  std::int64_t BreakDuration() const { return mode == "gentle" ? 3 : 5; }
-
   void GoNext() {
     if (page >= kLastPage) {
       finished_ = true;
-      if (on_finish) on_finish(mode, water, sound);
+      if (on_finish) on_finish(sit, water, sound);
       Close();
       return;
     }
     ++page;
     if (page == kLastPage) {
       std::string text;
-      text += ForceEnabled()
-                  ? l10n::t("ObSummaryForced",
-                            {l10n::A(SitMinutes()), l10n::A(BreakDuration())})
-                  : l10n::t("ObSummaryToast", {l10n::A(SitMinutes())});
+      text += l10n::t("ObSummaryToast", {l10n::A(sit)});
       text += "\n";
       text += l10n::t("ObSummaryWater", {l10n::A(water)});
       text += "\n";
@@ -316,8 +260,7 @@ struct OnboardingWizard {
                                                        : l10n::t("ObOff"))});
       summary.Text(wide(text));
     }
-    Controls::StackPanel pages[] = {intro_page, strict_page, water_page,
-                                    pact_page};
+    Controls::StackPanel pages[] = {intro_page, water_page, pact_page};
     for (int i = 0; i <= kLastPage; ++i) {
       pages[i].Visibility(i == page ? Visibility::Visible
                                     : Visibility::Collapsed);
@@ -334,12 +277,12 @@ struct OnboardingWizard {
   }
 
   void SkipToDefaults() {
-    // Skip = the gentle shipped defaults; fullscreen breaks stay opt-in.
-    mode = "gentle";
+    // Skip = the shipped defaults, as if the user opted out of choices.
     water = 30;
+    sit = 45;
     sound = true;
     finished_ = true;
-    if (on_finish) on_finish(mode, water, sound);
+    if (on_finish) on_finish(sit, water, sound);
     Close();
   }
 

@@ -290,15 +290,15 @@ void MainWindow::Bootstrap() {
                                     w->SetStatus(e.what());
                                     return;
                                   }
-                                  (void)w->api_->get_break_active_async(
+                                  (void)w->api_->get_pending_cues_async(
                                       [weak](rivet_app::Result<
-                                          std::optional<rivet_app::BreakState>>
-                                          b) {
+                                          std::vector<rivet_app::HealthCue>>
+                                          q) {
                                         if (auto self4 = weak.get()) {
-                                          self4->dispatcher_.TryEnqueue([weak, b] {
+                                          self4->dispatcher_.TryEnqueue([weak, q] {
                                             if (auto w = weak.get()) {
                                               try {
-                                                w->model_.break_active = b.get();
+                                                w->model_.pending_cues = q.get();
                                               } catch (std::exception const& e) {
                                                 w->SetStatus(e.what());
                                                 return;
@@ -361,62 +361,8 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
             RefreshInsightCard();
             RefreshStatesAfterTick();
             if (history_dirty) ReloadHistory();
-          } else if constexpr (std::is_same_v<T, rivet_app::Reminders_dueEvent>) {
-            HandleRemindersDue(e.value);
-          } else if constexpr (std::is_same_v<T, rivet_app::Break_startedEvent>) {
-            // ends-at / skip-after / started-at come from the authoritative
-            // state; fall back to the event payload so the lock is never
-            // silently skipped.
-            auto const started = e.value;
-            auto const weak = get_weak();
-            (void)api_->get_break_active_async(
-                [weak, started](
-                    rivet_app::Result<std::optional<rivet_app::BreakState>> r) {
-                  if (auto self = weak.get()) {
-                    self->dispatcher_.TryEnqueue(
-                        [weak, started, r] {
-                          if (auto w = weak.get()) {
-                            std::optional<rivet_app::BreakState> state;
-                            try {
-                              if (r.succeeded()) state = r.get();
-                            } catch (...) {
-                            }
-                            if (!state.has_value()) {
-                              auto const now = movebit::now_ms();
-                              state = rivet_app::BreakState{
-                                  now + started.duration_ms,
-                                  started.skip_after_ms, now};
-                            }
-                            w->model_.break_active = state;
-                            // The fullscreen break outranks transient nudges.
-                            w->toast_.Dismiss();
-                            w->micro_.Dismiss();
-                            if (!w->overlay_.Show(
-                                    *state,
-                                    w->model_.config.snooze_minutes)) {
-                              std::vector<std::string> const lines = {
-                                  l10n::t("NotifSitFallback")};
-                              w->toast_.Show(l10n::t("NotifSitTitle"), lines,
-                                             rivet_app::ReminderKind::sit, {},
-                                             w->model_.config.snooze_minutes);
-                            }
-                          }
-                        });
-                  }
-                });
-          } else if constexpr (std::is_same_v<T, rivet_app::Break_endedEvent>) {
-            overlay_.Finish(e.value.completed);
-            if (e.value.completed &&
-                movebit::celebrated(model_.today.sit_breaks)) {
-              toast_.Show(
-                  l10n::t("NotifCheerTitle"),
-                  {l10n::t("NotifCheerBody",
-                           {l10n::A(model_.today.sit_breaks),
-                            l10n::A(movebit::format_duration(
-                                model_.today.active_mins))})},
-                  rivet_app::ReminderKind::sit, {},
-                  model_.config.snooze_minutes);
-            }
+          } else if constexpr (std::is_same_v<T, rivet_app::Health_cueEvent>) {
+            HandleHealthCue(e.value);
           } else if constexpr (std::is_same_v<T, rivet_app::Day_completedEvent>) {
             model_.today = e.value;
             RefreshTodayCard();
@@ -432,116 +378,97 @@ void MainWindow::HandleEvent(std::string const& name, rivet::Value const& value)
   }
 }
 
-void MainWindow::HandleRemindersDue(rivet_app::RemindersDue const& due) {
-  // System notification chime, best-effort (old ReminderSound parity).
+void MainWindow::HandleHealthCue(rivet_app::HealthCue const& cue) {
+  // The backend planned the delivery; the host only renders it. Delivery
+  // 'notification' and 'character' both surface through the transitional
+  // cards below — R3 swaps these for the edge-docked character.
+  auto const weak = get_weak();
   if (model_.config.sound_enabled) {
     ::MessageBeep(MB_ICONASTERISK);
   }
-  if (due.kinds.size() == 1 &&
-      due.kinds[0] == rivet_app::ReminderKind::micro) {
+  auto const& kinds = cue.kinds;
+  if (kinds.size() == 1 && kinds[0] == rivet_app::ReminderKind::micro) {
+    micro_.on_done = [weak](std::int64_t id) {
+      if (auto self = weak.get()) {
+        (void)self->api_->acknowledge_cue_async(id,
+                                                [](rivet_app::Result<void>) {});
+      }
+    };
+    micro_.on_hide = [weak](std::int64_t id) {
+      if (auto self = weak.get()) {
+        (void)self->api_->dismiss_cue_async(id, [](rivet_app::Result<void>) {});
+      }
+    };
     micro_.Show(model_.config.micro_break_duration_seconds,
-                movebit::pick_micro());
+                movebit::pick_micro(), cue.id);
+    CueDisplayed(cue.id);
     return;
   }
 
   std::vector<std::string> lines;
-  if (std::find(due.kinds.begin(), due.kinds.end(),
-                rivet_app::ReminderKind::sit) != due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(),
+                rivet_app::ReminderKind::sit) != kinds.end()) {
     lines.push_back(l10n::t("NotifSitBody",
                             {l10n::A(movebit::format_duration(
                                  model_.today.active_mins)),
                              l10n::A(model_.today.sit_breaks)}));
     lines.push_back(l10n::pick("CopySitToastPool", 6));
   }
-  if (std::find(due.kinds.begin(), due.kinds.end(),
-                rivet_app::ReminderKind::water) != due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(),
+                rivet_app::ReminderKind::water) != kinds.end()) {
     lines.push_back(
         l10n::t("NotifWaterCount", {l10n::A(model_.today.water_reminders)}));
     lines.push_back(movebit::pick_water());
   }
-  if (std::find(due.kinds.begin(), due.kinds.end(),
-                rivet_app::ReminderKind::micro) != due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(),
+                rivet_app::ReminderKind::micro) != kinds.end()) {
     lines.push_back(movebit::pick_micro());
   }
 
   std::string title = l10n::t("NotifSitTitle");
   auto accent = rivet_app::ReminderKind::sit;
-  if (std::find(due.kinds.begin(), due.kinds.end(),
-                rivet_app::ReminderKind::water) != due.kinds.end()) {
+  if (std::find(kinds.begin(), kinds.end(),
+                rivet_app::ReminderKind::water) != kinds.end()) {
     title = l10n::t("NotifWaterTitle");
     accent = rivet_app::ReminderKind::water;
   }
 
-  auto const weak = get_weak();
-  overlay_.on_skip = [weak] {
+  toast_.on_done = [weak](std::int64_t id) {
     if (auto self = weak.get()) {
-      (void)self->api_->skip_break_async([](rivet_app::Result<void>) {});
+      (void)self->api_->acknowledge_cue_async(id,
+                                              [](rivet_app::Result<void>) {});
     }
   };
-  overlay_.on_emergency_exit = [weak] {
+  toast_.on_snooze = [weak](std::int64_t id) {
     if (auto self = weak.get()) {
-      if (self->api_ == nullptr) {
-        self->model_.pending_break_skip = true;
-      } else {
-        self->EmergencySkipBreak();
-      }
+      (void)self->api_->snooze_cue_async(id, [](rivet_app::Result<void>) {});
     }
   };
-  overlay_.on_complete = [weak] {
+  toast_.on_hide = [weak](std::int64_t id) {
     if (auto self = weak.get()) {
-      (void)self->api_->complete_break_async([](rivet_app::Result<void>) {});
+      (void)self->api_->dismiss_cue_async(id, [](rivet_app::Result<void>) {});
     }
   };
-  toast_.on_snooze = [weak](std::vector<rivet_app::ReminderKind> const& kinds) {
-    if (auto self = weak.get()) {
-      for (auto kind : kinds) {
-        (void)self->api_->snooze_async(kind, [](rivet_app::Result<void>) {});
-      }
-    }
-  };
-  toast_.Show(title, lines, accent, due.kinds, model_.config.snooze_minutes);
+  toast_.Show(title, lines, accent, cue.id, model_.config.snooze_minutes);
+  CueDisplayed(cue.id);
 }
 
-void MainWindow::EmergencySkipBreak() {
-  auto const weak = get_weak();
-  (void)api_->skip_break_async([weak](rivet_app::Result<void> r) {
-    if (auto self = weak.get()) {
-      bool const failed = !r.succeeded();
-      self->dispatcher_.TryEnqueue([weak, failed] {
-        if (auto w = weak.get()) {
-          // The backend never heard about the exit; remember and reconcile.
-          w->model_.pending_break_skip = failed;
-        }
-      });
-    }
-  });
-}
-
-void MainWindow::ReconcilePendingBreakSkip() {
-  if (!model_.pending_break_skip) return;
-  if (model_.break_active.has_value()) {
-    // The backend still holds the break: finish the remembered exit so the
-    // sit cycle is snoozed instead of instantly re-locking the displays.
-    EmergencySkipBreak();
-  } else {
-    // The break already ended backend-side (expiry watchdog); nothing to do.
-    model_.pending_break_skip = false;
-  }
+void MainWindow::CueDisplayed(std::int64_t id) {
+  (void)api_->cue_displayed_async(id, [](rivet_app::Result<void>) {});
 }
 
 void MainWindow::RefreshStatesAfterTick() {
   if (api_ == nullptr) return;
   auto const weak = get_weak();
-  (void)api_->get_break_active_async(
-      [weak](rivet_app::Result<std::optional<rivet_app::BreakState>> r) {
+  (void)api_->get_pending_cues_async(
+      [weak](rivet_app::Result<std::vector<rivet_app::HealthCue>> r) {
         if (auto self = weak.get()) {
           self->dispatcher_.TryEnqueue([weak, r] {
             if (auto w = weak.get()) {
               try {
-                if (r.succeeded()) w->model_.break_active = r.get();
+                if (r.succeeded()) w->model_.pending_cues = r.get();
               } catch (std::exception const&) {
               }
-              w->ReconcilePendingBreakSkip();
             }
           });
         }
@@ -574,6 +501,7 @@ void MainWindow::RefreshStatesAfterTick() {
     }
   });
 }
+
 
 void MainWindow::ApplyConfig(rivet_app::ReminderConfig const& changed,
                              bool announce) {
@@ -1065,9 +993,7 @@ void MainWindow::ApplyTexts() {
   SetSitLabel().Text(winrt::to_hstring(l10n::t("SetSitInterval")));
   SetWaterLabel().Text(winrt::to_hstring(l10n::t("SetWaterInterval")));
   SetAwayLabel().Text(winrt::to_hstring(l10n::t("SetAwayReset")));
-  SetForceLabel().Text(winrt::to_hstring(l10n::t("SetForce")));
-  SetBreakLabel().Text(winrt::to_hstring(l10n::t("SetBreakDuration")));
-  SetSkipLabel().Text(winrt::to_hstring(l10n::t("SetSkipDelay")));
+  SetMotionLabel().Text(winrt::to_hstring(l10n::t("SetMotion")));
   SetSnoozeLabel().Text(winrt::to_hstring(l10n::t("SetSnooze")));
   SetMicroLabel().Text(winrt::to_hstring(l10n::t("SetMicroToggle")));
   SetMicroParamsLabel().Text(winrt::to_hstring(l10n::t("SetMicroParams")));
@@ -1288,14 +1214,12 @@ void MainWindow::RefreshSettingsWidgets() {
   SitBox().Value(static_cast<double>(c.sit_reminder_minutes));
   WaterBox().Value(static_cast<double>(c.water_reminder_minutes));
   AwayBox().Value(static_cast<double>(c.away_reset_minutes));
-  BreakBox().Value(static_cast<double>(c.break_duration_minutes));
-  SkipBox().Value(static_cast<double>(c.skip_after_seconds));
   SnoozeBox().Value(static_cast<double>(c.snooze_minutes));
   MicroIntervalBox().Value(
       static_cast<double>(c.micro_break_interval_minutes));
   MicroDurationBox().Value(
       static_cast<double>(c.micro_break_duration_seconds));
-  ForceSwitch().IsOn(c.force_break_enabled);
+  MotionSwitch().IsOn(c.motion_enabled);
   MicroSwitch().IsOn(c.micro_break_enabled);
   SoundSwitch().IsOn(c.sound_enabled);
   UpdatesSwitch().IsOn(c.auto_check_updates);
@@ -1384,17 +1308,12 @@ void MainWindow::ReloadDataDir() {
 
 void MainWindow::ShowOnboarding() {
   auto const weak = get_weak();
-  onboarding_.on_finish = [weak](std::string const& mode, std::int64_t water,
+  onboarding_.on_finish = [weak](std::int64_t sit, std::int64_t water,
                                  bool sound) {
     if (auto self = weak.get()) {
-      auto const sit = mode == "gentle" ? 60 : mode == "strict" ? 30 : 45;
-      auto const force = mode != "gentle";
-      auto const break_min = mode == "gentle" ? 3 : 5;
       self->MutateConfig([&](rivet_app::ReminderConfig& d) {
         d.sit_reminder_minutes = sit;
         d.water_reminder_minutes = water;
-        d.force_break_enabled = force;
-        d.break_duration_minutes = break_min;
         d.sound_enabled = sound;
         d.welcome_shown = true;
       });
@@ -1518,25 +1437,6 @@ void MainWindow::Away_ValueChanged(
   });
 }
 
-void MainWindow::Break_ValueChanged(
-    winrt::Windows::Foundation::IInspectable const&,
-    Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const&) {
-  if (updating_settings_) return;
-  MutateConfig([&](rivet_app::ReminderConfig& d) {
-    d.break_duration_minutes =
-        static_cast<std::int64_t>(BreakBox().Value());
-  });
-}
-
-void MainWindow::Skip_ValueChanged(
-    winrt::Windows::Foundation::IInspectable const&,
-    Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const&) {
-  if (updating_settings_) return;
-  MutateConfig([&](rivet_app::ReminderConfig& d) {
-    d.skip_after_seconds = static_cast<std::int64_t>(SkipBox().Value());
-  });
-}
-
 void MainWindow::Snooze_ValueChanged(
     winrt::Windows::Foundation::IInspectable const&,
     Microsoft::UI::Xaml::Controls::NumberBoxValueChangedEventArgs const&) {
@@ -1566,13 +1466,13 @@ void MainWindow::MicroDuration_ValueChanged(
   });
 }
 
-void MainWindow::Force_Toggled(
+void MainWindow::Motion_Toggled(
     winrt::Windows::Foundation::IInspectable const&,
     Microsoft::UI::Xaml::RoutedEventArgs const&) {
   if (updating_settings_) return;
-  auto const on = ForceSwitch().IsOn();
+  auto const on = MotionSwitch().IsOn();
   MutateConfig([&](rivet_app::ReminderConfig& d) {
-    d.force_break_enabled = on;
+    d.motion_enabled = on;
   });
 }
 
