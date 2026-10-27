@@ -213,7 +213,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up embeddable Racket CS
-        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@9d766b4acab672844093204cb4845ef4ef933d2c
+        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@4383203ef30c5d1374cd26f4c3a927b46bf73484
       - name: Install GTK4, a virtual display, and packaging tooling
         run: |
           sudo apt-get update
