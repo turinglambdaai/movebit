@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.0.2 (2026-10-27)
+
+The full-surface audit slice: it ships the update-channel fix that only
+reaches installed clients through a release, and doubles as the first live
+0.0.1 → 0.0.2 update exercise.
+
+### Fixed
+
+- **`get-update-state` failed its wire type check after any update check**
+  (Optional fields carried `#f` instead of the none encoding), which hid the
+  pending-update banner until the next manual check. Optional fields now
+  encode properly; pinned by the real-RVT1 wire suite.
+
+### Changed
+
+- Product homepage, manual, user guides (EN/zh-CN) and both READMEs
+  rewritten for the v0.0.1 product (Mubi delivery, cue lifecycle, honest
+  Wayland fallback); COMPANION-RFC marked shipped. Repository documentation
+  only — no behavior change beyond the fix above.
+
+## 0.0.1 — the fresh start (2026-10-27)
 ## 0.0.1 — the fresh start (2026-10-27)
 
 **The first real MoveBit.** The owner decided the rebooted product ships as
