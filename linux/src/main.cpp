@@ -40,7 +40,7 @@
 #include <vector>
 
 #include "GeneratedBackend.hpp"
-#include "GeneratedStrings.hpp"
+#include "l10n.hpp"
 #include "system_services.hpp"
 
 namespace {
@@ -85,8 +85,8 @@ std::string pad2(std::int64_t n) {
 std::string format_duration(std::int64_t total) {
   total = std::max<std::int64_t>(0, total);
   return total >= 60
-             ? l10n::t("AppHourMin", {l10n::A(total / 60), l10n::A(pad2(total % 60))})
-             : l10n::t("AppMinutes", {l10n::A(total)});
+             ? l10n::t("app.hourMin", {l10n::A(total / 60), l10n::A(pad2(total % 60))})
+             : l10n::t("app.minutes", {l10n::A(total)});
 }
 
 /// Compact axis label: "·" for zero (parity with FormatMinutesCompact).
@@ -97,13 +97,13 @@ std::string format_compact(std::int64_t total) {
 }
 
 std::string pick_water() {
-  return late_night() ? l10n::pick("CopyLateNightWaterPool", 3)
-                      : l10n::pick("CopyWaterPool", 8);
+  return late_night() ? l10n::pick("copy.lateNightWaterPool", 3)
+                      : l10n::pick("copy.waterPool", 8);
 }
 
 std::string pick_micro() {
-  return late_night() ? l10n::pick("CopyLateNightMicroPool", 3)
-                      : l10n::pick("CopyMicroPool", 9);
+  return late_night() ? l10n::pick("copy.lateNightMicroPool", 3)
+                      : l10n::pick("copy.microPool", 9);
 }
 
 std::string day_key(std::int64_t epoch_ms) {
@@ -448,10 +448,10 @@ void mutate_config(F mutate) {
     dispatch_ui([result = std::move(result), previous]() mutable {
       if (result.succeeded()) {
         g_state.model.config_status =
-            l10n::t("SetStatusSaved", {l10n::T(now_ms())});
+            l10n::t("set.statusSaved", {l10n::T(now_ms())});
       } else {
         g_state.model.config = previous;  // roll back the optimistic draft
-        g_state.model.config_status = l10n::t("SetStatusSaveFailed");
+        g_state.model.config_status = l10n::t("set.statusSaveFailed");
       }
       refresh_status_label();
     });
@@ -467,8 +467,8 @@ void set_autostart_host(bool enabled) {
         dispatch_ui([result = std::move(result)]() mutable {
           g_state.model.config_status =
               result.succeeded()
-                  ? l10n::t("SetStatusApplied", {l10n::T(now_ms())})
-                  : l10n::t("SetStatusSaveFailed");
+                  ? l10n::t("set.statusApplied", {l10n::T(now_ms())})
+                  : l10n::t("set.statusSaveFailed");
           refresh_status_label();
         });
       });
@@ -732,7 +732,7 @@ void draw_history_chart(GtkDrawingArea*, cairo_t* cr, int width, int height,
     }
     std::string day_label;
     if (slice.is_today) {
-      day_label = l10n::t("HistToday");
+      day_label = l10n::t("hist.today");
     } else if (!is_month) {
       std::time_t t = static_cast<std::time_t>(slice.day_start_ms / 1000);
       std::tm lt{};
@@ -773,7 +773,7 @@ void draw_history_chart(GtkDrawingArea*, cairo_t* cr, int width, int height,
     cairo_stroke(cr);
     cairo_set_dash(cr, nullptr, 0, 0);
     draw_text(
-        l10n::t("HistAvg", {l10n::A(format_compact(average))}).c_str(),
+        l10n::t("hist.avg", {l10n::A(format_compact(average))}).c_str(),
         width - 4, y - 2, "#A39B8D", false, 10);
   }
 
@@ -798,7 +798,7 @@ void refresh_status_label() {
     gtk_label_set_text(
         mw.config_status,
         (g_state.model.config_status.empty()
-             ? l10n::t("SetStatusDefault")
+             ? l10n::t("set.statusDefault")
              : g_state.model.config_status)
             .c_str());
   }
@@ -808,14 +808,14 @@ void refresh_pause_button() {
   if (g_state.pause_button != nullptr) {
     gtk_button_set_label(
         g_state.pause_button,
-        g_state.model.is_paused() ? l10n::t("TrayResume").c_str()
-                                  : l10n::t("TrayPause").c_str());
+        g_state.model.is_paused() ? l10n::t("tray.resume").c_str()
+                                  : l10n::t("tray.pause").c_str());
   }
 }
 
 void refresh_quit_button() {
   if (g_state.quit_button != nullptr) {
-    gtk_button_set_label(g_state.quit_button, l10n::t("TrayExit").c_str());
+    gtk_button_set_label(g_state.quit_button, l10n::t("tray.exit").c_str());
   }
 }
 
@@ -823,7 +823,7 @@ void refresh_focus_button() {
   if (g_state.focus_button != nullptr) {
     gtk_button_set_label(
         g_state.focus_button,
-        l10n::t(g_state.model.quiet ? "TrayFocusOff" : "TrayFocusOn").c_str());
+        l10n::t(g_state.model.quiet ? "tray.focusOff" : "tray.focusOn").c_str());
   }
 }
 
@@ -844,11 +844,11 @@ void refresh_today_card() {
   if (mw.today_status != nullptr) {
     std::string status;
     if (model.is_paused() && model.paused.until_ms.has_value()) {
-      status = l10n::t("TplPausedUntil", {l10n::T(*model.paused.until_ms)});
+      status = l10n::t("tpl.pausedUntil", {l10n::T(*model.paused.until_ms)});
     } else if (model.is_paused()) {
-      status = l10n::t("TplPausedUntil", {l10n::T(now_ms())});
+      status = l10n::t("tpl.pausedUntil", {l10n::T(now_ms())});
     } else {
-      status = l10n::t("TplRunning");
+      status = l10n::t("tpl.running");
     }
     gtk_label_set_text(mw.today_status, status.c_str());
     gtk_widget_remove_css_class(GTK_WIDGET(mw.today_status), "ok");
@@ -868,7 +868,7 @@ void refresh_today_card() {
   if (mw.sit_cycle_text != nullptr) {
     std::string text = "—";
     if (!model.is_paused()) {
-      text = l10n::t("TplSitCycleMin", {l10n::A(model.current_session_mins()),
+      text = l10n::t("tpl.sitCycleMin", {l10n::A(model.current_session_mins()),
                                         l10n::A(model.config.sit_reminder_minutes)});
     }
     gtk_label_set_text(mw.sit_cycle_text, text.c_str());
@@ -889,8 +889,8 @@ void refresh_today_card() {
 void refresh_history_card() {
   if (mw.hist_title != nullptr) {
     gtk_label_set_text(mw.hist_title,
-                       (g_state.model.history_days >= 30 ? l10n::t("HistRange30")
-                                                         : l10n::t("HistRange7"))
+                       (g_state.model.history_days >= 30 ? l10n::t("hist.range30")
+                                                         : l10n::t("hist.range7"))
                            .c_str());
   }
   if (mw.hist_total != nullptr) {
@@ -898,8 +898,8 @@ void refresh_history_card() {
     std::int64_t total = 0;
     for (auto const& s : slices) total += s.stats.active_mins;
     std::string text =
-        total >= 60 ? l10n::t("HistTotalLong", {l10n::A(total / 60), l10n::A(total % 60)})
-                    : l10n::t("HistTotalShort", {l10n::A(total)});
+        total >= 60 ? l10n::t("hist.totalLong", {l10n::A(total / 60), l10n::A(total % 60)})
+                    : l10n::t("hist.totalShort", {l10n::A(total)});
     gtk_label_set_text(mw.hist_total, text.c_str());
   }
   schedule_chart_redraw();
@@ -914,7 +914,7 @@ void refresh_insight_card() {
   gtk_label_set_text(mw.insight_metrics[2], format_minutes(summary.longest).c_str());
   gtk_label_set_text(mw.insight_metrics[3], format_minutes(summary.average).c_str());
   if (mw.insight_busiest != nullptr) {
-    std::string text = l10n::t("InsightNone");
+    std::string text = l10n::t("insight.none");
     if (summary.has_busiest && summary.busiest.date.size() >= 10) {
       text = summary.busiest.date.substr(5, 5) + " · " +
              format_minutes(summary.busiest.active_mins);
@@ -926,13 +926,13 @@ void refresh_insight_card() {
     std::int64_t const sit = model.config.sit_reminder_minutes;
     std::string text;
     if (longest <= 0) {
-      text = l10n::t("InsightNoData");
+      text = l10n::t("insight.noData");
     } else if (longest >= sit * 2) {
-      text = l10n::t("InsightLong2", {l10n::A(format_minutes(longest))});
+      text = l10n::t("insight.long2", {l10n::A(format_minutes(longest))});
     } else if (longest >= sit) {
-      text = l10n::t("InsightLong1", {l10n::A(format_minutes(longest))});
+      text = l10n::t("insight.long1", {l10n::A(format_minutes(longest))});
     } else {
-      text = l10n::t("InsightLong0", {l10n::A(format_minutes(longest))});
+      text = l10n::t("insight.long0", {l10n::A(format_minutes(longest))});
     }
     gtk_label_set_text(mw.insight_sedentary, text.c_str());
   }
@@ -978,11 +978,11 @@ void refresh_footer() {
         mw.footer,
         g_state.model.data_dir.empty()
             ? ""
-            : l10n::t("MainConfigPath", {l10n::A(g_state.model.data_dir)}).c_str());
+            : l10n::t("main.configPath", {l10n::A(g_state.model.data_dir)}).c_str());
   }
   if (mw.about_version != nullptr) {
     gtk_label_set_text(mw.about_version,
-                       l10n::t("UpdCurrentVersion", {l10n::A(rivet_app::kVersion)}).c_str());
+                       l10n::t("upd.currentVersion", {l10n::A(rivet_app::kVersion)}).c_str());
   }
 }
 
@@ -1105,7 +1105,7 @@ void show_update_message(std::string const& title, std::string const& body) {
       title.c_str(), g_state.window,
       static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
                                   GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("DialogClose").c_str(), GTK_RESPONSE_CLOSE, nullptr);
+      l10n::t("dialog.close").c_str(), GTK_RESPONSE_CLOSE, nullptr);
   auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   auto* text = gtk_label_new(body.c_str());
   gtk_label_set_wrap(GTK_LABEL(text), TRUE);
@@ -1129,7 +1129,7 @@ void show_update_message(std::string const& title, std::string const& body) {
 void show_update_error(std::string const& message) {
   show_update_message(
       "MoveBit",
-      message.empty() ? std::string(l10n::t("UpdCheckFailed")) : message);
+      message.empty() ? std::string(l10n::t("upd.checkFailed")) : message);
 }
 
 void set_updates_hint(std::string const& text) {
@@ -1144,14 +1144,14 @@ void set_updates_hint(std::string const& text) {
 // the next launch is the new version regardless.
 void show_appimage_restart_dialog() {
   auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("UpdDownloadedTitle").c_str(), g_state.window,
+      l10n::t("upd.downloadedTitle").c_str(), g_state.window,
       static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
                                   GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("DialogCancel").c_str(), GTK_RESPONSE_CLOSE,
-      l10n::t("UpdActionRestartInstall").c_str(), GTK_RESPONSE_ACCEPT,
+      l10n::t("dialog.cancel").c_str(), GTK_RESPONSE_CLOSE,
+      l10n::t("upd.actionRestartInstall").c_str(), GTK_RESPONSE_ACCEPT,
       nullptr);
   auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  auto* hint = gtk_label_new(l10n::t("UpdAppImageHint").c_str());
+  auto* hint = gtk_label_new(l10n::t("upd.appImageHint").c_str());
   gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
   gtk_label_set_max_width_chars(GTK_LABEL(hint), 60);
   gtk_widget_set_margin_top(hint, 12);
@@ -1181,10 +1181,10 @@ void show_appimage_restart_dialog() {
 // the step and points at the file's folder.
 void show_downloaded_dialog(std::string const& path) {
   auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("UpdDownloadedTitle").c_str(), g_state.window,
+      l10n::t("upd.downloadedTitle").c_str(), g_state.window,
       static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
                                   GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("DialogClose").c_str(), GTK_RESPONSE_CLOSE, nullptr);
+      l10n::t("dialog.close").c_str(), GTK_RESPONSE_CLOSE, nullptr);
   auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
   gtk_widget_set_margin_top(content, 12);
@@ -1193,7 +1193,7 @@ void show_downloaded_dialog(std::string const& path) {
   gtk_widget_set_margin_end(content, 12);
   gtk_box_append(GTK_BOX(area), content);
 
-  auto* hint = gtk_label_new(l10n::t("UpdInstallHint").c_str());
+  auto* hint = gtk_label_new(l10n::t("upd.installHint").c_str());
   gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
   gtk_label_set_max_width_chars(GTK_LABEL(hint), 60);
   gtk_box_append(GTK_BOX(content), hint);
@@ -1206,7 +1206,7 @@ void show_downloaded_dialog(std::string const& path) {
     gtk_widget_add_css_class(path_label, "caption");
     gtk_box_append(GTK_BOX(content), path_label);
 
-    auto* open = gtk_button_new_with_label(l10n::t("UpdOpenFolder").c_str());
+    auto* open = gtk_button_new_with_label(l10n::t("upd.openFolder").c_str());
     g_object_set_data_full(G_OBJECT(open), "update-open-path",
                            new std::string(path),
                            +[](gpointer data) {
@@ -1263,8 +1263,8 @@ int on_update_poll_tick(gpointer) {
     g_update.download_in_flight = false;
     g_update.download_started_ms = 0;
     g_update.poll_source = 0;
-    set_updates_hint(l10n::t("UpdCheckFailed"));
-    show_update_error(l10n::t("UpdCheckFailed"));
+    set_updates_hint(l10n::t("upd.checkFailed"));
+    show_update_error(l10n::t("upd.checkFailed"));
     return G_SOURCE_REMOVE;
   }
   (void)g_state.api->get_update_state_async(
@@ -1284,7 +1284,7 @@ int on_update_poll_tick(gpointer) {
           if (g_update.progress_label != nullptr) {
             gtk_label_set_text(
                 g_update.progress_label,
-                l10n::t("UpdDownloadingPct",
+                l10n::t("upd.downloadingPct",
                         {l10n::A(g_update.pending_version),
                          l10n::A(percent)})
                     .c_str());
@@ -1300,12 +1300,12 @@ int on_update_poll_tick(gpointer) {
           if (state.phase == "idle") {
             // The cancel gesture landed: a cancel is not a failure — the
             // hint says so and the update stays one click away.
-            set_updates_hint(l10n::t("UpdCancelled"));
+            set_updates_hint(l10n::t("upd.cancelled"));
             return;
           }
           if (state.phase == "error") {
             set_updates_hint(state.message.value_or("").empty()
-                                 ? std::string(l10n::t("UpdCheckFailed"))
+                                 ? std::string(l10n::t("upd.checkFailed"))
                                  : state.message.value_or(""));
             show_update_error(state.message.value_or(""));
             return;
@@ -1327,11 +1327,11 @@ void start_update_download() {
   g_update.last_phase = "downloading";
 
   auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("UpdDownloading", {l10n::A(g_update.pending_version)}).c_str(),
+      l10n::t("upd.downloading", {l10n::A(g_update.pending_version)}).c_str(),
       g_state.window,
       static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
                                   GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("DialogCancel").c_str(), GTK_RESPONSE_CANCEL, nullptr);
+      l10n::t("dialog.cancel").c_str(), GTK_RESPONSE_CANCEL, nullptr);
   auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
   gtk_widget_set_margin_top(content, 12);
@@ -1343,7 +1343,7 @@ void start_update_download() {
   gtk_widget_set_size_request(bar, 300, -1);
   gtk_box_append(GTK_BOX(content), bar);
   auto* label =
-      gtk_label_new(l10n::t("UpdDownloading",
+      gtk_label_new(l10n::t("upd.downloading",
                             {l10n::A(g_update.pending_version)})
                         .c_str());
   gtk_box_append(GTK_BOX(content), label);
@@ -1365,7 +1365,7 @@ void start_update_download() {
         g_update.progress_label = nullptr;
         g_update.download_in_flight = false;
         g_update.download_started_ms = 0;
-        set_updates_hint(l10n::t("UpdCancelled"));
+        set_updates_hint(l10n::t("upd.cancelled"));
         gtk_window_destroy(GTK_WINDOW(dialog));
       }),
       nullptr);
@@ -1414,20 +1414,20 @@ void show_update_consent(rivet_app::UpdateCheck const& check) {
   std::string const version = check.available_version.value_or("?");
   if (install_shape() == "package") {
     // deb/rpm upgrade through the package manager; never download or exec.
-    show_update_message(l10n::t("UpdAvailableTitle"),
-                        l10n::t("UpdUsePackageManager"));
+    show_update_message(l10n::t("upd.availableTitle"),
+                        l10n::t("upd.usePackageManager"));
     return;
   }
   g_update.pending_version = version;
   auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("UpdAvailableTitle").c_str(), g_state.window,
+      l10n::t("upd.availableTitle").c_str(), g_state.window,
       static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
                                   GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("DialogCancel").c_str(), GTK_RESPONSE_CANCEL,
-      l10n::t("UpdActionUpdate").c_str(), GTK_RESPONSE_ACCEPT, nullptr);
+      l10n::t("dialog.cancel").c_str(), GTK_RESPONSE_CANCEL,
+      l10n::t("upd.actionUpdate").c_str(), GTK_RESPONSE_ACCEPT, nullptr);
   auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
   auto* text =
-      gtk_label_new(l10n::t("UpdFound", {l10n::A(version)}).c_str());
+      gtk_label_new(l10n::t("upd.found", {l10n::A(version)}).c_str());
   gtk_label_set_wrap(GTK_LABEL(text), TRUE);
   gtk_label_set_max_width_chars(GTK_LABEL(text), 60);
   gtk_widget_set_margin_top(text, 12);
@@ -1455,17 +1455,17 @@ void on_check_updates_clicked(GtkButton*, gpointer) {
   }
   g_update.check_in_flight = true;
   if (mw.updates_button != nullptr) {
-    gtk_button_set_label(mw.updates_button, l10n::t("UpdCheckingShort").c_str());
+    gtk_button_set_label(mw.updates_button, l10n::t("upd.checkingShort").c_str());
     gtk_widget_set_sensitive(GTK_WIDGET(mw.updates_button), FALSE);
   }
-  set_updates_hint(l10n::t("UpdChecking"));
+  set_updates_hint(l10n::t("upd.checking"));
   (void)g_state.api->check_updates_async(
       [](rivet_app::Result<rivet_app::UpdateCheck> result) {
         dispatch_ui([result = std::move(result)]() mutable {
           g_update.check_in_flight = false;
           if (mw.updates_button != nullptr) {
             gtk_button_set_label(mw.updates_button,
-                                 l10n::t("AboutCheckUpdates").c_str());
+                                 l10n::t("about.checkUpdates").c_str());
             gtk_widget_set_sensitive(GTK_WIDGET(mw.updates_button), TRUE);
           }
           if (!result.succeeded()) {
@@ -1483,13 +1483,13 @@ void on_check_updates_clicked(GtkButton*, gpointer) {
           rivet_app::UpdateCheck const& check = result.get();
           if (check.status == "available") {
             set_updates_hint(
-                l10n::t("UpdFound",
+                l10n::t("upd.found",
                         {l10n::A(check.available_version.value_or(""))}));
             show_update_consent(check);
             return;
           }
           if (check.status == "up-to-date") {
-            set_updates_hint(l10n::t("UpdCurrentUpToDate",
+            set_updates_hint(l10n::t("upd.currentUpToDate",
                                      {l10n::A(check.current_version)}));
             return;
           }
@@ -1497,7 +1497,7 @@ void on_check_updates_clicked(GtkButton*, gpointer) {
           // signing conditions, not user mistakes.
           std::string const message = check.error.value_or("");
           set_updates_hint(message.empty()
-                               ? std::string(l10n::t("UpdCheckFailed"))
+                               ? std::string(l10n::t("upd.checkFailed"))
                                : message);
           show_update_error(message);
         });
@@ -1517,7 +1517,7 @@ void reflect_pending_update() {
           rivet_app::UpdateState const& state = result.get();
           if (state.phase == "idle" && state.available_version.has_value()) {
             set_updates_hint(l10n::t(
-                "UpdFound", {l10n::A(state.available_version.value_or(""))}));
+                "upd.found", {l10n::A(state.available_version.value_or(""))}));
           }
         });
       });
@@ -1564,7 +1564,7 @@ void build_main_content() {
   {
     auto* card = make_card();
     auto* head = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    box_append(GTK_BOX(head), label_with(l10n::t("TodayTitle").c_str(), "section"));
+    box_append(GTK_BOX(head), label_with(l10n::t("today.title").c_str(), "section"));
     auto* status = gtk_label_new("");
     gtk_widget_add_css_class(status, "status");
     gtk_widget_set_hexpand(status, TRUE);
@@ -1591,12 +1591,12 @@ void build_main_content() {
     gtk_widget_add_css_class(cycle_text, "row-strong");
     gtk_label_set_xalign(GTK_LABEL(cycle_text), 0.0f);
     box_append(GTK_BOX(cycle_left), cycle_text);
-    box_append(GTK_BOX(cycle_left), label_with(l10n::t("TodaySitCycle").c_str(), "caption"));
+    box_append(GTK_BOX(cycle_left), label_with(l10n::t("today.sitCycle").c_str(), "caption"));
     gtk_widget_set_hexpand(cycle_left, TRUE);
     box_append(GTK_BOX(cycle), cycle_left);
-    box_append(GTK_BOX(cycle), counter_tile("🚶", l10n::t("TodaySit").c_str(), &mw.today_sit));
-    box_append(GTK_BOX(cycle), counter_tile("💧", l10n::t("TodayWater").c_str(), &mw.today_water));
-    box_append(GTK_BOX(cycle), counter_tile("👀", l10n::t("TodayMicro").c_str(), &mw.today_micro));
+    box_append(GTK_BOX(cycle), counter_tile("🚶", l10n::t("today.sit").c_str(), &mw.today_sit));
+    box_append(GTK_BOX(cycle), counter_tile("💧", l10n::t("today.water").c_str(), &mw.today_water));
+    box_append(GTK_BOX(cycle), counter_tile("👀", l10n::t("today.micro").c_str(), &mw.today_micro));
     box_append(GTK_BOX(card), cycle);
     box_append(left, card);
   }
@@ -1606,7 +1606,7 @@ void build_main_content() {
     auto* card = make_card();
     auto* head = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     auto* head_left = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    auto* title = gtk_label_new(l10n::t("HistRange7").c_str());
+    auto* title = gtk_label_new(l10n::t("hist.range7").c_str());
     gtk_widget_add_css_class(title, "section");
     gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
     box_append(GTK_BOX(head_left), title);
@@ -1616,8 +1616,8 @@ void build_main_content() {
     box_append(GTK_BOX(head_left), total);
     gtk_widget_set_hexpand(head_left, TRUE);
     box_append(GTK_BOX(head), head_left);
-    std::string const range7 = l10n::t("HistToggle7");
-    std::string const range30 = l10n::t("HistToggle30");
+    std::string const range7 = l10n::t("hist.toggle7");
+    std::string const range30 = l10n::t("hist.toggle30");
     const char* const range_items[] = {range7.c_str(), range30.c_str(), nullptr};
     auto* range = gtk_drop_down_new_from_strings(range_items);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(range), 0);
@@ -1640,14 +1640,14 @@ void build_main_content() {
   // --- insight card ---
   {
     auto* card = make_card();
-    box_append(GTK_BOX(card), label_with(l10n::t("InsightTitle").c_str(), "section"));
+    box_append(GTK_BOX(card), label_with(l10n::t("insight.title").c_str(), "section"));
     auto* grid = gtk_grid_new();
     gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
     gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
-    std::string const titles[4] = {l10n::t("InsightCurrent"),
-                                   l10n::t("InsightTodayLongest"),
-                                   l10n::t("InsightRecentLongest"),
-                                   l10n::t("InsightRecentAvg")};
+    std::string const titles[4] = {l10n::t("insight.current"),
+                                   l10n::t("insight.todayLongest"),
+                                   l10n::t("insight.recentLongest"),
+                                   l10n::t("insight.recentAvg")};
     for (int i = 0; i < 4; ++i) {
       auto* tile = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
       gtk_widget_add_css_class(tile, "metric-tile");
@@ -1661,7 +1661,7 @@ void build_main_content() {
     }
     box_append(GTK_BOX(card), grid);
     auto* busiest = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    box_append(GTK_BOX(busiest), label_with(l10n::t("InsightBusiest").c_str(), "caption"));
+    box_append(GTK_BOX(busiest), label_with(l10n::t("insight.busiest").c_str(), "caption"));
     auto* busiest_value = gtk_label_new("");
     box_append(GTK_BOX(busiest), busiest_value);
     mw.insight_busiest = GTK_LABEL(busiest_value);
@@ -1679,7 +1679,7 @@ void build_main_content() {
   {
     auto* card = make_card();
     auto* head = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    box_append(GTK_BOX(head), label_with(l10n::t("SetTitle").c_str(), "section"));
+    box_append(GTK_BOX(head), label_with(l10n::t("set.title").c_str(), "section"));
     auto* status = gtk_label_new("");
     gtk_widget_add_css_class(status, "accent-label");
     gtk_widget_set_hexpand(status, TRUE);
@@ -1688,21 +1688,21 @@ void build_main_content() {
     box_append(GTK_BOX(head), status);
     mw.config_status = GTK_LABEL(status);
     box_append(GTK_BOX(card), head);
-    box_append(GTK_BOX(card), label_with(l10n::t("SetIntro").c_str(), "caption"));
+    box_append(GTK_BOX(card), label_with(l10n::t("set.intro").c_str(), "caption"));
 
     auto& c = g_state.model.config;
-    mw.sit_spin = add_stepper_row(card, l10n::t("SetSitInterval").c_str(),
+    mw.sit_spin = add_stepper_row(card, l10n::t("set.sitInterval").c_str(),
                                   c.sit_reminder_minutes, 10, 240, 5,
                                   G_CALLBACK(on_sit_changed));
-    mw.water_spin = add_stepper_row(card, l10n::t("SetWaterInterval").c_str(),
+    mw.water_spin = add_stepper_row(card, l10n::t("set.waterInterval").c_str(),
                                     c.water_reminder_minutes, 5, 180, 5,
                                     G_CALLBACK(on_water_changed));
-    mw.away_spin = add_stepper_row(card, l10n::t("SetAwayReset").c_str(),
+    mw.away_spin = add_stepper_row(card, l10n::t("set.awayReset").c_str(),
                                    c.away_reset_minutes, 1, 60, 1,
                                    G_CALLBACK(on_away_changed));
     auto* mubi_size_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     box_append(GTK_BOX(mubi_size_row),
-               label_with(l10n::t("SetMubiSize").c_str(), "row-label"));
+               label_with(l10n::t("set.mubiSize").c_str(), "row-label"));
     char const* size_items[] = {"S", "M", "L", nullptr};
     auto* size_drop = gtk_drop_down_new_from_strings(size_items);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(size_drop),
@@ -1718,10 +1718,10 @@ void build_main_content() {
 
     auto* mubi_motion_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     box_append(GTK_BOX(mubi_motion_row),
-               label_with(l10n::t("SetMubiMotion").c_str(), "row-label"));
-    std::string const motion_still = l10n::t("MubiMotionStill");
-    std::string const motion_subtle = l10n::t("MubiMotionSubtle");
-    std::string const motion_lively = l10n::t("MubiMotionLively");
+               label_with(l10n::t("set.mubiMotion").c_str(), "row-label"));
+    std::string const motion_still = l10n::t("mubi.motionStill");
+    std::string const motion_subtle = l10n::t("mubi.motionSubtle");
+    std::string const motion_lively = l10n::t("mubi.motionLively");
     char const* motion_items[] = {motion_still.c_str(), motion_subtle.c_str(),
                                   motion_lively.c_str(), nullptr};
     auto* motion_drop = gtk_drop_down_new_from_strings(motion_items);
@@ -1738,10 +1738,10 @@ void build_main_content() {
 
     auto* mubi_dock_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     box_append(GTK_BOX(mubi_dock_row),
-               label_with(l10n::t("SetMubiDock").c_str(), "row-label"));
-    std::string const dock_br = l10n::t("MubiDockBottomRight");
-    std::string const dock_bl = l10n::t("MubiDockBottomLeft");
-    std::string const dock_tr = l10n::t("MubiDockTopRight");
+               label_with(l10n::t("set.mubiDock").c_str(), "row-label"));
+    std::string const dock_br = l10n::t("mubi.dockBottomRight");
+    std::string const dock_bl = l10n::t("mubi.dockBottomLeft");
+    std::string const dock_tr = l10n::t("mubi.dockTopRight");
     char const* dock_items[] = {dock_br.c_str(), dock_bl.c_str(),
                                 dock_tr.c_str(), nullptr};
     auto* dock_drop = gtk_drop_down_new_from_strings(dock_items);
@@ -1758,9 +1758,9 @@ void build_main_content() {
 
     auto* mubi_labels_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     box_append(GTK_BOX(mubi_labels_row),
-               label_with(l10n::t("SetMubiLabels").c_str(), "row-label"));
-    std::string const labels_cue = l10n::t("MubiLabelsCue");
-    std::string const labels_always = l10n::t("MubiLabelsAlways");
+               label_with(l10n::t("set.mubiLabels").c_str(), "row-label"));
+    std::string const labels_cue = l10n::t("mubi.labelsCue");
+    std::string const labels_always = l10n::t("mubi.labelsAlways");
     char const* labels_items[] = {labels_cue.c_str(), labels_always.c_str(),
                                   nullptr};
     auto* labels_drop = gtk_drop_down_new_from_strings(labels_items);
@@ -1774,17 +1774,17 @@ void build_main_content() {
     box_append(GTK_BOX(card), mubi_labels_row);
     mw.mubi_labels_drop = GTK_DROP_DOWN(labels_drop);
 
-    mw.motion_switch = add_toggle_row(card, l10n::t("SetMotion").c_str(),
+    mw.motion_switch = add_toggle_row(card, l10n::t("set.motion").c_str(),
                                       c.motion_enabled,
                                       G_CALLBACK(on_motion_set));
-    mw.snooze_spin = add_stepper_row(card, l10n::t("SetSnooze").c_str(),
+    mw.snooze_spin = add_stepper_row(card, l10n::t("set.snooze").c_str(),
                                      c.snooze_minutes, 5, 60, 5,
                                      G_CALLBACK(on_snooze_changed));
-    mw.micro_switch = add_toggle_row(card, l10n::t("SetMicroToggle").c_str(),
+    mw.micro_switch = add_toggle_row(card, l10n::t("set.microToggle").c_str(),
                                      c.micro_break_enabled,
                                      G_CALLBACK(on_micro_set));
     auto* micro_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    box_append(GTK_BOX(micro_row), label_with(l10n::t("SetMicroParams").c_str(), "row-label"));
+    box_append(GTK_BOX(micro_row), label_with(l10n::t("set.microParams").c_str(), "row-label"));
     mw.micro_interval_spin = add_stepper_row(
         micro_row, "", c.micro_break_interval_minutes, 10, 60, 5,
         G_CALLBACK(on_micro_interval_changed));
@@ -1792,15 +1792,15 @@ void build_main_content() {
         micro_row, "", c.micro_break_duration_seconds, 10, 60, 5,
         G_CALLBACK(on_micro_duration_changed));
     box_append(GTK_BOX(card), micro_row);
-    mw.sound_switch = add_toggle_row(card, l10n::t("SetSound").c_str(),
+    mw.sound_switch = add_toggle_row(card, l10n::t("set.sound").c_str(),
                                      c.sound_enabled, G_CALLBACK(on_sound_set));
     mw.autostart_switch = add_toggle_row(
-        card, l10n::t("SetAutostart").c_str(), g_state.model.autostart,
+        card, l10n::t("set.autostart").c_str(), g_state.model.autostart,
         G_CALLBACK(on_autostart_set));
 
     auto* lang_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    box_append(GTK_BOX(lang_row), label_with(l10n::t("SetLanguage").c_str(), "row-label"));
-    std::string const lang_auto = l10n::t("LangAuto");
+    box_append(GTK_BOX(lang_row), label_with(l10n::t("set.language").c_str(), "row-label"));
+    std::string const lang_auto = l10n::t("lang.auto");
     const char* const lang_items[] = {lang_auto.c_str(), "\u4e2d\u6587",
                                       "English", nullptr};
     auto* lang = gtk_drop_down_new_from_strings(lang_items);
@@ -1828,7 +1828,7 @@ void build_main_content() {
     {
       auto* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
       auto* check_btn =
-          gtk_button_new_with_label(l10n::t("AboutCheckUpdates").c_str());
+          gtk_button_new_with_label(l10n::t("about.checkUpdates").c_str());
       g_signal_connect(check_btn, "clicked",
                        G_CALLBACK(on_check_updates_clicked), nullptr);
       gtk_box_append(GTK_BOX(row), check_btn);
@@ -1844,25 +1844,25 @@ void build_main_content() {
       mw.updates_hint = GTK_LABEL(hint);
       box_append(GTK_BOX(card), row);
     }
-    mw.updates_switch = add_toggle_row(card, l10n::t("AboutAutoUpdate").c_str(),
+    mw.updates_switch = add_toggle_row(card, l10n::t("about.autoUpdate").c_str(),
                                        g_state.model.config.auto_check_updates,
                                        G_CALLBACK(on_updates_set));
     box_append(GTK_BOX(card),
-                   label_with(l10n::t("AboutAutoUpdateHint").c_str(), "caption"));
+                   label_with(l10n::t("about.autoUpdateHint").c_str(), "caption"));
     // Website / issue tracker / license — the family About rows.
     auto* links = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16);
     gtk_box_append(
         GTK_BOX(links),
         gtk_link_button_new_with_label("https://movebit.jrtx.site",
-                                       l10n::t("AboutWebsite").c_str()));
+                                       l10n::t("about.website").c_str()));
     gtk_box_append(
         GTK_BOX(links),
         gtk_link_button_new_with_label(
             "https://github.com/turinglambdaai/movebit/issues",
-            l10n::t("AboutReportIssue").c_str()));
+            l10n::t("about.reportIssue").c_str()));
     box_append(GTK_BOX(card), links);
     box_append(GTK_BOX(card),
-               label_with(l10n::t("AboutLicense").c_str(), "caption"));
+               label_with(l10n::t("about.license").c_str(), "caption"));
     box_append(right, card);
   }
 
@@ -2386,14 +2386,14 @@ void present(int state, std::string const& message, GtkApplication* app,
     // on every host, so the card carries its own row while a cue shows.
     auto* actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_halign(actions, GTK_ALIGN_CENTER);
-    auto* hide = gtk_button_new_with_label(l10n::t("NotifHide").c_str());
+    auto* hide = gtk_button_new_with_label(l10n::t("notif.hide").c_str());
     gtk_widget_add_css_class(hide, "toast-btn-muted");
     gtk_widget_set_can_target(hide, TRUE);
     g_signal_connect(hide, "clicked", G_CALLBACK(on_mubi_hide), nullptr);
     box_append(GTK_BOX(actions), hide);
     s.mubi_hide = GTK_BUTTON(hide);
     auto* later = gtk_button_new_with_label(
-        l10n::t("NotifSnooze",
+        l10n::t("notif.snooze",
                 {l10n::A(g_state.model.config.snooze_minutes)})
             .c_str());
     gtk_widget_add_css_class(later, "toast-btn-muted");
@@ -2401,7 +2401,7 @@ void present(int state, std::string const& message, GtkApplication* app,
     g_signal_connect(later, "clicked", G_CALLBACK(on_mubi_later), nullptr);
     box_append(GTK_BOX(actions), later);
     s.mubi_later = GTK_BUTTON(later);
-    auto* done = gtk_button_new_with_label(l10n::t("NotifDone").c_str());
+    auto* done = gtk_button_new_with_label(l10n::t("notif.done").c_str());
     gtk_widget_add_css_class(done, "toast-btn");
     gtk_widget_set_can_target(done, TRUE);
     g_signal_connect(done, "clicked", G_CALLBACK(on_mubi_done), nullptr);
@@ -2549,7 +2549,7 @@ void on_toast_snooze(GtkButton*, gpointer) {
       });
     });
     // #56 §4 `later`: a tiny quiet settle on the companion.
-    mubi::present(0, l10n::t("MubiLaterNote"), g_state.app);
+    mubi::present(0, l10n::t("mubi.laterNote"), g_state.app);
   }
   toast_dismiss();
 }
@@ -2598,7 +2598,7 @@ void on_mubi_later(GtkButton*, gpointer) {
         });
   }
   // #56 §4 `later`: a tiny quiet settle with the reassurance note.
-  mubi::present(0, l10n::t("MubiLaterNote"), nullptr);
+  mubi::present(0, l10n::t("mubi.laterNote"), nullptr);
 }
 
 void on_mubi_hide(GtkButton*, gpointer) {
@@ -2612,7 +2612,7 @@ void on_mubi_hide(GtkButton*, gpointer) {
 GtkWindow* toast_window_new(GtkApplication* app) {
   auto* window = gtk_application_window_new(app);
   gtk_widget_add_css_class(GTK_WIDGET(window), "toast-bg");
-  gtk_window_set_title(GTK_WINDOW(window), l10n::t("NotifWindowTitle").c_str());
+  gtk_window_set_title(GTK_WINDOW(window), l10n::t("notif.windowTitle").c_str());
   gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
   gtk_window_set_default_size(GTK_WINDOW(window), 380, -1);
   return GTK_WINDOW(window);
@@ -2666,22 +2666,22 @@ void toast_show(std::string const& title, std::vector<std::string> const& lines,
   auto* buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
   gtk_widget_set_halign(buttons, GTK_ALIGN_END);
   if (cue_id != 0) {
-    auto* hide = gtk_button_new_with_label(l10n::t("NotifHide").c_str());
+    auto* hide = gtk_button_new_with_label(l10n::t("notif.hide").c_str());
     gtk_widget_add_css_class(hide, "toast-btn-muted");
     g_signal_connect(hide, "clicked", G_CALLBACK(on_toast_hide), nullptr);
     box_append(GTK_BOX(buttons), hide);
     auto* snooze = gtk_button_new_with_label(
-        l10n::t("NotifSnooze", {l10n::A(snooze_minutes)}).c_str());
+        l10n::t("notif.snooze", {l10n::A(snooze_minutes)}).c_str());
     gtk_widget_add_css_class(snooze, "toast-btn-muted");
     g_signal_connect(snooze, "clicked", G_CALLBACK(on_toast_snooze), nullptr);
     box_append(GTK_BOX(buttons), snooze);
     g_state.toast_snooze_button = GTK_BUTTON(snooze);
-    auto* done = gtk_button_new_with_label(l10n::t("NotifDone").c_str());
+    auto* done = gtk_button_new_with_label(l10n::t("notif.done").c_str());
     gtk_widget_add_css_class(done, "toast-btn");
     g_signal_connect(done, "clicked", G_CALLBACK(on_toast_done), nullptr);
     box_append(GTK_BOX(buttons), done);
   } else {
-    auto* got_it = gtk_button_new_with_label(l10n::t("NotifGotIt").c_str());
+    auto* got_it = gtk_button_new_with_label(l10n::t("notif.gotIt").c_str());
     gtk_widget_add_css_class(got_it, "toast-btn");
     g_signal_connect(
         got_it, "clicked",
@@ -2766,7 +2766,7 @@ void micro_show(std::int64_t duration_seconds, std::string const& title,
   gtk_label_set_xalign(GTK_LABEL(title_label), 0.0f);
   box_append(GTK_BOX(head), title_label);
   box_append(GTK_BOX(body), head);
-  auto* hint = gtk_label_new(l10n::t("MicroHint").c_str());
+  auto* hint = gtk_label_new(l10n::t("micro.hint").c_str());
   gtk_widget_add_css_class(hint, "micro-hint");
   gtk_label_set_xalign(GTK_LABEL(hint), 0.0f);
   box_append(GTK_BOX(body), hint);
@@ -2842,9 +2842,9 @@ void handle_health_cue(rivet_app::HealthCue const& cue, GtkApplication* app) {
     std::string message;
     switch (cue.action) {
       case rivet_app::CueAction::drink_water: message = pick_water(); break;
-      case rivet_app::CueAction::rest_eyes: message = l10n::t("MicroHint"); break;
+      case rivet_app::CueAction::rest_eyes: message = l10n::t("micro.hint"); break;
       case rivet_app::CueAction::stand_and_stretch:
-        message = l10n::t("NotifSitTitle"); break;
+        message = l10n::t("notif.sitTitle"); break;
       default: break;
     }
     mubi::present(static_cast<int>(state), message, app, cue.id);
@@ -2861,14 +2861,14 @@ void handle_health_cue(rivet_app::HealthCue const& cue, GtkApplication* app) {
   std::vector<std::string> lines;
   if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::sit) !=
       kinds.end()) {
-    lines.push_back(l10n::t("NotifSitBody",
+    lines.push_back(l10n::t("notif.sitBody",
                             {l10n::A(format_duration(model.today.active_mins)),
                              l10n::A(model.today.sit_breaks)}));
-    lines.push_back(l10n::pick("CopySitToastPool", 6));
+    lines.push_back(l10n::pick("copy.sitToastPool", 6));
   }
   if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::water) !=
       kinds.end()) {
-    lines.push_back(l10n::t("NotifWaterCount", {l10n::A(model.today.water_reminders)}));
+    lines.push_back(l10n::t("notif.waterCount", {l10n::A(model.today.water_reminders)}));
     lines.push_back(pick_water());
   }
   if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::micro) !=
@@ -2876,11 +2876,11 @@ void handle_health_cue(rivet_app::HealthCue const& cue, GtkApplication* app) {
     lines.push_back(pick_micro());
   }
 
-  std::string title = l10n::t("NotifSitTitle");
+  std::string title = l10n::t("notif.sitTitle");
   rivet_app::ReminderKind accent = rivet_app::ReminderKind::sit;
   if (std::find(kinds.begin(), kinds.end(), rivet_app::ReminderKind::water) !=
       kinds.end()) {
-    title = l10n::t("NotifWaterTitle");
+    title = l10n::t("notif.waterTitle");
     accent = rivet_app::ReminderKind::water;
   }
 
@@ -2975,8 +2975,8 @@ void handle_event(std::string const& name, rivet::Value const& value,
                 return;
               }
               show_toast_plain(
-                  l10n::t("NotifCheerTitle"),
-                  {l10n::t("NotifCheerBody",
+                  l10n::t("notif.cheerTitle"),
+                  {l10n::t("notif.cheerBody",
                            {l10n::A(acked.count_today),
                             l10n::A(format_duration(
                                 g_state.model.today.active_mins))})},
@@ -3042,7 +3042,7 @@ void onboarding_finish(GtkApplication* app) {
     gtk_window_destroy(g_state.onboarding_window);
     g_state.onboarding_window = nullptr;
   }
-  show_toast_plain(l10n::t("ObSettled"), {l10n::t("ObSettledBody")},
+  show_toast_plain(l10n::t("ob.settled"), {l10n::t("ob.settledBody")},
                    rivet_app::ReminderKind::water, app);
 }
 
@@ -3059,7 +3059,7 @@ void onboarding_show(GtkApplication* app) {
 
   auto* window = gtk_application_window_new(app);
   gtk_widget_add_css_class(GTK_WIDGET(window), "ob-bg");
-  gtk_window_set_title(GTK_WINDOW(window), l10n::t("ObTitle").c_str());
+  gtk_window_set_title(GTK_WINDOW(window), l10n::t("ob.title").c_str());
   gtk_window_set_default_size(GTK_WINDOW(window), 500, 640);
   s.onboarding_window = GTK_WINDOW(window);
 
@@ -3085,15 +3085,15 @@ void onboarding_show(GtkApplication* app) {
     gtk_label_set_attributes(GTK_LABEL(emoji), emoji_attrs);
     pango_attr_list_unref(emoji_attrs);
     box_append(GTK_BOX(page), emoji);
-    auto* hello = gtk_label_new(l10n::t("ObHello").c_str());
+    auto* hello = gtk_label_new(l10n::t("ob.hello").c_str());
     gtk_widget_add_css_class(hello, "ob-hello");
     box_append(GTK_BOX(page), hello);
-    auto* intro = gtk_label_new(l10n::t("ObIntro").c_str());
+    auto* intro = gtk_label_new(l10n::t("ob.intro").c_str());
     gtk_widget_add_css_class(intro, "ob-text");
     gtk_label_set_wrap(GTK_LABEL(intro), TRUE);
     gtk_label_set_justify(GTK_LABEL(intro), GTK_JUSTIFY_CENTER);
     box_append(GTK_BOX(page), intro);
-    auto* steps = gtk_label_new(l10n::t("ObSteps").c_str());
+    auto* steps = gtk_label_new(l10n::t("ob.steps").c_str());
     gtk_widget_add_css_class(steps, "ob-caption");
     gtk_label_set_wrap(GTK_LABEL(steps), TRUE);
     gtk_label_set_justify(GTK_LABEL(steps), GTK_JUSTIFY_CENTER);
@@ -3105,14 +3105,14 @@ void onboarding_show(GtkApplication* app) {
   {
     auto* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
     gtk_widget_set_valign(page, GTK_ALIGN_START);
-    auto* title = gtk_label_new(l10n::t("ObWaterTitle").c_str());
+    auto* title = gtk_label_new(l10n::t("ob.waterTitle").c_str());
     gtk_widget_add_css_class(title, "ob-title");
     gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
     box_append(GTK_BOX(page), title);
     auto* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     for (auto minutes : {30, 45, 60}) {
       std::string label =
-          l10n::t(minutes == 30 ? "ObMin30" : minutes == 45 ? "ObMin45" : "ObMin60");
+          l10n::t(minutes == 30 ? "ob.min30" : minutes == 45 ? "ob.min45" : "ob.min60");
       auto* card = gtk_button_new_with_label(label.c_str());
       gtk_widget_add_css_class(
           card, s.onboarding_water == minutes ? "ob-card-selected" : "ob-card");
@@ -3133,7 +3133,7 @@ void onboarding_show(GtkApplication* app) {
     auto* sit_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     for (auto minutes : {45, 60, 90}) {
       std::string label =
-          l10n::t(minutes == 45 ? "ObSit45" : minutes == 60 ? "ObSit60" : "ObSit90");
+          l10n::t(minutes == 45 ? "ob.sit45" : minutes == 60 ? "ob.sit60" : "ob.sit90");
       auto* card = gtk_button_new_with_label(label.c_str());
       gtk_widget_add_css_class(
           card, s.onboarding_sit == minutes ? "ob-card-selected" : "ob-card");
@@ -3151,7 +3151,7 @@ void onboarding_show(GtkApplication* app) {
       box_append(GTK_BOX(sit_row), card);
     }
     box_append(GTK_BOX(page), sit_row);
-    auto* sound_title = gtk_label_new(l10n::t("ObSoundTitle").c_str());
+    auto* sound_title = gtk_label_new(l10n::t("ob.soundTitle").c_str());
     gtk_widget_add_css_class(sound_title, "ob-strong");
     gtk_label_set_xalign(GTK_LABEL(sound_title), 0.0f);
     box_append(GTK_BOX(page), sound_title);
@@ -3166,7 +3166,7 @@ void onboarding_show(GtkApplication* app) {
         }),
         nullptr);
     box_append(GTK_BOX(sound_row), sound_switch);
-    auto* sound_hint = gtk_label_new(l10n::t("ObSoundHint").c_str());
+    auto* sound_hint = gtk_label_new(l10n::t("ob.soundHint").c_str());
     gtk_widget_add_css_class(sound_hint, "ob-text");
     box_append(GTK_BOX(sound_row), sound_hint);
     box_append(GTK_BOX(page), sound_row);
@@ -3177,7 +3177,7 @@ void onboarding_show(GtkApplication* app) {
   {
     auto* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14);
     gtk_widget_set_valign(page, GTK_ALIGN_START);
-    auto* title = gtk_label_new(l10n::t("ObPactTitle").c_str());
+    auto* title = gtk_label_new(l10n::t("ob.pactTitle").c_str());
     gtk_widget_add_css_class(title, "ob-title");
     gtk_label_set_xalign(GTK_LABEL(title), 0.0f);
     box_append(GTK_BOX(page), title);
@@ -3190,7 +3190,7 @@ void onboarding_show(GtkApplication* app) {
     box_append(GTK_BOX(summary_card), summary);
     box_append(GTK_BOX(page), summary_card);
     s.onboarding_pact_summary = GTK_LABEL(summary);
-    auto* outro = gtk_label_new(l10n::t("ObPactOutro").c_str());
+    auto* outro = gtk_label_new(l10n::t("ob.pactOutro").c_str());
     gtk_widget_add_css_class(outro, "ob-caption");
     gtk_label_set_wrap(GTK_LABEL(outro), TRUE);
     gtk_label_set_xalign(GTK_LABEL(outro), 0.0f);
@@ -3203,7 +3203,7 @@ void onboarding_show(GtkApplication* app) {
   s.onboarding_dots = GTK_LABEL(dots);
 
   auto* controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-  auto* skip = gtk_button_new_with_label(l10n::t("ObSkip").c_str());
+  auto* skip = gtk_button_new_with_label(l10n::t("ob.skip").c_str());
   gtk_widget_add_css_class(skip, "flat");
   g_signal_connect(
       skip, "clicked",
@@ -3214,7 +3214,7 @@ void onboarding_show(GtkApplication* app) {
         onboarding_finish(GTK_APPLICATION(user_data));
       }),
       app);
-  auto* next = gtk_button_new_with_label(l10n::t("ObStart").c_str());
+  auto* next = gtk_button_new_with_label(l10n::t("ob.start").c_str());
   gtk_widget_add_css_class(next, "ob-primary");
   g_object_set_data(G_OBJECT(next), "app", app);
   g_signal_connect(
@@ -3230,15 +3230,15 @@ void onboarding_show(GtkApplication* app) {
         if (g_state.onboarding_page == kLastPage) {
           // Build the contract summary for the current selections.
           std::string text;
-          text += l10n::t("ObSummaryToast", {l10n::A(g_state.onboarding_sit)});
+          text += l10n::t("ob.summaryToast", {l10n::A(g_state.onboarding_sit)});
           text += "\n";
-          text += l10n::t("ObSummaryWater", {l10n::A(g_state.onboarding_water)});
+          text += l10n::t("ob.summaryWater", {l10n::A(g_state.onboarding_water)});
           text += "\n";
-          text += l10n::t("ObSummaryAway", {l10n::A(g_state.model.config.away_reset_minutes)});
+          text += l10n::t("ob.summaryAway", {l10n::A(g_state.model.config.away_reset_minutes)});
           text += "\n";
-          text += l10n::t("ObSummarySound",
-                          {l10n::A(g_state.onboarding_sound ? l10n::t("ObOn")
-                                                            : l10n::t("ObOff"))});
+          text += l10n::t("ob.summarySound",
+                          {l10n::A(g_state.onboarding_sound ? l10n::t("ob.on")
+                                                            : l10n::t("ob.off"))});
           gtk_label_set_text(g_state.onboarding_pact_summary, text.c_str());
         }
         gtk_stack_set_visible_child_name(
@@ -3251,7 +3251,7 @@ void onboarding_show(GtkApplication* app) {
         gtk_label_set_text(g_state.onboarding_dots, dots.c_str());
         gtk_button_set_label(
             button,
-            l10n::t(g_state.onboarding_page == kLastPage ? "ObLaunch" : "ObNext")
+            l10n::t(g_state.onboarding_page == kLastPage ? "ob.launch" : "ob.next")
                 .c_str());
         gtk_widget_set_visible(GTK_WIDGET(g_state.onboarding_skip),
                                g_state.onboarding_page < kLastPage);
@@ -3548,7 +3548,7 @@ void on_activate(GtkApplication* app, gpointer) {
   gtk_window_set_default_size(GTK_WINDOW(window), 860, 760);
 
   auto* header = gtk_header_bar_new();
-  auto* pause = gtk_button_new_with_label(l10n::t("TrayPause").c_str());
+  auto* pause = gtk_button_new_with_label(l10n::t("tray.pause").c_str());
   g_signal_connect(pause, "clicked", G_CALLBACK(on_pause_clicked), nullptr);
   gtk_header_bar_pack_start(GTK_HEADER_BAR(header), pause);
   g_state.pause_button = GTK_BUTTON(pause);
@@ -3556,11 +3556,11 @@ void on_activate(GtkApplication* app, gpointer) {
   // StatusNotifierItem contract is upstream rivet #118), and #54 makes the
   // Done/Later/Hide/Focus controls mandatory on every host.
   auto* focus = gtk_button_new_with_label(
-      l10n::t(g_state.model.quiet ? "TrayFocusOff" : "TrayFocusOn").c_str());
+      l10n::t(g_state.model.quiet ? "tray.focusOff" : "tray.focusOn").c_str());
   g_signal_connect(focus, "clicked", G_CALLBACK(on_focus_clicked), nullptr);
   gtk_header_bar_pack_start(GTK_HEADER_BAR(header), focus);
   g_state.focus_button = GTK_BUTTON(focus);
-  auto* quit = gtk_button_new_with_label(l10n::t("TrayExit").c_str());
+  auto* quit = gtk_button_new_with_label(l10n::t("tray.exit").c_str());
   g_signal_connect(quit, "clicked", G_CALLBACK(on_quit_clicked), nullptr);
   gtk_header_bar_pack_end(GTK_HEADER_BAR(header), quit);
   g_state.quit_button = GTK_BUTTON(quit);

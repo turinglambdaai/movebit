@@ -16,7 +16,7 @@
 // touching art — never redraw or approximate.
 
 #include "pch.h"
-#include "GeneratedStrings.h"
+#include "I18n.h"
 // The C++/WinRT projection only materializes the namespaces a translation
 // unit includes explicitly; Mubi draws with XAML shapes.
 #include "winrt/Microsoft.UI.Xaml.Shapes.h"

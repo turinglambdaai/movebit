@@ -55,7 +55,7 @@ struct OnboardingWizard {
       return;
     }
     window = Window{};
-    window.Title(winrt::to_hstring(l10n::t("ObTitle")));
+    window.Title(winrt::to_hstring(l10n::t("ob.title")));
     apply_window_icon(window);
     window.AppWindow().Resize({500, 640});
     // Center in the display's work area (old app used CenterScreen; a
@@ -87,14 +87,14 @@ struct OnboardingWizard {
 
     Controls::StackPanel controls;
     controls.Orientation(Controls::Orientation::Horizontal);
-    skip_button = make_button(winrt::to_hstring(l10n::t("ObSkip")), "#00000000",
+    skip_button = make_button(winrt::to_hstring(l10n::t("ob.skip")), "#00000000",
                               "#A39B8D", false);
     skip_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
       SkipToDefaults();
     });
     Controls::Grid spring;
     spring.HorizontalAlignment(HorizontalAlignment::Stretch);
-    next_button = make_button(winrt::to_hstring(l10n::t("ObStart")), "#C25E3E",
+    next_button = make_button(winrt::to_hstring(l10n::t("ob.start")), "#C25E3E",
                               "#FFFFFF", false);
     next_button.CornerRadius(CornerRadius{8, 8, 8, 8});
     next_button.Padding(Thickness{18, 9, 18, 9});
@@ -125,15 +125,15 @@ struct OnboardingWizard {
     intro_page.Spacing(14);
     intro_page.HorizontalAlignment(HorizontalAlignment::Center);
     intro_page.Children().Append(make_text(L"💧", 64, false, "#26241F"));
-    auto hello = make_text(winrt::to_hstring(l10n::t("ObHello")), 26, true,
+    auto hello = make_text(winrt::to_hstring(l10n::t("ob.hello")), 26, true,
                            "#26241F");
     intro_page.Children().Append(hello);
-    auto intro = make_text(winrt::to_hstring(l10n::t("ObIntro")), 14.5, false,
+    auto intro = make_text(winrt::to_hstring(l10n::t("ob.intro")), 14.5, false,
                            "#6E6A5E");
     intro.TextAlignment(TextAlignment::Center);
     intro.MaxWidth(380);
     intro_page.Children().Append(intro);
-    auto steps = make_text(winrt::to_hstring(l10n::t("ObSteps")), 13, false,
+    auto steps = make_text(winrt::to_hstring(l10n::t("ob.steps")), 13, false,
                            "#A39B8D");
     steps.TextAlignment(TextAlignment::Center);
     intro_page.Children().Append(steps);
@@ -158,14 +158,14 @@ struct OnboardingWizard {
     water_page = Controls::StackPanel{};
     water_page.Spacing(12);
     water_page.Children().Append(
-        make_text(winrt::to_hstring(l10n::t("ObWaterTitle")), 20, true,
+        make_text(winrt::to_hstring(l10n::t("ob.waterTitle")), 20, true,
                   "#26241F"));
     Controls::StackPanel row;
     row.Orientation(Controls::Orientation::Horizontal);
     row.Spacing(10);
-    water30 = make_choice_button(30, &water, l10n::t("ObMin30"));
-    water45 = make_choice_button(45, &water, l10n::t("ObMin45"));
-    water60 = make_choice_button(60, &water, l10n::t("ObMin60"));
+    water30 = make_choice_button(30, &water, l10n::t("ob.min30"));
+    water45 = make_choice_button(45, &water, l10n::t("ob.min45"));
+    water60 = make_choice_button(60, &water, l10n::t("ob.min60"));
     row.Children().Append(water30);
     row.Children().Append(water45);
     row.Children().Append(water60);
@@ -174,16 +174,16 @@ struct OnboardingWizard {
     Controls::StackPanel sit_row;
     sit_row.Orientation(Controls::Orientation::Horizontal);
     sit_row.Spacing(10);
-    sit45 = make_choice_button(45, &sit, l10n::t("ObSit45"));
-    sit60 = make_choice_button(60, &sit, l10n::t("ObSit60"));
-    sit90 = make_choice_button(90, &sit, l10n::t("ObSit90"));
+    sit45 = make_choice_button(45, &sit, l10n::t("ob.sit45"));
+    sit60 = make_choice_button(60, &sit, l10n::t("ob.sit60"));
+    sit90 = make_choice_button(90, &sit, l10n::t("ob.sit90"));
     sit_row.Children().Append(sit45);
     sit_row.Children().Append(sit60);
     sit_row.Children().Append(sit90);
     water_page.Children().Append(sit_row);
 
     auto sound_title = make_text(
-        winrt::to_hstring(l10n::t("ObSoundTitle")), 15, true, "#26241F");
+        winrt::to_hstring(l10n::t("ob.soundTitle")), 15, true, "#26241F");
     sound_title.HorizontalAlignment(HorizontalAlignment::Left);
     water_page.Children().Append(sound_title);
     Controls::StackPanel sound_row;
@@ -195,7 +195,7 @@ struct OnboardingWizard {
       sound = sound_switch.IsOn();
     });
     sound_row.Children().Append(sound_switch);
-    auto hint = make_text(winrt::to_hstring(l10n::t("ObSoundHint")), 12,
+    auto hint = make_text(winrt::to_hstring(l10n::t("ob.soundHint")), 12,
                           false, "#6E6A5E");
     sound_row.Children().Append(hint);
     water_page.Children().Append(sound_row);
@@ -222,7 +222,7 @@ struct OnboardingWizard {
     pact_page = Controls::StackPanel{};
     pact_page.Spacing(14);
     pact_page.Children().Append(
-        make_text(winrt::to_hstring(l10n::t("ObPactTitle")), 22, true,
+        make_text(winrt::to_hstring(l10n::t("ob.pactTitle")), 22, true,
                   "#26241F"));
     auto card = Controls::Border{};
     card.Background(brush_from("#FFFFFF"));
@@ -234,7 +234,7 @@ struct OnboardingWizard {
     summary.HorizontalAlignment(HorizontalAlignment::Left);
     card.Child(summary);
     pact_page.Children().Append(card);
-    auto outro = make_text(winrt::to_hstring(l10n::t("ObPactOutro")), 13,
+    auto outro = make_text(winrt::to_hstring(l10n::t("ob.pactOutro")), 13,
                            false, "#A39B8D");
     outro.HorizontalAlignment(HorizontalAlignment::Left);
     pact_page.Children().Append(outro);
@@ -250,14 +250,14 @@ struct OnboardingWizard {
     ++page;
     if (page == kLastPage) {
       std::string text;
-      text += l10n::t("ObSummaryToast", {l10n::A(sit)});
+      text += l10n::t("ob.summaryToast", {l10n::A(sit)});
       text += "\n";
-      text += l10n::t("ObSummaryWater", {l10n::A(water)});
+      text += l10n::t("ob.summaryWater", {l10n::A(water)});
       text += "\n";
-      text += l10n::t("ObSummaryAway", {l10n::A(5)});
+      text += l10n::t("ob.summaryAway", {l10n::A(5)});
       text += "\n";
-      text += l10n::t("ObSummarySound", {l10n::A(sound ? l10n::t("ObOn")
-                                                       : l10n::t("ObOff"))});
+      text += l10n::t("ob.summarySound", {l10n::A(sound ? l10n::t("ob.on")
+                                                       : l10n::t("ob.off"))});
       summary.Text(wide(text));
     }
     Controls::StackPanel pages[] = {intro_page, water_page, pact_page};
@@ -271,7 +271,7 @@ struct OnboardingWizard {
     }
     dots.Text(winrt::to_hstring(dots_text.c_str()));
     next_button.Content(winrt::box_value(winrt::hstring(wide(l10n::t(
-        page == kLastPage ? "ObLaunch" : page == 0 ? "ObStart" : "ObNext")))));
+        page == kLastPage ? "ob.launch" : page == 0 ? "ob.start" : "ob.next")))));
     skip_button.Visibility(page < kLastPage ? Visibility::Visible
                                             : Visibility::Collapsed);
   }

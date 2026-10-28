@@ -147,36 +147,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildMenuBar() {
         guard let model else { return }
         var items: [RivetMenuItem] = [
-            .action(label: L10n.t("TrayOpen"), identifier: "tray-open",
+            .action(label: L10n.t("tray.open"), identifier: "tray-open",
                     handler: { [weak self] in self?.showMainWindow() }),
         ]
         // Mandatory reminder controls (issue #54): the character surface is
         // fully pointer-through, so Done/Later/Hide live here, acting on the
         // newest open cue. Always accessible, even mid-presentation.
         if let cue = model.pendingCues.last {
-            items.append(.action(label: cueActionLabel(cue, done: L10n.t("TrayCueDone")),
+            items.append(.action(label: cueActionLabel(cue, done: L10n.t("tray.cueDone")),
                                  identifier: "tray-cue-done",
                                  handler: { [weak self] in
                                      self?.model?.acknowledgeCue(cue.id)
                                      self?.companion?.showAck()
                                  }))
-            items.append(.action(label: L10n.t("TrayCueLater"),
+            items.append(.action(label: L10n.t("tray.cueLater"),
                                  identifier: "tray-cue-later",
                                  handler: { [weak self] in
                                      self?.model?.snoozeCue(cue.id)
                                      // #56 §4 `later`: a tiny quiet settle.
                                      self?.companion?.show(state: .idle,
-                                                           message: L10n.t("MubiLaterNote"))
+                                                           message: L10n.t("mubi.laterNote"))
                                  }))
-            items.append(.action(label: L10n.t("TrayCueHide"),
+            items.append(.action(label: L10n.t("tray.cueHide"),
                                  identifier: "tray-cue-hide",
                                  handler: { [weak self] in self?.model?.dismissCue(cue.id) }))
         }
         items.append(contentsOf: [
-            .action(label: model.paused.paused ? L10n.t("TrayResume") : L10n.t("TrayPause"),
+            .action(label: model.paused.paused ? L10n.t("tray.resume") : L10n.t("tray.pause"),
                     identifier: "tray-pause",
                     handler: { [weak self] in self?.model?.togglePause() }),
-            .action(label: model.quiet ? L10n.t("TrayFocusOff") : L10n.t("TrayFocusOn"),
+            .action(label: model.quiet ? L10n.t("tray.focusOff") : L10n.t("tray.focusOn"),
                     identifier: "tray-focus",
                     handler: { [weak self] in
                         guard let self, let model = self.model else { return }
@@ -184,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         model.setQuiet(next)
                         self.companion?.setQuiet(next)
                     }),
-            .action(label: L10n.t("TrayExit"), identifier: "tray-exit",
+            .action(label: L10n.t("tray.exit"), identifier: "tray-exit",
                     handler: { [weak self] in self?.quit() }),
         ])
         if let menuBar {
@@ -201,9 +201,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func cueActionLabel(_ cue: HealthCue, done: String) -> String {
         let advice: String
         switch cue.action {
-        case .drink_water: advice = L10n.t("NotifWaterTitle")
-        case .rest_eyes: advice = L10n.t("MicroHint")
-        default: advice = L10n.t("NotifSitTitle")
+        case .drink_water: advice = L10n.t("notif.waterTitle")
+        case .rest_eyes: advice = L10n.t("micro.hint")
+        default: advice = L10n.t("notif.sitTitle")
         }
         return "\(done) · \(advice)"
     }
@@ -236,8 +236,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A cheer claims nothing clinical (charter #51).
     private func handleSitAcknowledged(_ count: Int64) {
         guard let model, CopyPool.celebrateAt.contains(count) else { return }
-        showToast(title: L10n.t("NotifCheerTitle"),
-                  lines: [L10n.t("NotifCheerBody", "\(count)",
+        showToast(title: L10n.t("notif.cheerTitle"),
+                  lines: [L10n.t("notif.cheerBody", "\(count)",
                                   CopyFormat.duration(model.today.active_mins))],
                   accent: .sit)
     }
@@ -260,40 +260,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
-        appMenu.addItem(withTitle: L10n.t("MenuAbout"),
+        appMenu.addItem(withTitle: L10n.t("menu.about"),
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: L10n.t("TrayExit"),
+        appMenu.addItem(withTitle: L10n.t("tray.exit"),
                         action: #selector(NSApplication.terminate(_:)),
                         keyEquivalent: "q")
 
         let editItem = NSMenuItem()
         mainMenu.addItem(editItem)
-        let editMenu = NSMenu(title: L10n.t("MenuEdit"))
+        let editMenu = NSMenu(title: L10n.t("menu.edit"))
         editItem.submenu = editMenu
-        editMenu.addItem(withTitle: L10n.t("MenuUndo"),
+        editMenu.addItem(withTitle: L10n.t("menu.undo"),
                          action: Selector(("undo:")), keyEquivalent: "z")
-        editMenu.addItem(withTitle: L10n.t("MenuRedo"),
+        editMenu.addItem(withTitle: L10n.t("menu.redo"),
                          action: Selector(("redo:")), keyEquivalent: "Z")
         editMenu.addItem(.separator())
-        editMenu.addItem(withTitle: L10n.t("MenuCut"),
+        editMenu.addItem(withTitle: L10n.t("menu.cut"),
                          action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: L10n.t("MenuCopy"),
+        editMenu.addItem(withTitle: L10n.t("menu.copy"),
                          action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: L10n.t("MenuPaste"),
+        editMenu.addItem(withTitle: L10n.t("menu.paste"),
                          action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(withTitle: L10n.t("MenuSelectAll"),
+        editMenu.addItem(withTitle: L10n.t("menu.selectAll"),
                          action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
 
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)
-        let windowMenu = NSMenu(title: L10n.t("MenuWindow"))
+        let windowMenu = NSMenu(title: L10n.t("menu.window"))
         windowItem.submenu = windowMenu
-        windowMenu.addItem(withTitle: L10n.t("MenuClose"),
+        windowMenu.addItem(withTitle: L10n.t("menu.close"),
                            action: #selector(NSWindow.performClose(_:)),
                            keyEquivalent: "w")
-        windowMenu.addItem(withTitle: L10n.t("MenuMinimize"),
+        windowMenu.addItem(withTitle: L10n.t("menu.minimize"),
                            action: #selector(NSWindow.performMiniaturize(_:)),
                            keyEquivalent: "m")
 
@@ -332,9 +332,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let lines = cueLines(kinds: kinds, model: model)
         let title: String
         if kinds.contains(.sit) {
-            title = L10n.t("NotifSitTitle")
+            title = L10n.t("notif.sitTitle")
         } else {
-            title = L10n.t("NotifWaterTitle")
+            title = L10n.t("notif.waterTitle")
         }
         let accent: ReminderKind = kinds.contains(.sit) ? .sit
             : kinds.contains(.water) ? .water : .micro
@@ -356,9 +356,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func cueMessage(_ cue: HealthCue) -> String {
         switch cue.action {
         case .drink_water: return CopyPool.pickWater()
-        case .rest_eyes: return L10n.t("MicroHint")
+        case .rest_eyes: return L10n.t("micro.hint")
         default:
-            return L10n.t("NotifSitTitle")
+            return L10n.t("notif.sitTitle")
         }
     }
 
@@ -366,13 +366,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func cueLines(kinds: [ReminderKind], model: MoveBitModel) -> [String] {
         var lines: [String] = []
         if kinds.contains(.sit) {
-            lines.append(L10n.t("NotifSitBody",
+            lines.append(L10n.t("notif.sitBody",
                                 CopyFormat.duration(model.today.active_mins),
                                 "\(model.today.sit_breaks)"))
             lines.append(L10n.pick(CopyPool.sitToasts.0, CopyPool.sitToasts.1))
         }
         if kinds.contains(.water) {
-            lines.append(L10n.t("NotifWaterCount", "\(model.today.water_reminders)"))
+            lines.append(L10n.t("notif.waterCount", "\(model.today.water_reminders)"))
             lines.append(CopyPool.pickWater())
         }
         if kinds.contains(.micro) {
@@ -410,7 +410,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 640),
                               styleMask: [.titled, .closable],
                               backing: .buffered, defer: false)
-        window.title = L10n.t("ObTitle")
+        window.title = L10n.t("ob.title")
         window.contentView = NSHostingView(
             rootView: OnboardingView(state: state, model: model))
         window.center()
@@ -432,8 +432,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let state = onboardingState {
             state.finished = true
         }
-        showToast(title: L10n.t("ObSettled"),
-                  lines: [L10n.t("ObSettledBody")],
+        showToast(title: L10n.t("ob.settled"),
+                  lines: [L10n.t("ob.settledBody")],
                   accent: .water)
     }
 }

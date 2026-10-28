@@ -6,7 +6,7 @@
 // the backend; this only formats what the backend publishes.
 
 #include "GeneratedBackend.hpp"
-#include "GeneratedStrings.h"
+#include "I18n.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -48,8 +48,8 @@ inline std::string pad2(std::int64_t n) {
 inline std::string format_duration(std::int64_t total) {
   total = std::max<std::int64_t>(0, total);
   return total >= 60
-             ? l10n::t("AppHourMin", {l10n::A(total / 60), l10n::A(pad2(total % 60))})
-             : l10n::t("AppMinutes", {l10n::A(total)});
+             ? l10n::t("app.hourMin", {l10n::A(total / 60), l10n::A(pad2(total % 60))})
+             : l10n::t("app.minutes", {l10n::A(total)});
 }
 
 /// Compact axis label: "·" for zero (parity with FormatMinutesCompact).
@@ -60,13 +60,13 @@ inline std::string format_compact(std::int64_t total) {
 }
 
 inline std::string pick_water() {
-  return late_night() ? l10n::pick("CopyLateNightWaterPool", 3)
-                      : l10n::pick("CopyWaterPool", 8);
+  return late_night() ? l10n::pick("copy.lateNightWaterPool", 3)
+                      : l10n::pick("copy.waterPool", 8);
 }
 
 inline std::string pick_micro() {
-  return late_night() ? l10n::pick("CopyLateNightMicroPool", 3)
-                      : l10n::pick("CopyMicroPool", 9);
+  return late_night() ? l10n::pick("copy.lateNightMicroPool", 3)
+                      : l10n::pick("copy.microPool", 9);
 }
 
 inline std::string day_key(std::int64_t epoch_ms) {

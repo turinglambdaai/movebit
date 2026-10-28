@@ -207,14 +207,14 @@ struct ToastCard {
     buttons.Spacing(10);
     if (cue_id != 0) {
       auto hide_button =
-          make_button(winrt::to_hstring(l10n::t("NotifHide")), "#FFFDFB",
+          make_button(winrt::to_hstring(l10n::t("notif.hide")), "#FFFDFB",
                       "#A39E8C", false);
       hide_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
         HideTapped();
       });
       buttons.Children().Append(hide_button);
       auto snooze_button = make_button(
-          wide(l10n::t("NotifSnooze", {l10n::A(snooze_minutes)})), "#FFFDFB",
+          wide(l10n::t("notif.snooze", {l10n::A(snooze_minutes)})), "#FFFDFB",
           "#6E6A5E", true);
       snooze_button.BorderBrush(brush_from("#E2DCCC"));
       snooze_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
@@ -222,7 +222,7 @@ struct ToastCard {
       });
       buttons.Children().Append(snooze_button);
       auto done_button =
-          make_button(winrt::to_hstring(l10n::t("NotifDone")), "#F3EEE3",
+          make_button(winrt::to_hstring(l10n::t("notif.done")), "#F3EEE3",
                       "#26241F", false);
       done_button.Click([this](IInspectable const&, RoutedEventArgs const&) {
         DoneTapped();
@@ -230,7 +230,7 @@ struct ToastCard {
       buttons.Children().Append(done_button);
     } else {
       auto got_it =
-          make_button(winrt::to_hstring(l10n::t("NotifGotIt")), "#F3EEE3",
+          make_button(winrt::to_hstring(l10n::t("notif.gotIt")), "#F3EEE3",
                       "#26241F", false);
       got_it.Click([this](IInspectable const&, RoutedEventArgs const&) {
         Dismiss();
@@ -338,7 +338,7 @@ struct MicroCard {
     head.Children().Append(title_block);
     body.Children().Append(head);
 
-    auto hint = make_text(winrt::to_hstring(l10n::t("MicroHint")), 11.5,
+    auto hint = make_text(winrt::to_hstring(l10n::t("micro.hint")), 11.5,
                           false, "#A39B8D");
     hint.HorizontalAlignment(HorizontalAlignment::Left);
     body.Children().Append(hint);

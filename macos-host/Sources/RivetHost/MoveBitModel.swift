@@ -5,11 +5,11 @@ import RivetSystem
 
 /// Copy-pool identifiers emitted by gen-swift-strings.mjs (indexed keys).
 enum CopyPool {
-    static let sitToasts = ("CopySitToastPool", 6)
-    static let water = ("CopyWaterPool", 8)
-    static let micro = ("CopyMicroPool", 9)
-    static let lateNightWater = ("CopyLateNightWaterPool", 3)
-    static let lateNightMicro = ("CopyLateNightMicroPool", 3)
+    static let sitToasts = ("copy.sitToastPool", 6)
+    static let water = ("copy.waterPool", 8)
+    static let micro = ("copy.microPool", 9)
+    static let lateNightWater = ("copy.lateNightWaterPool", 3)
+    static let lateNightMicro = ("copy.lateNightMicroPool", 3)
 
     /// After 22:00 the droplet drops the jokes (22:00-06:00 per
     /// copy.lateNightWindow).
@@ -43,8 +43,8 @@ enum CopyFormat {
     /// Localized duration for the big numbers ("2 hr 05 min" / "45 min").
     static func duration(_ total: Int64) -> String {
         let total = max(0, total)
-        return total >= 60 ? L10n.t("AppHourMin", "\(total / 60)", String(format: "%02d", total % 60))
-                           : L10n.t("AppMinutes", "\(max(total, 0))")
+        return total >= 60 ? L10n.t("app.hourMin", "\(total / 60)", String(format: "%02d", total % 60))
+                           : L10n.t("app.minutes", "\(max(total, 0))")
     }
 
     /// Compact axis label: "·" for zero (parity with FormatMinutesCompact).
@@ -298,12 +298,12 @@ final class MoveBitModel: ObservableObject {
         Task {
             do {
                 try await api.set_config(value: draft)
-                configStatus = L10n.t("SetStatusSaved", Date())
+                configStatus = L10n.t("set.statusSaved", Date())
             } catch {
                 config = previous
                 language = previous.language
                 L10n.language = resolvedLanguage
-                configStatus = L10n.t("SetStatusSaveFailed")
+                configStatus = L10n.t("set.statusSaveFailed")
             }
         }
     }
@@ -315,10 +315,10 @@ final class MoveBitModel: ObservableObject {
         Task {
             do {
                 try await api.set_autostart(enabled: enabled)
-                configStatus = L10n.t("SetStatusApplied", Date())
+                configStatus = L10n.t("set.statusApplied", Date())
             } catch {
                 autostart = previous
-                configStatus = L10n.t("SetStatusSaveFailed")
+                configStatus = L10n.t("set.statusSaveFailed")
             }
         }
     }
@@ -462,7 +462,7 @@ final class MoveBitModel: ObservableObject {
             updateErrorText = nil
         default:
             updatePhase = .failed
-            updateErrorText = check.error ?? L10n.t("UpdCheckFailed")
+            updateErrorText = check.error ?? L10n.t("upd.checkFailed")
         }
     }
 
@@ -533,7 +533,7 @@ final class MoveBitModel: ObservableObject {
                     self.updatePollTask?.cancel()
                     self.updateDownloadStartedAt = nil
                     self.updatePhase = .failed
-                    self.updateErrorText = L10n.t("UpdCheckFailed")
+                    self.updateErrorText = L10n.t("upd.checkFailed")
                     return
                 }
                 try? await Task.sleep(nanoseconds: 700_000_000)
@@ -563,7 +563,7 @@ final class MoveBitModel: ObservableObject {
             updatePollTask?.cancel()
             updateDownloadStartedAt = nil
             updatePhase = .failed
-            updateErrorText = state.message ?? L10n.t("UpdCheckFailed")
+            updateErrorText = state.message ?? L10n.t("upd.checkFailed")
         default:
             break
         }

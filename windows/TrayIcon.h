@@ -10,7 +10,7 @@
 // Right click -> the menu below
 
 #include "pch.h"
-#include "GeneratedStrings.h"
+#include "I18n.h"
 #include "system_services.hpp"
 // NativeWindowHandle lives outside system_services.hpp in rivet 0.11: the
 // platform library stays WinUI-free, WinUI hosts include this header directly.
@@ -116,31 +116,31 @@ struct TrayUi {
       };
     };
     std::vector<TrayMenuItem> items = {
-        TrayMenuItem(kMenuOpen, tray_wide(l10n::t("TrayOpen")),
+        TrayMenuItem(kMenuOpen, tray_wide(l10n::t("tray.open")),
                      bind(on_open)),
     };
     if (cue_open_) {
       items.push_back(TrayMenuItem(
-          kMenuCueDone, tray_wide(l10n::t("TrayCueDone")), bind(on_cue_done)));
+          kMenuCueDone, tray_wide(l10n::t("tray.cueDone")), bind(on_cue_done)));
       items.push_back(TrayMenuItem(
-          kMenuCueLater, tray_wide(l10n::t("TrayCueLater")),
+          kMenuCueLater, tray_wide(l10n::t("tray.cueLater")),
           bind(on_cue_later)));
       items.push_back(TrayMenuItem(
-          kMenuCueHide, tray_wide(l10n::t("TrayCueHide")), bind(on_cue_hide)));
+          kMenuCueHide, tray_wide(l10n::t("tray.cueHide")), bind(on_cue_hide)));
     }
     items.push_back(TrayMenuItem(
         kMenuPauseToggle,
-        tray_wide(l10n::t(paused_ ? "TrayResume" : "TrayPause")),
+        tray_wide(l10n::t(paused_ ? "tray.resume" : "tray.pause")),
         bind(on_pause_toggle)));
     items.push_back(TrayMenuItem(
         kMenuFocusToggle,
-        tray_wide(l10n::t(quiet_ ? "TrayFocusOff" : "TrayFocusOn")),
+        tray_wide(l10n::t(quiet_ ? "tray.focusOff" : "tray.focusOn")),
         bind(on_focus_toggle)));
     items.push_back(TrayMenuItem(TrayMenuItem::Type::separator));
     items.push_back(TrayMenuItem(
-        kMenuCheckUpdates, tray_wide(l10n::t("TrayCheckUpdate")),
+        kMenuCheckUpdates, tray_wide(l10n::t("tray.checkUpdate")),
         bind(on_check_updates)));
-    items.push_back(TrayMenuItem(kMenuExit, tray_wide(l10n::t("TrayExit")),
+    items.push_back(TrayMenuItem(kMenuExit, tray_wide(l10n::t("tray.exit")),
                                  bind(on_exit)));
     return items;
   }
