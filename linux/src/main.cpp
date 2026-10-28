@@ -16,6 +16,9 @@
 #include <gdk/x11/gdkx.h>
 #include <X11/Xlib.h>
 #endif
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/wayland/gdkwayland.h>
+#endif
 #include <pango/pangocairo.h>
 
 #include <algorithm>
@@ -145,6 +148,8 @@ struct AppState {
   // probe sees exactly the main window (mirrors the macOS posture).
   bool acceptance{false};
   GtkButton* pause_button{nullptr};
+  GtkButton* quit_button{nullptr};
+  GtkButton* focus_button{nullptr};
   GtkBox* content_root{nullptr};  // cleared + rebuilt on language change
 
   std::unique_ptr<rivet::linux_runtime::Backend> backend;
@@ -183,6 +188,11 @@ struct AppState {
   GtkWindow* mubi_window{nullptr};
   GtkDrawingArea* mubi_canvas{nullptr};
   GtkLabel* mubi_capsule{nullptr};
+  GtkBox* mubi_actions{nullptr};
+  GtkButton* mubi_done{nullptr};
+  GtkButton* mubi_later{nullptr};
+  GtkButton* mubi_hide{nullptr};
+  std::int64_t mubi_cue_id{0};
   guint mubi_expire_id{0};
   int mubi_state = 0;  // 0 idle, 1 water, 2 stand, 3 eyes, 4 ack, 5 focus
   std::string mubi_message;
@@ -371,6 +381,8 @@ void on_result(rivet_app::Result<void> result, Then then) {
 GtkWidget* make_card();
 void build_main_content();
 void refresh_pause_button();
+void refresh_quit_button();
+void refresh_header_buttons();
 void refresh_today_card();
 void refresh_history_card();
 void refresh_insight_card();
@@ -428,8 +440,10 @@ void mutate_config(F mutate) {
   auto draft = previous;
   mutate(draft);
   g_state.model.config = draft;
-  g_state.language = resolve_language(draft.language);
-  apply_language();
+  // The live language is NOT switched here: apply_config (the backend's
+  // config-changed broadcast) owns it. An optimistic switch would make
+  // apply_config's language_changed check miss the toggle — the host kept
+  // rendering stale-language static text after switching (slice finding).
   (void)g_state.api->set_config_async(draft, [previous](rivet_app::Result<void> result) {
     dispatch_ui([result = std::move(result), previous]() mutable {
       if (result.succeeded()) {
@@ -568,36 +582,45 @@ int on_motion_set(GtkSwitch*, gboolean state, gpointer) {
 
 // Mubi presentation pickers: value tables mirror the backend's clamp
 // choices; an out-of-range selection is impossible via the UI.
+static char const* const kMubiSizes[] = {"S", "M", "L"};
+static char const* const kMubiMotions[] = {"still", "subtle", "lively"};
+static char const* const kMubiDocks[] = {"bottom-right", "bottom-left",
+                                         "top-right"};
+static char const* const kMubiLabels[] = {"cue", "always"};
+static char const* const kLanguages[] = {"auto", "zh", "en"};
+
+template <std::size_t N>
+bool dropdown_index_valid(GtkDropDown* drop, unsigned& index) {
+  index = gtk_drop_down_get_selected(drop);
+  return index < N;
+}
+
 void on_mubi_size_changed(GtkDropDown* drop, gpointer) {
   if (g_state.updating_settings) return;
-  static char const* values[] = {"S", "M", "L"};
-  auto const index = gtk_drop_down_get_selected(drop);
-  if (index < 0 || index > 2) return;
-  mutate_config([&](auto& d) { d.companion_size = values[index]; });
+  unsigned index = 0;
+  if (!dropdown_index_valid<3>(drop, index)) return;
+  mutate_config([&](auto& d) { d.companion_size = kMubiSizes[index]; });
 }
 
 void on_mubi_motion_changed(GtkDropDown* drop, gpointer) {
   if (g_state.updating_settings) return;
-  static char const* values[] = {"still", "subtle", "lively"};
-  auto const index = gtk_drop_down_get_selected(drop);
-  if (index < 0 || index > 2) return;
-  mutate_config([&](auto& d) { d.companion_motion = values[index]; });
+  unsigned index = 0;
+  if (!dropdown_index_valid<3>(drop, index)) return;
+  mutate_config([&](auto& d) { d.companion_motion = kMubiMotions[index]; });
 }
 
 void on_mubi_dock_changed(GtkDropDown* drop, gpointer) {
   if (g_state.updating_settings) return;
-  static char const* values[] = {"bottom-right", "bottom-left", "top-right"};
-  auto const index = gtk_drop_down_get_selected(drop);
-  if (index < 0 || index > 2) return;
-  mutate_config([&](auto& d) { d.companion_dock = values[index]; });
+  unsigned index = 0;
+  if (!dropdown_index_valid<3>(drop, index)) return;
+  mutate_config([&](auto& d) { d.companion_dock = kMubiDocks[index]; });
 }
 
 void on_mubi_labels_changed(GtkDropDown* drop, gpointer) {
   if (g_state.updating_settings) return;
-  static char const* values[] = {"cue", "always"};
-  auto const index = gtk_drop_down_get_selected(drop);
-  if (index < 0 || index > 1) return;
-  mutate_config([&](auto& d) { d.companion_labels = values[index]; });
+  unsigned index = 0;
+  if (!dropdown_index_valid<2>(drop, index)) return;
+  mutate_config([&](auto& d) { d.companion_labels = kMubiLabels[index]; });
 }
 int on_micro_set(GtkSwitch*, gboolean state, gpointer) {
   if (!g_state.updating_settings) {
@@ -623,10 +646,9 @@ int on_updates_set(GtkSwitch*, gboolean state, gpointer) {
 }
 void on_language_changed(GtkDropDown* drop, GParamSpec*, gpointer) {
   if (g_state.updating_settings) return;
-  static const char* values[] = {"auto", "zh", "en"};
-  auto const selected = gtk_drop_down_get_selected(drop);
-  if (selected < 0 || selected > 2) return;
-  mutate_config([&](auto& d) { d.language = values[selected]; });
+  unsigned selected = 0;
+  if (!dropdown_index_valid<3>(drop, selected)) return;
+  mutate_config([&](auto& d) { d.language = kLanguages[selected]; });
 }
 void on_hist_range_changed(GtkDropDown* drop, GParamSpec*, gpointer) {
   auto const selected = gtk_drop_down_get_selected(drop);
@@ -648,7 +670,7 @@ void draw_history_chart(GtkDrawingArea*, cairo_t* cr, int width, int height,
   }
 
   auto set_color = [&](char const* hex, double alpha = 1.0) {
-    int r, g, b;
+    unsigned r = 0, g = 0, b = 0;
     sscanf(hex, "#%02x%02x%02x", &r, &g, &b);
     cairo_set_source_rgba(cr, r / 255.0, g / 255.0, b / 255.0, alpha);
   };
@@ -789,6 +811,29 @@ void refresh_pause_button() {
         g_state.model.is_paused() ? l10n::t("TrayResume").c_str()
                                   : l10n::t("TrayPause").c_str());
   }
+}
+
+void refresh_quit_button() {
+  if (g_state.quit_button != nullptr) {
+    gtk_button_set_label(g_state.quit_button, l10n::t("TrayExit").c_str());
+  }
+}
+
+void refresh_focus_button() {
+  if (g_state.focus_button != nullptr) {
+    gtk_button_set_label(
+        g_state.focus_button,
+        l10n::t(g_state.model.quiet ? "TrayFocusOff" : "TrayFocusOn").c_str());
+  }
+}
+
+// The header lives outside content_root, so the language-change rebuild
+// never touches it; the buttons are retranslated explicitly instead
+// (issue #72).
+void refresh_header_buttons() {
+  refresh_pause_button();
+  refresh_focus_button();
+  refresh_quit_button();
 }
 
 void refresh_today_card() {
@@ -955,6 +1000,12 @@ void refresh_all() {
 void flush_now_sync();
 void reload_history();
 
+// Defined in the mubi presentation namespace below; the Focus toggle may
+// run before the companion window exists (the pose call no-ops there).
+namespace mubi {
+void set_quiet(bool enabled);
+}
+
 void on_pause_clicked(GtkButton*, gpointer) {
   if (g_state.api == nullptr) return;
   if (g_state.model.is_paused()) {
@@ -972,6 +1023,19 @@ void on_quit_clicked(GtkButton*, gpointer) {
   flush_now_sync();
   if (g_state.window != nullptr) gtk_window_destroy(g_state.window);
   g_state.window = nullptr;
+}
+
+// Focus (presentation silence): the backend queues cues and returns one
+// bounded summary; the character settles into its quiet pose. The pose
+// update is local so the toggle works even while the backend is down (#54).
+void on_focus_clicked(GtkButton*, gpointer) {
+  auto const next = !g_state.model.quiet;
+  g_state.model.quiet = next;
+  mubi::set_quiet(next);
+  refresh_focus_button();
+  if (g_state.api != nullptr) {
+    (void)g_state.api->set_quiet_async(next, [](rivet_app::Result<void>) {});
+  }
 }
 
 // ---- updates (UPDATE.md) ----------------------------------------------------
@@ -1891,6 +1955,12 @@ void apply_global_css() {
 enum class MubiCompanionState { Idle = 0, Water = 1, Stand = 2, Eyes = 3,
                                 Ack = 4, Focus = 5 };
 
+// Cue action handlers live below (next to the toast ones); the companion
+// window wires them at creation time.
+void on_mubi_done(GtkButton*, gpointer);
+void on_mubi_later(GtkButton*, gpointer);
+void on_mubi_hide(GtkButton*, gpointer);
+
 // ---- Mubi（沐比）companion (issue #56, X11 leg) ---------------------------------
 // Canonical character from assets/mubi/tokens.json (generator:
 // scripts/gen-mubi-art.mjs) drawn with cairo from the master path data.
@@ -2221,7 +2291,8 @@ void start_anim(int state) {
       nullptr);
 }
 
-void present(int state, std::string const& message, GtkApplication* app) {
+void present(int state, std::string const& message, GtkApplication* app,
+             std::int64_t cue_id = 0) {
   if (!g_state.mubi_x11) return;  // Wayland: notification fallback only
   if (g_state.acceptance) return;  // headless probe sees the main window only
   if (app == nullptr) app = g_state.app;
@@ -2229,7 +2300,18 @@ void present(int state, std::string const& message, GtkApplication* app) {
   auto& s = g_state;
   s.mubi_state = state;
   s.mubi_message = message;
+  s.mubi_cue_id = cue_id;
   start_anim(state);
+  // Static poses (idle/eyes/focus) start no animation tick, so without an
+  // explicit redraw the canvas keeps showing the previous pose forever.
+  if (s.mubi_canvas != nullptr) {
+    gtk_widget_queue_draw(GTK_WIDGET(s.mubi_canvas));
+  }
+  // The action row is only clickable while a cue is on screen; idle/focus
+  // poses collapse it back to a fully pass-through card.
+  if (s.mubi_actions != nullptr) {
+    gtk_widget_set_visible(GTK_WIDGET(s.mubi_actions), cue_id != 0);
+  }
 
   if (s.mubi_expire_id != 0) {
     g_source_remove(s.mubi_expire_id);
@@ -2246,8 +2328,34 @@ void present(int state, std::string const& message, GtkApplication* app) {
     gtk_window_set_title(GTK_WINDOW(window), "Mubi");
     gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
     s.mubi_window = GTK_WINDOW(window);
-    // Whole-window pointer-through (#54): no input target on the card.
-    gtk_widget_set_can_target(GTK_WIDGET(window), FALSE);
+    // Precise hit region (#54): the window itself stays pointer-through;
+    // GTK4 pick() tests can_target per widget, so the Done/Later/Hide
+    // buttons below opt back in and only accept clicks while a cue is on
+    // screen. The character and label never do.
+    gtk_widget_set_can_target(window, FALSE);
+#ifdef GDK_WINDOWING_X11
+    // Dock placement requires bypassing the window manager: ICCCM managed
+    // windows ignore client XMoveWindow under mutter, so the companion
+    // must be an override-redirect OSD surface. Realize first so the X
+    // surface exists, then flip the attribute before the window maps.
+    {
+      auto* surface = gtk_native_get_surface(GTK_NATIVE(window));
+      if (surface == nullptr) {
+        gtk_widget_realize(GTK_WIDGET(window));
+        surface = gtk_native_get_surface(GTK_NATIVE(window));
+      }
+      auto* display = gtk_widget_get_display(GTK_WIDGET(window));
+      if (surface != nullptr && GDK_IS_X11_SURFACE(surface) &&
+          GDK_IS_X11_DISPLAY(display)) {
+        Display* xdisplay =
+            gdk_x11_display_get_xdisplay(GDK_X11_DISPLAY(display));
+        Window xid = gdk_x11_surface_get_xid(GDK_X11_SURFACE(surface));
+        XSetWindowAttributes attrs;
+        attrs.override_redirect = True;
+        XChangeWindowAttributes(xdisplay, xid, CWOverrideRedirect, &attrs);
+      }
+    }
+#endif
 
     auto* body_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_widget_set_margin_top(body_box, 12);
@@ -2274,6 +2382,35 @@ void present(int state, std::string const& message, GtkApplication* app) {
     box_append(GTK_BOX(body_box), capsule);
     s.mubi_capsule = GTK_LABEL(capsule);
 
+    // Cue actions (#54): completion and deferral controls are mandatory
+    // on every host, so the card carries its own row while a cue shows.
+    auto* actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(actions, GTK_ALIGN_CENTER);
+    auto* hide = gtk_button_new_with_label(l10n::t("NotifHide").c_str());
+    gtk_widget_add_css_class(hide, "toast-btn-muted");
+    gtk_widget_set_can_target(hide, TRUE);
+    g_signal_connect(hide, "clicked", G_CALLBACK(on_mubi_hide), nullptr);
+    box_append(GTK_BOX(actions), hide);
+    s.mubi_hide = GTK_BUTTON(hide);
+    auto* later = gtk_button_new_with_label(
+        l10n::t("NotifSnooze",
+                {l10n::A(g_state.model.config.snooze_minutes)})
+            .c_str());
+    gtk_widget_add_css_class(later, "toast-btn-muted");
+    gtk_widget_set_can_target(later, TRUE);
+    g_signal_connect(later, "clicked", G_CALLBACK(on_mubi_later), nullptr);
+    box_append(GTK_BOX(actions), later);
+    s.mubi_later = GTK_BUTTON(later);
+    auto* done = gtk_button_new_with_label(l10n::t("NotifDone").c_str());
+    gtk_widget_add_css_class(done, "toast-btn");
+    gtk_widget_set_can_target(done, TRUE);
+    g_signal_connect(done, "clicked", G_CALLBACK(on_mubi_done), nullptr);
+    box_append(GTK_BOX(actions), done);
+    s.mubi_done = GTK_BUTTON(done);
+    box_append(GTK_BOX(body_box), actions);
+    s.mubi_actions = GTK_BOX(actions);
+    gtk_widget_set_visible(actions, FALSE);
+
     gtk_window_set_child(GTK_WINDOW(window), body_box);
   } else {
     gtk_widget_set_size_request(GTK_WIDGET(s.mubi_canvas),
@@ -2284,8 +2421,12 @@ void present(int state, std::string const& message, GtkApplication* app) {
   refresh_label();
   // Explicit size: the card knows its own layout (canvas + capsule area).
   bool const label_visible = s.mubi_labels_always || !s.mubi_message.empty();
+  bool const actions_visible = cue_id != 0;
   int const win_w = canvas_w;
-  int const win_h = canvas_h + (label_visible ? 44 : 0);
+  // The action row is part of the card while a cue shows; budgeting for it
+  // keeps the bottom-docked card fully on screen after the resize.
+  int const win_h = canvas_h + (label_visible ? 44 : 0) +
+                    (actions_visible ? 44 : 0);
   gtk_window_set_default_size(s.mubi_window, win_w, win_h);
   gtk_window_present(s.mubi_window);
 
@@ -2303,12 +2444,24 @@ void present(int state, std::string const& message, GtkApplication* app) {
       // GTK4 renamed the work-area accessor to the X11 variant.
       gdk_x11_monitor_get_workarea(monitor, &work);
       int const clearance = 16;
-      int x = work.x + work.width - win_w - clearance;
-      int y = work.y + work.height - win_h - clearance;
+      // GDK reports the workarea and widget sizes in logical pixels, but
+      // XMoveWindow speaks physical pixels; on a 2x monitor the naive mix
+      // pushed the companion past the screen edge. Convert the workarea and
+      // the card budget with the surface scale instead of measuring the X
+      // window: the resize from set_default_size lands asynchronously and a
+      // just-measured size would lag one frame behind.
+      double const xs = gdk_surface_get_scale(surface);
+      int const px_w = static_cast<int>(win_w * xs);
+      int const px_h = static_cast<int>(win_h * xs);
+      int const px_clear = static_cast<int>(clearance * xs);
+      int x = static_cast<int>(work.x * xs) +
+              static_cast<int>(work.width * xs) - px_w - px_clear;
+      int y = static_cast<int>(work.y * xs) +
+              static_cast<int>(work.height * xs) - px_h - px_clear;
       if (s.mubi_dock == "bottom-left") {
-        x = work.x + clearance;
+        x = static_cast<int>(work.x * xs) + px_clear;
       } else if (s.mubi_dock == "top-right") {
-        y = work.y + clearance;
+        y = static_cast<int>(work.y * xs) + px_clear;
       }
       XMoveWindow(xdisplay, xid, x, y);
       XFlush(xdisplay);
@@ -2420,9 +2573,46 @@ void on_toast_hide(GtkButton*, gpointer) {
   toast_dismiss();
 }
 
+// Companion card actions (#54): same semantics as the toast row, offered
+// on the character itself while a cue is on screen.
+void on_mubi_done(GtkButton*, gpointer) {
+  auto cue_id = g_state.mubi_cue_id;
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->acknowledge_cue_async(cue_id,
+                                             [](rivet_app::Result<void>) {});
+  }
+  mubi::present(g_state.mubi_quiet ? 5 : 0, "", nullptr);
+}
+
+void on_mubi_later(GtkButton*, gpointer) {
+  auto cue_id = g_state.mubi_cue_id;
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->snooze_cue_async(cue_id, [](rivet_app::Result<void>) {});
+    (void)g_state.api->get_loops_async(
+        [](rivet_app::Result<std::vector<rivet_app::LoopInfo>> r) {
+          on_result(std::move(r),
+                    [](std::vector<rivet_app::LoopInfo> const& loops) {
+                      g_state.model.loops = loops;
+                      refresh_today_card();
+                    });
+        });
+  }
+  // #56 §4 `later`: a tiny quiet settle with the reassurance note.
+  mubi::present(0, l10n::t("MubiLaterNote"), nullptr);
+}
+
+void on_mubi_hide(GtkButton*, gpointer) {
+  auto cue_id = g_state.mubi_cue_id;
+  if (g_state.api != nullptr && cue_id != 0) {
+    (void)g_state.api->dismiss_cue_async(cue_id, [](rivet_app::Result<void>) {});
+  }
+  mubi::present(g_state.mubi_quiet ? 5 : 0, "", nullptr);
+}
+
 GtkWindow* toast_window_new(GtkApplication* app) {
   auto* window = gtk_application_window_new(app);
   gtk_widget_add_css_class(GTK_WIDGET(window), "toast-bg");
+  gtk_window_set_title(GTK_WINDOW(window), l10n::t("NotifWindowTitle").c_str());
   gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
   gtk_window_set_default_size(GTK_WINDOW(window), 380, -1);
   return GTK_WINDOW(window);
@@ -2657,7 +2847,7 @@ void handle_health_cue(rivet_app::HealthCue const& cue, GtkApplication* app) {
         message = l10n::t("NotifSitTitle"); break;
       default: break;
     }
-    mubi::present(static_cast<int>(state), message, app);
+    mubi::present(static_cast<int>(state), message, app, cue.id);
     cue_displayed(cue.id);
     return;
   }
@@ -2776,6 +2966,9 @@ void handle_event(std::string const& name, rivet::Value const& value,
           } else if constexpr (std::is_same_v<T,
                                   rivet_app::Cue_acknowledgedEvent>) {
             dispatch_ui([acked = e.value, app] {
+              // #56 §4 `ack`: a small nod + warm glint on the character
+              // (no-op on Wayland, where the companion is absent).
+              mubi::show_ack();
               if (acked.kind != rivet_app::ReminderKind::sit) return;
               if (acked.count_today != 3 && acked.count_today != 5 &&
                   acked.count_today != 8) {
@@ -2809,12 +3002,18 @@ void handle_event(std::string const& name, rivet::Value const& value,
 void apply_config(rivet_app::ReminderConfig const& changed, bool announce,
                   GtkApplication* app) {
   (void)app;
-  bool const language_changed = changed.language != g_state.model.config.language;
+  // Compare against the host's LIVE language, not the cached config: the
+  // settings UI writes optimistic drafts into model.config, so the cached
+  // language can already match the incoming one before the host has ever
+  // rebuilt in it.
+  bool const language_changed =
+      resolve_language(changed.language) != g_state.language;
   g_state.model.config = changed;
   mubi::apply_config(changed.companion_size, changed.companion_motion,
                      changed.companion_dock, changed.companion_labels);
   g_state.language = resolve_language(changed.language);
   apply_language();
+  refresh_header_buttons();
   if (language_changed || announce) {
     // Static texts bake the language in — rebuild the whole main content.
     build_main_content();
@@ -3153,6 +3352,7 @@ void bootstrap(GtkApplication* app) {
   auto const& config = g_state.model.config;
   g_state.language = resolve_language(config.language);
   apply_language();
+  refresh_header_buttons();
   build_main_content();
   reload_history();
   reload_autostart();
@@ -3252,10 +3452,24 @@ int on_backend_finished(gpointer user_data) {
   // On Wayland the compositor owns both, so delivery plans as a
   // notification there (the documented fallback, never a floating pet).
   {
-    char const* wayland = g_getenv("WAYLAND_DISPLAY");
-    char const* session = g_getenv("XDG_SESSION_TYPE");
-    bool const on_wayland =
-        (wayland && *wayland) || (session && std::string(session) == "wayland");
+    // Decide from the GDK backend actually in use, NOT from environment
+    // variables: the Wayland client library falls back to the default
+    // socket "wayland-0" under $XDG_RUNTIME_DIR even with no
+    // WAYLAND_DISPLAY set, so an env-based guess mislabels a Wayland
+    // session as X11 — the companion then maps without any placement.
+    bool const on_wayland = []() {
+      auto* display = gdk_display_get_default();
+      if (display != nullptr) {
+#ifdef GDK_WINDOWING_WAYLAND
+        if (GDK_IS_WAYLAND_DISPLAY(display)) return true;
+#endif
+        return !GDK_IS_X11_DISPLAY(display);
+      }
+      char const* wayland = g_getenv("WAYLAND_DISPLAY");
+      char const* session = g_getenv("XDG_SESSION_TYPE");
+      return (wayland && *wayland) ||
+             (session && std::string(session) == "wayland");
+    }();
     g_state.mubi_x11 = !on_wayland;
     (void)g_state.api->set_host_capability_async(!on_wayland, false,
                                                  [](rivet_app::Result<void>) {});
@@ -3338,9 +3552,18 @@ void on_activate(GtkApplication* app, gpointer) {
   g_signal_connect(pause, "clicked", G_CALLBACK(on_pause_clicked), nullptr);
   gtk_header_bar_pack_start(GTK_HEADER_BAR(header), pause);
   g_state.pause_button = GTK_BUTTON(pause);
+  // Focus needs a header entry on this host: Linux has no tray (the
+  // StatusNotifierItem contract is upstream rivet #118), and #54 makes the
+  // Done/Later/Hide/Focus controls mandatory on every host.
+  auto* focus = gtk_button_new_with_label(
+      l10n::t(g_state.model.quiet ? "TrayFocusOff" : "TrayFocusOn").c_str());
+  g_signal_connect(focus, "clicked", G_CALLBACK(on_focus_clicked), nullptr);
+  gtk_header_bar_pack_start(GTK_HEADER_BAR(header), focus);
+  g_state.focus_button = GTK_BUTTON(focus);
   auto* quit = gtk_button_new_with_label(l10n::t("TrayExit").c_str());
   g_signal_connect(quit, "clicked", G_CALLBACK(on_quit_clicked), nullptr);
   gtk_header_bar_pack_end(GTK_HEADER_BAR(header), quit);
+  g_state.quit_button = GTK_BUTTON(quit);
   gtk_window_set_titlebar(GTK_WINDOW(window), header);
 
   auto* root = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
