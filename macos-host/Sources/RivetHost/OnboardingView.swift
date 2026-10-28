@@ -77,14 +77,14 @@ struct OnboardingView: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(Palette.inkPrimary)
             HStack(spacing: 10) {
-                waterCard(30, label: "ObMin30")
-                waterCard(45, label: "ObMin45")
-                waterCard(60, label: "ObMin60")
+                waterCard(30, label: "ob.min30")
+                waterCard(45, label: "ob.min45")
+                waterCard(60, label: "ob.min60")
             }
             HStack(spacing: 10) {
-                sitCard(45, label: "ObSit45")
-                sitCard(60, label: "ObSit60")
-                sitCard(90, label: "ObSit90")
+                sitCard(45, label: "ob.sit45")
+                sitCard(60, label: "ob.sit60")
+                sitCard(90, label: "ob.sit90")
             }
             Text(L10n.t("ob.soundTitle"))
                 .font(.system(size: 15, weight: .semibold))
@@ -131,7 +131,7 @@ struct OnboardingView: View {
             L10n.t("ob.summaryToast", "\(state.sit)"),
             L10n.t("ob.summaryWater", "\(state.water)"),
             L10n.t("ob.summaryAway", "\(model.config.away_reset_minutes)"),
-            L10n.t("ob.summarySound", L10n.t(state.sound ? "ObOn" : "ObOff")),
+            L10n.t("ob.summarySound", L10n.t(state.sound ? "ob.on" : "ob.off")),
         ]
     }
 

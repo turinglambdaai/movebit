@@ -5,11 +5,11 @@ import RivetSystem
 
 /// Copy-pool identifiers emitted by gen-swift-strings.mjs (indexed keys).
 enum CopyPool {
-    static let sitToasts = ("CopySitToastPool", 6)
-    static let water = ("CopyWaterPool", 8)
-    static let micro = ("CopyMicroPool", 9)
-    static let lateNightWater = ("CopyLateNightWaterPool", 3)
-    static let lateNightMicro = ("CopyLateNightMicroPool", 3)
+    static let sitToasts = ("copy.sitToastPool", 6)
+    static let water = ("copy.waterPool", 8)
+    static let micro = ("copy.microPool", 9)
+    static let lateNightWater = ("copy.lateNightWaterPool", 3)
+    static let lateNightMicro = ("copy.lateNightMicroPool", 3)
 
     /// After 22:00 the droplet drops the jokes (22:00-06:00 per
     /// copy.lateNightWindow).

@@ -130,11 +130,11 @@ struct TrayUi {
     }
     items.push_back(TrayMenuItem(
         kMenuPauseToggle,
-        tray_wide(l10n::t(paused_ ? "TrayResume" : "TrayPause")),
+        tray_wide(l10n::t(paused_ ? "tray.resume" : "tray.pause")),
         bind(on_pause_toggle)));
     items.push_back(TrayMenuItem(
         kMenuFocusToggle,
-        tray_wide(l10n::t(quiet_ ? "TrayFocusOff" : "TrayFocusOn")),
+        tray_wide(l10n::t(quiet_ ? "tray.focusOff" : "tray.focusOn")),
         bind(on_focus_toggle)));
     items.push_back(TrayMenuItem(TrayMenuItem::Type::separator));
     items.push_back(TrayMenuItem(

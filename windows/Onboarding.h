@@ -271,7 +271,7 @@ struct OnboardingWizard {
     }
     dots.Text(winrt::to_hstring(dots_text.c_str()));
     next_button.Content(winrt::box_value(winrt::hstring(wide(l10n::t(
-        page == kLastPage ? "ObLaunch" : page == 0 ? "ObStart" : "ObNext")))));
+        page == kLastPage ? "ob.launch" : page == 0 ? "ob.start" : "ob.next")))));
     skip_button.Visibility(page < kLastPage ? Visibility::Visible
                                             : Visibility::Collapsed);
   }

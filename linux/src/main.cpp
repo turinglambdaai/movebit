@@ -823,7 +823,7 @@ void refresh_focus_button() {
   if (g_state.focus_button != nullptr) {
     gtk_button_set_label(
         g_state.focus_button,
-        l10n::t(g_state.model.quiet ? "TrayFocusOff" : "TrayFocusOn").c_str());
+        l10n::t(g_state.model.quiet ? "tray.focusOff" : "tray.focusOn").c_str());
   }
 }
 
@@ -1517,7 +1517,7 @@ void reflect_pending_update() {
           rivet_app::UpdateState const& state = result.get();
           if (state.phase == "idle" && state.available_version.has_value()) {
             set_updates_hint(l10n::t(
-                "UpdFound", {l10n::A(state.available_version.value_or(""))}));
+                "upd.found", {l10n::A(state.available_version.value_or(""))}));
           }
         });
       });
@@ -3112,7 +3112,7 @@ void onboarding_show(GtkApplication* app) {
     auto* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     for (auto minutes : {30, 45, 60}) {
       std::string label =
-          l10n::t(minutes == 30 ? "ObMin30" : minutes == 45 ? "ObMin45" : "ObMin60");
+          l10n::t(minutes == 30 ? "ob.min30" : minutes == 45 ? "ob.min45" : "ob.min60");
       auto* card = gtk_button_new_with_label(label.c_str());
       gtk_widget_add_css_class(
           card, s.onboarding_water == minutes ? "ob-card-selected" : "ob-card");
@@ -3133,7 +3133,7 @@ void onboarding_show(GtkApplication* app) {
     auto* sit_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     for (auto minutes : {45, 60, 90}) {
       std::string label =
-          l10n::t(minutes == 45 ? "ObSit45" : minutes == 60 ? "ObSit60" : "ObSit90");
+          l10n::t(minutes == 45 ? "ob.sit45" : minutes == 60 ? "ob.sit60" : "ob.sit90");
       auto* card = gtk_button_new_with_label(label.c_str());
       gtk_widget_add_css_class(
           card, s.onboarding_sit == minutes ? "ob-card-selected" : "ob-card");
@@ -3251,7 +3251,7 @@ void onboarding_show(GtkApplication* app) {
         gtk_label_set_text(g_state.onboarding_dots, dots.c_str());
         gtk_button_set_label(
             button,
-            l10n::t(g_state.onboarding_page == kLastPage ? "ObLaunch" : "ObNext")
+            l10n::t(g_state.onboarding_page == kLastPage ? "ob.launch" : "ob.next")
                 .c_str());
         gtk_widget_set_visible(GTK_WIDGET(g_state.onboarding_skip),
                                g_state.onboarding_page < kLastPage);

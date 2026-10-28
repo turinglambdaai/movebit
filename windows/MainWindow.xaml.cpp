@@ -750,7 +750,7 @@ void MainWindow::HandleUpdateCheck(
       UpdateCheckButton().Content(winrt::box_value(
           winrt::to_hstring(l10n::t("upd.actionUpdate"))));
       AboutCheckHint().Text(winrt::to_hstring(l10n::t(
-          "UpdFound", {l10n::A(check.available_version.value_or(""))})));
+          "upd.found", {l10n::A(check.available_version.value_or(""))})));
       return;
     }
     if (check.status == "up-to-date") {
@@ -759,7 +759,7 @@ void MainWindow::HandleUpdateCheck(
       UpdateCheckButton().Content(winrt::box_value(
           winrt::to_hstring(l10n::t("about.checkUpdates"))));
       AboutCheckHint().Text(winrt::to_hstring(l10n::t(
-          "UpdCurrentUpToDate", {l10n::A(check.current_version)})));
+          "upd.currentUpToDate", {l10n::A(check.current_version)})));
       return;
     }
     update_phase_ = "error";
@@ -1110,7 +1110,7 @@ void MainWindow::RefreshTodayCard() {
   Controls::ToolTipService::SetToolTip(
       StatusButton(),
       winrt::box_value(winrt::to_hstring(l10n::t(
-          m.is_paused() ? "TodayResumeHint" : "TodayPauseHint"))));
+          m.is_paused() ? "today.resumeHint" : "today.pauseHint"))));
   tray_.SetPaused(m.is_paused());
   tray_.SetTooltip(winrt::to_hstring(
       m.is_paused()
@@ -1147,7 +1147,7 @@ void MainWindow::RefreshTodayCard() {
 void MainWindow::RefreshHistoryCard() {
   auto const is_month = model_.history_days >= 30;
   HistTitle().Text(winrt::to_hstring(
-      l10n::t(is_month ? "HistRange30" : "HistRange7")));
+      l10n::t(is_month ? "hist.range30" : "hist.range7")));
   auto slices = movebit::history_slice(
       model_.history_days, [this] { return model_.today; },
       [this] { return model_.history; });
