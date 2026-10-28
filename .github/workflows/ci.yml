@@ -24,14 +24,14 @@ jobs:
       - name: Version preflight (VERSION == rivet.rktd)
         shell: bash
         run: bash scripts/check-release-version.sh
+      - name: Install pinned Rivet (tag package install)
+        shell: bash
+        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
       - name: i18n embedded tables are in sync (issue #66)
         shell: bash
         run: |
           raco rivet i18n
           git diff --exit-code -- linux/GeneratedI18n.hpp windows/GeneratedI18n.hpp macos-host/Sources/RivetHost/GeneratedI18n.swift
-      - name: Install pinned Rivet (tag package install)
-        shell: bash
-        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
       - name: Windows registry autostart probe
         if: runner.os == 'Windows'
         shell: pwsh
