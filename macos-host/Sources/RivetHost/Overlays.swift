@@ -127,13 +127,13 @@ private struct ToastView: View {
                 HStack(spacing: 10) {
                     Spacer()
                     if content.cueId != 0 {
-                        Button(L10n.t("NotifHide")) { controller.hideTapped() }
+                        Button(L10n.t("notif.hide")) { controller.hideTapped() }
                             .buttonStyle(.plain)
                             .font(.system(size: 12.5))
                             .foregroundColor(Color(hex: "#A39E8C"))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                        Button(L10n.t("NotifSnooze", "\(content.snoozeMinutes)")) {
+                        Button(L10n.t("notif.snooze", "\(content.snoozeMinutes)")) {
                             controller.snoozeTapped()
                         }
                         .buttonStyle(.plain)
@@ -143,7 +143,7 @@ private struct ToastView: View {
                         .padding(.vertical, 5)
                         .background(RoundedRectangle(cornerRadius: 7)
                             .strokeBorder(Color(hex: "#E2DCCC"), lineWidth: 1))
-                        Button(L10n.t("NotifDone")) { controller.doneTapped() }
+                        Button(L10n.t("notif.done")) { controller.doneTapped() }
                             .buttonStyle(.plain)
                             .font(.system(size: 12.5))
                             .foregroundColor(Color(hex: "#26241F"))
@@ -152,7 +152,7 @@ private struct ToastView: View {
                             .background(RoundedRectangle(cornerRadius: 7)
                                 .fill(Color(hex: "#F3EEE3")))
                     } else {
-                        Button(L10n.t("NotifGotIt")) { controller.dismiss() }
+                        Button(L10n.t("notif.gotIt")) { controller.dismiss() }
                             .buttonStyle(.plain)
                             .font(.system(size: 12.5))
                             .foregroundColor(Color(hex: "#26241F"))
@@ -295,7 +295,7 @@ private struct MicroBreakView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(Palette.inkPrimary)
             }
-            Text(L10n.t("MicroHint"))
+            Text(L10n.t("micro.hint"))
                 .font(.system(size: 11.5))
                 .foregroundColor(Palette.inkMuted)
             GeometryReader { geo in

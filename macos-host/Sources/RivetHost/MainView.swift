@@ -208,7 +208,7 @@ struct MainView: View {
     @ViewBuilder
     private var configPathFooter: some View {
         if !model.dataDir.isEmpty {
-            Text(L10n.t("MainConfigPath", model.dataDir))
+            Text(L10n.t("main.configPath", model.dataDir))
                 .font(.system(size: 11))
                 .foregroundColor(Palette.inkMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -243,7 +243,7 @@ private struct TodayCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(L10n.t("TodayTitle"))
+                Text(L10n.t("today.title"))
                     .font(.system(size: 13))
                     .foregroundColor(Palette.inkSecondary)
                 Spacer()
@@ -266,14 +266,14 @@ private struct TodayCard: View {
                     Text(sitCycleText)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(Palette.inkPrimary)
-                    Text(L10n.t("TodaySitCycle"))
+                    Text(L10n.t("today.sitCycle"))
                         .font(.system(size: 11))
                         .foregroundColor(Palette.inkSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                counter(emoji: "🚶", value: model.today.sit_breaks, label: L10n.t("TodaySit"))
-                counter(emoji: "💧", value: model.today.water_reminders, label: L10n.t("TodayWater"))
-                counter(emoji: "👀", value: model.today.micro_breaks, label: L10n.t("TodayMicro"))
+                counter(emoji: "🚶", value: model.today.sit_breaks, label: L10n.t("today.sit"))
+                counter(emoji: "💧", value: model.today.water_reminders, label: L10n.t("today.water"))
+                counter(emoji: "👀", value: model.today.micro_breaks, label: L10n.t("today.micro"))
             }
         }
         .modifier(CardBackground())
@@ -283,15 +283,15 @@ private struct TodayCard: View {
 
     private var statusText: String {
         if model.isPaused, let until = model.paused.until_ms {
-            return L10n.t("TplPausedUntil", Date(timeIntervalSince1970: Double(until) / 1000))
+            return L10n.t("tpl.pausedUntil", Date(timeIntervalSince1970: Double(until) / 1000))
         }
-        return L10n.t("TplRunning")
+        return L10n.t("tpl.running")
     }
 
     private var sitCycleText: String {
         if model.isPaused { return "—" }
         let accumulated = model.loop(.sit)?.accumulated_mins ?? 0
-        return L10n.t("TplSitCycleMin", "\(accumulated)", "\(model.config.sit_reminder_minutes)")
+        return L10n.t("tpl.sitCycleMin", "\(accumulated)", "\(model.config.sit_reminder_minutes)")
     }
 
     private var sitCycleBar: some View {
@@ -342,7 +342,7 @@ private struct HistoryCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(isMonth ? L10n.t("HistRange30") : L10n.t("HistRange7"))
+                    Text(isMonth ? L10n.t("hist.range30") : L10n.t("hist.range7"))
                         .font(.system(size: 13))
                         .foregroundColor(Palette.inkSecondary)
                     Text(totalText(total))
@@ -351,8 +351,8 @@ private struct HistoryCard: View {
                 }
                 Spacer()
                 Picker("", selection: $model.historyDays) {
-                    Text(L10n.t("HistToggle7")).tag(7)
-                    Text(L10n.t("HistToggle30")).tag(30)
+                    Text(L10n.t("hist.toggle7")).tag(7)
+                    Text(L10n.t("hist.toggle30")).tag(30)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -364,8 +364,8 @@ private struct HistoryCard: View {
     }
 
     private func totalText(_ total: Int64) -> String {
-        total >= 60 ? L10n.t("HistTotalLong", "\(total / 60)", "\(total % 60)")
-                    : L10n.t("HistTotalShort", "\(total)")
+        total >= 60 ? L10n.t("hist.totalLong", "\(total / 60)", "\(total % 60)")
+                    : L10n.t("hist.totalShort", "\(total)")
     }
 }
 
@@ -431,7 +431,7 @@ private struct HistoryChart: View {
     private func averageLine(_ average: Int64, maxMinutes: Int64) -> some View {
         let offset = barMin + (barMax - barMin) * CGFloat(average) / CGFloat(maxMinutes)
         return VStack(spacing: 3) {
-            Text(L10n.t("HistAvg", CopyFormat.compact(average)))
+            Text(L10n.t("hist.avg", CopyFormat.compact(average)))
                 .font(.system(size: 10))
                 .foregroundColor(Palette.inkMuted)
             Rectangle()
@@ -450,7 +450,7 @@ private struct HistoryChart: View {
     }
 
     private func dayLabel(_ slice: DaySlice) -> String {
-        if slice.isToday { return L10n.t("HistToday") }
+        if slice.isToday { return L10n.t("hist.today") }
         guard let date = MoveBitModel.keyFormatter.date(from: slice.stats.date) else {
             return ""
         }
@@ -465,7 +465,7 @@ private struct HistoryChart: View {
     }
 
     private func tooltip(_ slice: DaySlice) -> String {
-        L10n.t("HistTooltip", slice.stats.date,
+        L10n.t("hist.tooltip", slice.stats.date,
                "\(slice.stats.active_mins)", "\(slice.stats.sit_breaks)",
                "\(slice.stats.longest_session_mins)")
     }
@@ -479,25 +479,25 @@ private struct InsightCard: View {
     var body: some View {
         let summary = model.insightSummary(days: 30)
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.t("InsightTitle"))
+            Text(L10n.t("insight.title"))
                 .font(.system(size: 13))
                 .foregroundColor(Palette.inkSecondary)
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
-                    metric(title: L10n.t("InsightCurrent"),
+                    metric(title: L10n.t("insight.current"),
                            value: CopyFormat.minutes(model.currentSessionMins))
-                    metric(title: L10n.t("InsightTodayLongest"),
+                    metric(title: L10n.t("insight.todayLongest"),
                            value: CopyFormat.minutes(model.today.longest_session_mins))
                 }
                 HStack(spacing: 10) {
-                    metric(title: L10n.t("InsightRecentLongest"),
+                    metric(title: L10n.t("insight.recentLongest"),
                            value: CopyFormat.minutes(summary.longest))
-                    metric(title: L10n.t("InsightRecentAvg"),
+                    metric(title: L10n.t("insight.recentAvg"),
                            value: CopyFormat.minutes(summary.average))
                 }
             }
             HStack(alignment: .top, spacing: 8) {
-                Text(L10n.t("InsightBusiest"))
+                Text(L10n.t("insight.busiest"))
                     .font(.system(size: 11.5))
                     .foregroundColor(Palette.inkMuted)
                 Text(busiestText(summary.busiest))
@@ -528,7 +528,7 @@ private struct InsightCard: View {
     private func busiestText(_ busiest: DayStats?) -> String {
         guard let busiest,
               let date = MoveBitModel.keyFormatter.date(from: busiest.date) else {
-            return L10n.t("InsightNone")
+            return L10n.t("insight.none")
         }
         let label = MoveBitModel.monthDayFormatter.string(from: date)
         return "\(label) · \(CopyFormat.minutes(busiest.active_mins))"
@@ -538,10 +538,10 @@ private struct InsightCard: View {
     private func sedentaryText(_ summary: InsightSummary) -> String {
         let longest = summary.longest
         let sit = model.config.sit_reminder_minutes
-        if longest <= 0 { return L10n.t("InsightNoData") }
-        if longest >= sit * 2 { return L10n.t("InsightLong2", CopyFormat.minutes(longest)) }
-        if longest >= sit { return L10n.t("InsightLong1", CopyFormat.minutes(longest)) }
-        return L10n.t("InsightLong0", CopyFormat.minutes(longest))
+        if longest <= 0 { return L10n.t("insight.noData") }
+        if longest >= sit * 2 { return L10n.t("insight.long2", CopyFormat.minutes(longest)) }
+        if longest >= sit { return L10n.t("insight.long1", CopyFormat.minutes(longest)) }
+        return L10n.t("insight.long0", CopyFormat.minutes(longest))
     }
 }
 
@@ -554,17 +554,17 @@ private struct SettingsCard: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .top) {
-                    Text(L10n.t("SetTitle"))
+                    Text(L10n.t("set.title"))
                         .font(.system(size: 13))
                         .foregroundColor(Palette.inkSecondary)
                     Spacer()
                     Text(model.configStatus.isEmpty
-                         ? L10n.t("SetStatusDefault") : model.configStatus)
+                         ? L10n.t("set.statusDefault") : model.configStatus)
                         .font(.system(size: 11.5))
                         .foregroundColor(Palette.accent)
                         .multilineTextAlignment(.trailing)
                 }
-                Text(L10n.t("SetIntro"))
+                Text(L10n.t("set.intro"))
                     .font(.system(size: 11))
                     .foregroundColor(Palette.inkMuted)
             }
@@ -580,27 +580,27 @@ private struct SettingsCard: View {
 
     private var reminderRows: some View {
         VStack(spacing: 10) {
-            StepperRow(label: L10n.t("SetSitInterval"), value: model.config.sit_reminder_minutes,
+            StepperRow(label: L10n.t("set.sitInterval"), value: model.config.sit_reminder_minutes,
                        range: 10...240, step: 5) {
                 save(model.config.with(sit_reminder_minutes: $0))
             }
-            StepperRow(label: L10n.t("SetWaterInterval"), value: model.config.water_reminder_minutes,
+            StepperRow(label: L10n.t("set.waterInterval"), value: model.config.water_reminder_minutes,
                        range: 5...180, step: 5) {
                 save(model.config.with(water_reminder_minutes: $0))
             }
-            StepperRow(label: L10n.t("SetAwayReset"), value: model.config.away_reset_minutes,
+            StepperRow(label: L10n.t("set.awayReset"), value: model.config.away_reset_minutes,
                        range: 1...60, step: 1) {
                 save(model.config.with(away_reset_minutes: $0))
             }
-            StepperRow(label: L10n.t("SetSnooze"), value: model.config.snooze_minutes,
+            StepperRow(label: L10n.t("set.snooze"), value: model.config.snooze_minutes,
                        range: 5...60, step: 5) {
                 save(model.config.with(snooze_minutes: $0))
             }
-            ToggleRow(label: L10n.t("SetMicroToggle"), isOn: model.config.micro_break_enabled) {
+            ToggleRow(label: L10n.t("set.microToggle"), isOn: model.config.micro_break_enabled) {
                 save(model.config.with(micro_break_enabled: $0))
             }
             HStack {
-                Text(L10n.t("SetMicroParams"))
+                Text(L10n.t("set.microParams"))
                     .font(.system(size: 12.5))
                     .foregroundColor(Palette.inkSecondary)
                 Spacer()
@@ -613,38 +613,38 @@ private struct SettingsCard: View {
                     save(model.config.with(micro_break_duration_seconds: $0))
                 }
             }
-            pickerRow(label: L10n.t("SetMubiSize"),
+            pickerRow(label: L10n.t("set.mubiSize"),
                       selection: model.config.companion_size,
                       options: [("S", "S"), ("M", "M"), ("L", "L")]) {
                 save(model.config.with(companion_size: $0))
             }
-            pickerRow(label: L10n.t("SetMubiMotion"),
+            pickerRow(label: L10n.t("set.mubiMotion"),
                       selection: model.config.companion_motion,
-                      options: [("still", L10n.t("MubiMotionStill")),
-                                ("subtle", L10n.t("MubiMotionSubtle")),
-                                ("lively", L10n.t("MubiMotionLively"))]) {
+                      options: [("still", L10n.t("mubi.motionStill")),
+                                ("subtle", L10n.t("mubi.motionSubtle")),
+                                ("lively", L10n.t("mubi.motionLively"))]) {
                 save(model.config.with(companion_motion: $0))
             }
-            pickerRow(label: L10n.t("SetMubiDock"),
+            pickerRow(label: L10n.t("set.mubiDock"),
                       selection: model.config.companion_dock,
-                      options: [("bottom-right", L10n.t("MubiDockBottomRight")),
-                                ("bottom-left", L10n.t("MubiDockBottomLeft")),
-                                ("top-right", L10n.t("MubiDockTopRight"))]) {
+                      options: [("bottom-right", L10n.t("mubi.dockBottomRight")),
+                                ("bottom-left", L10n.t("mubi.dockBottomLeft")),
+                                ("top-right", L10n.t("mubi.dockTopRight"))]) {
                 save(model.config.with(companion_dock: $0))
             }
-            pickerRow(label: L10n.t("SetMubiLabels"),
+            pickerRow(label: L10n.t("set.mubiLabels"),
                       selection: model.config.companion_labels,
-                      options: [("cue", L10n.t("MubiLabelsCue")),
-                                ("always", L10n.t("MubiLabelsAlways"))]) {
+                      options: [("cue", L10n.t("mubi.labelsCue")),
+                                ("always", L10n.t("mubi.labelsAlways"))]) {
                 save(model.config.with(companion_labels: $0))
             }
-            ToggleRow(label: L10n.t("SetMotion"), isOn: model.config.motion_enabled) {
+            ToggleRow(label: L10n.t("set.motion"), isOn: model.config.motion_enabled) {
                 save(model.config.with(motion_enabled: $0))
             }
-            ToggleRow(label: L10n.t("SetSound"), isOn: model.config.sound_enabled) {
+            ToggleRow(label: L10n.t("set.sound"), isOn: model.config.sound_enabled) {
                 save(model.config.with(sound_enabled: $0))
             }
-            ToggleRow(label: L10n.t("SetAutostart"), isOn: model.autostart) {
+            ToggleRow(label: L10n.t("set.autostart"), isOn: model.autostart) {
                 model.setAutostart($0)
             }
         }
@@ -671,11 +671,11 @@ private struct SettingsCard: View {
 
     private var languageRow: some View {
         HStack {
-            Text(L10n.t("SetLanguage"))
+            Text(L10n.t("set.language"))
                 .foregroundColor(Palette.inkPrimary)
             Spacer()
             Picker("", selection: languageBinding) {
-                Text(L10n.t("LangAuto")).tag("auto")
+                Text(L10n.t("lang.auto")).tag("auto")
                 Text("中文").tag("zh")
                 Text("English").tag("en")
             }
@@ -750,7 +750,7 @@ private struct AboutCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.t("UpdCurrentVersion", RivetGeneratedConfig.version))
+            Text(L10n.t("upd.currentVersion", RivetGeneratedConfig.version))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(Palette.inkPrimary)
             // The button IS the update state machine (parity with the
@@ -769,7 +769,7 @@ private struct AboutCard: View {
                         .font(.system(size: 11))
                         .foregroundColor(Palette.inkSecondary)
                     Button(action: model.cancelUpdateDownload) {
-                        Text(L10n.t("UpdActionCancel"))
+                        Text(L10n.t("upd.actionCancel"))
                             .font(.system(size: 12, weight: .medium))
                     }
                     .buttonStyle(.bordered)
@@ -789,10 +789,10 @@ private struct AboutCard: View {
             }
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.t("AboutAutoUpdate"))
+                    Text(L10n.t("about.autoUpdate"))
                         .font(.system(size: 13))
                         .foregroundColor(Palette.inkPrimary)
-                    Text(L10n.t("AboutAutoUpdateHint"))
+                    Text(L10n.t("about.autoUpdateHint"))
                         .font(.system(size: 11))
                         .foregroundColor(Palette.inkMuted)
                 }
@@ -804,15 +804,15 @@ private struct AboutCard: View {
             }
             // Website / issue tracker / license — the family About rows.
             HStack(spacing: 16) {
-                Link(L10n.t("AboutWebsite"),
+                Link(L10n.t("about.website"),
                      destination: URL(string: "https://movebit.jrtx.site")!)
-                Link(L10n.t("AboutReportIssue"),
+                Link(L10n.t("about.reportIssue"),
                      destination: URL(string:
                         "https://github.com/turinglambdaai/movebit/issues")!)
             }
             .font(.system(size: 12))
             .tint(Palette.accent)
-            Text(L10n.t("AboutLicense"))
+            Text(L10n.t("about.license"))
                 .font(.system(size: 11))
                 .foregroundColor(Palette.inkMuted)
         }
@@ -821,13 +821,13 @@ private struct AboutCard: View {
 
     private var updateButtonLabel: String {
         switch model.updatePhase {
-        case .checking: return L10n.t("UpdCheckingShort")
-        case .available, .cancelled: return L10n.t("UpdActionUpdate")
-        case .downloading: return L10n.t("UpdActionUpdating")
-        case .ready: return L10n.t("UpdActionRestartInstall")
-        case .applying: return L10n.t("UpdActionUpdating")
-        case .failed: return L10n.t("UpdActionRetry")
-        case .idle, .upToDate: return L10n.t("AboutCheckUpdates")
+        case .checking: return L10n.t("upd.checkingShort")
+        case .available, .cancelled: return L10n.t("upd.actionUpdate")
+        case .downloading: return L10n.t("upd.actionUpdating")
+        case .ready: return L10n.t("upd.actionRestartInstall")
+        case .applying: return L10n.t("upd.actionUpdating")
+        case .failed: return L10n.t("upd.actionRetry")
+        case .idle, .upToDate: return L10n.t("about.checkUpdates")
         }
     }
 
@@ -841,23 +841,23 @@ private struct AboutCard: View {
     private var updateHint: String {
         switch model.updatePhase {
         case .checking:
-            return L10n.t("UpdChecking")
+            return L10n.t("upd.checking")
         case .available:
-            return L10n.t("UpdFound", model.updateAvailableVersion ?? "")
+            return L10n.t("upd.found", model.updateAvailableVersion ?? "")
         case .downloading:
-            return L10n.t("UpdDownloadingPct",
+            return L10n.t("upd.downloadingPct",
                           model.updateAvailableVersion ?? "",
                           "\(model.updatePercent)")
         case .cancelled:
-            return L10n.t("UpdCancelled")
+            return L10n.t("upd.cancelled")
         case .ready:
-            return L10n.t("UpdRestartPrep", model.updateAvailableVersion ?? "")
+            return L10n.t("upd.restartPrep", model.updateAvailableVersion ?? "")
         case .applying:
-            return L10n.t("UpdRestarting")
+            return L10n.t("upd.restarting")
         case .failed:
-            return model.updateErrorText ?? L10n.t("UpdCheckFailed")
+            return model.updateErrorText ?? L10n.t("upd.checkFailed")
         case .upToDate:
-            return L10n.t("UpdCurrentUpToDate", RivetGeneratedConfig.version)
+            return L10n.t("upd.currentUpToDate", RivetGeneratedConfig.version)
         case .idle:
             return ""
         }

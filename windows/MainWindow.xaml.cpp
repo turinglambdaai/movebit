@@ -413,9 +413,9 @@ void MainWindow::HandleHealthCue(rivet_app::HealthCue const& cue) {
       case rivet_app::CueAction::drink_water:
         message = wide(movebit::pick_water()); break;
       case rivet_app::CueAction::rest_eyes:
-        message = wide(l10n::t("MicroHint")); break;
+        message = wide(l10n::t("micro.hint")); break;
       case rivet_app::CueAction::stand_and_stretch:
-        message = wide(l10n::t("NotifSitTitle")); break;
+        message = wide(l10n::t("notif.sitTitle")); break;
       default: break;
     }
     companion_.Show(state, message);
@@ -448,16 +448,16 @@ void MainWindow::HandleHealthCue(rivet_app::HealthCue const& cue) {
   std::vector<std::string> lines;
   if (std::find(kinds.begin(), kinds.end(),
                 rivet_app::ReminderKind::sit) != kinds.end()) {
-    lines.push_back(l10n::t("NotifSitBody",
+    lines.push_back(l10n::t("notif.sitBody",
                             {l10n::A(movebit::format_duration(
                                  model_.today.active_mins)),
                              l10n::A(model_.today.sit_breaks)}));
-    lines.push_back(l10n::pick("CopySitToastPool", 6));
+    lines.push_back(l10n::pick("copy.sitToastPool", 6));
   }
   if (std::find(kinds.begin(), kinds.end(),
                 rivet_app::ReminderKind::water) != kinds.end()) {
     lines.push_back(
-        l10n::t("NotifWaterCount", {l10n::A(model_.today.water_reminders)}));
+        l10n::t("notif.waterCount", {l10n::A(model_.today.water_reminders)}));
     lines.push_back(movebit::pick_water());
   }
   if (std::find(kinds.begin(), kinds.end(),
@@ -465,11 +465,11 @@ void MainWindow::HandleHealthCue(rivet_app::HealthCue const& cue) {
     lines.push_back(movebit::pick_micro());
   }
 
-  std::string title = l10n::t("NotifSitTitle");
+  std::string title = l10n::t("notif.sitTitle");
   auto accent = rivet_app::ReminderKind::sit;
   if (std::find(kinds.begin(), kinds.end(),
                 rivet_app::ReminderKind::water) != kinds.end()) {
-    title = l10n::t("NotifWaterTitle");
+    title = l10n::t("notif.waterTitle");
     accent = rivet_app::ReminderKind::water;
   }
 
@@ -503,8 +503,8 @@ void MainWindow::HandleCueAcknowledged(
       acked.count_today == 3 || acked.count_today == 5 || acked.count_today == 8;
   if (!milestone) return;
   toast_.Show(
-      l10n::t("NotifCheerTitle"),
-      {l10n::t("NotifCheerBody",
+      l10n::t("notif.cheerTitle"),
+      {l10n::t("notif.cheerBody",
                {l10n::A(acked.count_today),
                 l10n::A(movebit::format_duration(model_.today.active_mins))})},
       rivet_app::ReminderKind::sit, 0, model_.config.snooze_minutes);
@@ -602,17 +602,17 @@ void MainWindow::MutateConfig(F mutate) {
         if (auto w = weak.get()) {
           if (result.succeeded()) {
             w->model_.config_status =
-                l10n::t("SetStatusSaved", {l10n::T(movebit::now_ms())});
+                l10n::t("set.statusSaved", {l10n::T(movebit::now_ms())});
           } else {
             w->model_.config = previous;  // roll back the optimistic draft
-            w->model_.config_status = l10n::t("SetStatusSaveFailed");
+            w->model_.config_status = l10n::t("set.statusSaveFailed");
           }
           w->RefreshStatusMarker();
         }
       });
     }
   });
-  model_.config_status = l10n::t("SetStatusSaved", {l10n::T(movebit::now_ms())});
+  model_.config_status = l10n::t("set.statusSaved", {l10n::T(movebit::now_ms())});
   RefreshStatusMarker();
 }
 
@@ -623,7 +623,7 @@ void MainWindow::SaveConfig(rivet_app::ReminderConfig draft) {
 void MainWindow::RefreshStatusMarker() {
   if (ConfigStatus() != nullptr) {
     ConfigStatus().Text(winrt::to_hstring(
-        model_.config_status.empty() ? l10n::t("SetStatusDefault")
+        model_.config_status.empty() ? l10n::t("set.statusDefault")
                                      : model_.config_status));
   }
 }
@@ -699,7 +699,7 @@ void MainWindow::HandleUpdateFailureMarker() {
                                std::istreambuf_iterator<char>());
             std::filesystem::remove(marker, ec);
             w->ShowUpdateErrorHint(winrt::to_hstring(
-                l10n::t("UpdFailed") + " (" + reason + ")"));
+                l10n::t("upd.failed") + " (" + reason + ")"));
           } catch (std::exception const& e) {
             w->SetStatus(e.what());
           } catch (...) {
@@ -726,8 +726,8 @@ void MainWindow::UpdateCheck_Click(
   update_phase_ = "checking";
   UpdateCheckButton().IsEnabled(false);
   UpdateCheckButton().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("UpdCheckingShort"))));
-  AboutCheckHint().Text(winrt::to_hstring(l10n::t("UpdChecking")));
+      winrt::box_value(winrt::to_hstring(l10n::t("upd.checkingShort"))));
+  AboutCheckHint().Text(winrt::to_hstring(l10n::t("upd.checking")));
   auto const weak = get_weak();
   (void)api_->check_updates_async(
       [weak](rivet_app::Result<rivet_app::UpdateCheck> r) {
@@ -748,7 +748,7 @@ void MainWindow::HandleUpdateCheck(
       update_phase_ = "available";
       ClearUpdateErrorHint();
       UpdateCheckButton().Content(winrt::box_value(
-          winrt::to_hstring(l10n::t("UpdActionUpdate"))));
+          winrt::to_hstring(l10n::t("upd.actionUpdate"))));
       AboutCheckHint().Text(winrt::to_hstring(l10n::t(
           "UpdFound", {l10n::A(check.available_version.value_or(""))})));
       return;
@@ -757,23 +757,23 @@ void MainWindow::HandleUpdateCheck(
       update_phase_ = "up-to-date";
       ClearUpdateErrorHint();
       UpdateCheckButton().Content(winrt::box_value(
-          winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
+          winrt::to_hstring(l10n::t("about.checkUpdates"))));
       AboutCheckHint().Text(winrt::to_hstring(l10n::t(
           "UpdCurrentUpToDate", {l10n::A(check.current_version)})));
       return;
     }
     update_phase_ = "error";
     UpdateCheckButton().Content(winrt::box_value(
-        winrt::to_hstring(l10n::t("UpdActionRetry"))));
+        winrt::to_hstring(l10n::t("upd.actionRetry"))));
     // Show the real reason: check failures are network/signing conditions,
     // not user mistakes, and "try again later" alone hides which one.
     ShowUpdateErrorHint(winrt::to_hstring(
-        check.error.value_or(l10n::t("UpdCheckFailed"))));
+        check.error.value_or(l10n::t("upd.checkFailed"))));
   } catch (std::exception const& e) {
     update_phase_ = "error";
     UpdateCheckButton().Content(winrt::box_value(
-        winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
-    ShowUpdateErrorHint(winrt::to_hstring(l10n::t("UpdCheckFailed")));
+        winrt::to_hstring(l10n::t("about.checkUpdates"))));
+    ShowUpdateErrorHint(winrt::to_hstring(l10n::t("upd.checkFailed")));
     SetStatus(e.what());
   }
 }
@@ -783,12 +783,12 @@ void MainWindow::StartUpdateDownload() {
   update_download_start_tick_ = GetTickCount64();
   UpdateCheckButton().IsEnabled(false);
   UpdateCheckButton().Content(winrt::box_value(
-      winrt::to_hstring(l10n::t("UpdActionUpdating"))));
+      winrt::to_hstring(l10n::t("upd.actionUpdating"))));
   UpdateCancelButton().Visibility(Visibility::Visible);
   UpdateCancelButton().Content(winrt::box_value(
-      winrt::to_hstring(l10n::t("UpdActionCancel"))));
+      winrt::to_hstring(l10n::t("upd.actionCancel"))));
   AboutCheckHint().Text(
-      winrt::to_hstring(l10n::t("UpdDownloading", {l10n::A("")})));
+      winrt::to_hstring(l10n::t("upd.downloading", {l10n::A("")})));
   auto const weak = get_weak();
   (void)api_->start_update_download_async([weak](rivet_app::Result<void> r) {
     if (auto outer = weak.get()) {
@@ -814,7 +814,7 @@ void MainWindow::StartUpdateDownload() {
             w->UpdateCancelButton().Visibility(Visibility::Collapsed);
             w->UpdateCheckButton().IsEnabled(true);
             w->UpdateCheckButton().Content(winrt::box_value(
-                winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                winrt::to_hstring(l10n::t("upd.actionRetry"))));
           }
         }
       });
@@ -853,9 +853,9 @@ void MainWindow::PollUpdateProgress() {
         w->update_phase_ = "error";
         w->UpdateCheckButton().IsEnabled(true);
         w->UpdateCheckButton().Content(winrt::box_value(
-            winrt::to_hstring(l10n::t("UpdActionRetry"))));
+            winrt::to_hstring(l10n::t("upd.actionRetry"))));
         w->ShowUpdateErrorHint(
-            winrt::to_hstring(l10n::t("UpdCheckFailed")));
+            winrt::to_hstring(l10n::t("upd.checkFailed")));
       }
     });
     return;
@@ -873,7 +873,7 @@ void MainWindow::PollUpdateProgress() {
                 auto const state = r.get();
                 auto const percent = state.percent;
                 w->AboutCheckHint().Text(winrt::to_hstring(
-                    l10n::t("UpdDownloadingPct",
+                    l10n::t("upd.downloadingPct",
                             {l10n::A(state.available_version.value_or("")),
                              l10n::A(percent)})));
                 if (state.phase == "idle") {
@@ -887,9 +887,9 @@ void MainWindow::PollUpdateProgress() {
                   w->ClearUpdateErrorHint();
                   w->UpdateCheckButton().IsEnabled(true);
                   w->UpdateCheckButton().Content(winrt::box_value(
-                      winrt::to_hstring(l10n::t("UpdActionUpdate"))));
+                      winrt::to_hstring(l10n::t("upd.actionUpdate"))));
                   w->AboutCheckHint().Text(winrt::to_hstring(
-                      l10n::t("UpdCancelled")));
+                      l10n::t("upd.cancelled")));
                   return;
                 }
                 if (state.phase == "downloaded" || state.phase == "error") {
@@ -900,7 +900,7 @@ void MainWindow::PollUpdateProgress() {
                   if (state.phase == "error") {
                     w->ShowUpdateErrorHint(winrt::to_hstring(
                         state.message.value_or(
-                            l10n::t("UpdCheckFailed"))));
+                            l10n::t("upd.checkFailed"))));
                   }
                   if (state.phase == "downloaded") {
                     w->update_phase_ = "ready";
@@ -908,16 +908,16 @@ void MainWindow::PollUpdateProgress() {
                     w->UpdateCheckButton().IsEnabled(true);
                     w->UpdateCheckButton().Content(winrt::box_value(
                         winrt::to_hstring(
-                            l10n::t("UpdActionRestartInstall"))));
+                            l10n::t("upd.actionRestartInstall"))));
                     w->AboutCheckHint().Text(winrt::to_hstring(
-                        l10n::t("UpdRestartPrep",
+                        l10n::t("upd.restartPrep",
                                 {l10n::A(
                                     state.available_version.value_or(""))})));
                   } else {
                     w->update_phase_ = "error";
                     w->UpdateCheckButton().IsEnabled(true);
                     w->UpdateCheckButton().Content(winrt::box_value(
-                        winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                        winrt::to_hstring(l10n::t("upd.actionRetry"))));
                   }
                 }
               } catch (std::exception const& e) {
@@ -926,7 +926,7 @@ void MainWindow::PollUpdateProgress() {
                 w->update_phase_ = "error";
                 w->UpdateCheckButton().IsEnabled(true);
                 w->UpdateCheckButton().Content(winrt::box_value(
-                    winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                    winrt::to_hstring(l10n::t("upd.actionRetry"))));
                 w->ShowUpdateErrorHint(
                     winrt::to_hstring(std::string("poll: ") + e.what()));
                 w->SetStatus(e.what());
@@ -936,7 +936,7 @@ void MainWindow::PollUpdateProgress() {
                 w->update_phase_ = "error";
                 w->UpdateCheckButton().IsEnabled(true);
                 w->UpdateCheckButton().Content(winrt::box_value(
-                    winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                    winrt::to_hstring(l10n::t("upd.actionRetry"))));
                 w->ShowUpdateErrorHint(
                     winrt::to_hstring(L"poll: non-standard exception"));
               }
@@ -949,7 +949,7 @@ void MainWindow::ApplyStagedUpdate() {
   update_phase_ = "applying";
   UpdateCheckButton().IsEnabled(false);
   AboutCheckHint().Text(
-      winrt::to_hstring(l10n::t("UpdRestarting")));
+      winrt::to_hstring(l10n::t("upd.restarting")));
   auto const weak = get_weak();
   (void)api_->prepare_update_install_async(
       [weak](rivet_app::Result<std::string> r) {
@@ -969,7 +969,7 @@ void MainWindow::ApplyStagedUpdate() {
               w->update_phase_ = "error";
               w->UpdateCheckButton().IsEnabled(true);
               w->UpdateCheckButton().Content(winrt::box_value(
-                  winrt::to_hstring(l10n::t("UpdActionRetry"))));
+                  winrt::to_hstring(l10n::t("upd.actionRetry"))));
               w->SetStatus(e.what());
               ::ShellExecuteW(
                   nullptr, L"open",
@@ -1018,7 +1018,7 @@ winrt::fire_and_forget MainWindow::PickDataFolderAsync() {
           if (auto window = weak.get()) {
             if (result.succeeded()) {
               window->model_.config_status =
-                  l10n::t("AboutDataFolderApplied");
+                  l10n::t("about.dataFolderApplied");
               window->RefreshStatusMarker();
               window->DataFolderValue().Text(winrt::to_hstring(path));
             } else {
@@ -1034,55 +1034,55 @@ winrt::fire_and_forget MainWindow::PickDataFolderAsync() {
 }
 
 void MainWindow::ApplyTexts() {
-  TodayTitle().Text(winrt::to_hstring(l10n::t("TodayTitle")));
-  SitCycleCaption().Text(winrt::to_hstring(l10n::t("TodaySitCycle")));
-  TodaySitCaption().Text(winrt::to_hstring(l10n::t("TodaySit")));
-  TodayWaterCaption().Text(winrt::to_hstring(l10n::t("TodayWater")));
-  TodayMicroCaption().Text(winrt::to_hstring(l10n::t("TodayMicro")));
-  InsightTitleLabel().Text(winrt::to_hstring(l10n::t("InsightTitle")));
-  InsightCurrentTitle().Text(winrt::to_hstring(l10n::t("InsightCurrent")));
+  TodayTitle().Text(winrt::to_hstring(l10n::t("today.title")));
+  SitCycleCaption().Text(winrt::to_hstring(l10n::t("today.sitCycle")));
+  TodaySitCaption().Text(winrt::to_hstring(l10n::t("today.sit")));
+  TodayWaterCaption().Text(winrt::to_hstring(l10n::t("today.water")));
+  TodayMicroCaption().Text(winrt::to_hstring(l10n::t("today.micro")));
+  InsightTitleLabel().Text(winrt::to_hstring(l10n::t("insight.title")));
+  InsightCurrentTitle().Text(winrt::to_hstring(l10n::t("insight.current")));
   InsightTodayLongestTitle().Text(
-      winrt::to_hstring(l10n::t("InsightTodayLongest")));
+      winrt::to_hstring(l10n::t("insight.todayLongest")));
   InsightRecentLongestTitle().Text(
-      winrt::to_hstring(l10n::t("InsightRecentLongest")));
+      winrt::to_hstring(l10n::t("insight.recentLongest")));
   InsightRecentAvgTitle().Text(
-      winrt::to_hstring(l10n::t("InsightRecentAvg")));
-  InsightBusiestLabel().Text(winrt::to_hstring(l10n::t("InsightBusiest")));
-  SettingsTitle().Text(winrt::to_hstring(l10n::t("SetTitle")));
-  SettingsIntro().Text(winrt::to_hstring(l10n::t("SetIntro")));
-  SetSitLabel().Text(winrt::to_hstring(l10n::t("SetSitInterval")));
-  SetWaterLabel().Text(winrt::to_hstring(l10n::t("SetWaterInterval")));
-  SetAwayLabel().Text(winrt::to_hstring(l10n::t("SetAwayReset")));
-  SetMubiSizeLabel().Text(winrt::to_hstring(l10n::t("SetMubiSize")));
-  SetMubiMotionLabel().Text(winrt::to_hstring(l10n::t("SetMubiMotion")));
-  SetMubiDockLabel().Text(winrt::to_hstring(l10n::t("SetMubiDock")));
-  SetMubiLabelsLabel().Text(winrt::to_hstring(l10n::t("SetMubiLabels")));
-  SetMotionLabel().Text(winrt::to_hstring(l10n::t("SetMotion")));
-  SetSnoozeLabel().Text(winrt::to_hstring(l10n::t("SetSnooze")));
-  SetMicroLabel().Text(winrt::to_hstring(l10n::t("SetMicroToggle")));
-  SetMicroParamsLabel().Text(winrt::to_hstring(l10n::t("SetMicroParams")));
-  SetSoundLabel().Text(winrt::to_hstring(l10n::t("SetSound")));
-  SetAutostartLabel().Text(winrt::to_hstring(l10n::t("SetAutostart")));
-  SetLanguageLabel().Text(winrt::to_hstring(l10n::t("SetLanguage")));
-  AboutUpdateLabel().Text(winrt::to_hstring(l10n::t("AboutAutoUpdate")));
-  AboutUpdateHint().Text(winrt::to_hstring(l10n::t("AboutAutoUpdateHint")));
-  AboutCheckLabel().Text(winrt::to_hstring(l10n::t("AboutCheckUpdates")));
-  AboutCheckHint().Text(winrt::to_hstring(l10n::t("AboutCheckUpdatesHint")));
+      winrt::to_hstring(l10n::t("insight.recentAvg")));
+  InsightBusiestLabel().Text(winrt::to_hstring(l10n::t("insight.busiest")));
+  SettingsTitle().Text(winrt::to_hstring(l10n::t("set.title")));
+  SettingsIntro().Text(winrt::to_hstring(l10n::t("set.intro")));
+  SetSitLabel().Text(winrt::to_hstring(l10n::t("set.sitInterval")));
+  SetWaterLabel().Text(winrt::to_hstring(l10n::t("set.waterInterval")));
+  SetAwayLabel().Text(winrt::to_hstring(l10n::t("set.awayReset")));
+  SetMubiSizeLabel().Text(winrt::to_hstring(l10n::t("set.mubiSize")));
+  SetMubiMotionLabel().Text(winrt::to_hstring(l10n::t("set.mubiMotion")));
+  SetMubiDockLabel().Text(winrt::to_hstring(l10n::t("set.mubiDock")));
+  SetMubiLabelsLabel().Text(winrt::to_hstring(l10n::t("set.mubiLabels")));
+  SetMotionLabel().Text(winrt::to_hstring(l10n::t("set.motion")));
+  SetSnoozeLabel().Text(winrt::to_hstring(l10n::t("set.snooze")));
+  SetMicroLabel().Text(winrt::to_hstring(l10n::t("set.microToggle")));
+  SetMicroParamsLabel().Text(winrt::to_hstring(l10n::t("set.microParams")));
+  SetSoundLabel().Text(winrt::to_hstring(l10n::t("set.sound")));
+  SetAutostartLabel().Text(winrt::to_hstring(l10n::t("set.autostart")));
+  SetLanguageLabel().Text(winrt::to_hstring(l10n::t("set.language")));
+  AboutUpdateLabel().Text(winrt::to_hstring(l10n::t("about.autoUpdate")));
+  AboutUpdateHint().Text(winrt::to_hstring(l10n::t("about.autoUpdateHint")));
+  AboutCheckLabel().Text(winrt::to_hstring(l10n::t("about.checkUpdates")));
+  AboutCheckHint().Text(winrt::to_hstring(l10n::t("about.checkUpdatesHint")));
   UpdateCheckButton().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("AboutCheckUpdates"))));
+      winrt::box_value(winrt::to_hstring(l10n::t("about.checkUpdates"))));
   UpdateCopyErrorButton().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("UpdCopyError"))));
+      winrt::box_value(winrt::to_hstring(l10n::t("upd.copyError"))));
   WebsiteLink().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("AboutWebsite"))));
+      winrt::box_value(winrt::to_hstring(l10n::t("about.website"))));
   IssueLink().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("AboutReportIssue"))));
-  AboutLicenseText().Text(winrt::to_hstring(l10n::t("AboutLicense")));
-  DataFolderLabel().Text(winrt::to_hstring(l10n::t("AboutDataFolder")));
-  DataFolderHint().Text(winrt::to_hstring(l10n::t("AboutDataFolderHint")));
+      winrt::box_value(winrt::to_hstring(l10n::t("about.reportIssue"))));
+  AboutLicenseText().Text(winrt::to_hstring(l10n::t("about.license")));
+  DataFolderLabel().Text(winrt::to_hstring(l10n::t("about.dataFolder")));
+  DataFolderHint().Text(winrt::to_hstring(l10n::t("about.dataFolderHint")));
   DataFolderButton().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("AboutChangeDataFolder"))));
+      winrt::box_value(winrt::to_hstring(l10n::t("about.changeDataFolder"))));
   LanguageDrop().Items().GetAt(0).as<Controls::ComboBoxItem>().Content(
-      winrt::box_value(winrt::to_hstring(l10n::t("LangAuto"))));
+      winrt::box_value(winrt::to_hstring(l10n::t("lang.auto"))));
   RefreshStatusMarker();
   RefreshFooter();
 }
@@ -1098,9 +1098,9 @@ void MainWindow::RefreshTodayCard() {
     status_color = color_from("#EA580C");
     auto const until = m.paused.until_ms.value_or(movebit::now_ms());
     status = winrt::to_hstring(
-        l10n::t("TplPausedUntil", {l10n::T(until)}));
+        l10n::t("tpl.pausedUntil", {l10n::T(until)}));
   } else {
-    status = winrt::to_hstring(l10n::t("TplRunning"));
+    status = winrt::to_hstring(l10n::t("tpl.running"));
   }
   auto const status_hex = status_color.R == 0xEA ? "#EA580C" : "#16A34A";
   TodayStatus().Text(status);
@@ -1114,10 +1114,10 @@ void MainWindow::RefreshTodayCard() {
   tray_.SetPaused(m.is_paused());
   tray_.SetTooltip(winrt::to_hstring(
       m.is_paused()
-          ? l10n::t("TrayPaused",
+          ? l10n::t("tray.paused",
                     {l10n::A(""), l10n::T(m.paused.until_ms.value_or(
                          movebit::now_ms()))})
-          : l10n::t("TrayRunning",
+          : l10n::t("tray.running",
                     {l10n::A(""),
                      l10n::A(movebit::format_duration(m.today.active_mins)),
                      l10n::A(m.current_session_mins()),
@@ -1136,7 +1136,7 @@ void MainWindow::RefreshTodayCard() {
     SitCycleText().Text(L"—");
   } else {
     SitCycleText().Text(winrt::to_hstring(
-        l10n::t("TplSitCycleMin", {l10n::A(m.current_session_mins()),
+        l10n::t("tpl.sitCycleMin", {l10n::A(m.current_session_mins()),
                                    l10n::A(m.config.sit_reminder_minutes)})));
   }
   TodaySit().Text(winrt::to_hstring(m.today.sit_breaks));
@@ -1155,8 +1155,8 @@ void MainWindow::RefreshHistoryCard() {
   for (auto const& s : slices) total += s.stats.active_mins;
   HistTotal().Text(winrt::to_hstring(
       total >= 60
-          ? l10n::t("HistTotalLong", {l10n::A(total / 60), l10n::A(total % 60)})
-          : l10n::t("HistTotalShort", {l10n::A(total)})));
+          ? l10n::t("hist.totalLong", {l10n::A(total / 60), l10n::A(total % 60)})
+          : l10n::t("hist.totalShort", {l10n::A(total)})));
   ShowHistoryBars();
 }
 
@@ -1208,7 +1208,7 @@ void MainWindow::ShowHistoryBars() {
 
     std::wstring label;
     if (slice.is_today) {
-      label = winrt::to_hstring(l10n::t("HistToday"));
+      label = winrt::to_hstring(l10n::t("hist.today"));
     } else if (!is_month) {
       std::time_t const t =
           static_cast<std::time_t>(slice.day_start_ms / 1000);
@@ -1248,7 +1248,7 @@ void MainWindow::RefreshInsightCard() {
       winrt::to_hstring(movebit::format_minutes(summary.longest)));
   InsightRecentAvg().Text(
       winrt::to_hstring(movebit::format_minutes(summary.average)));
-  std::string busiest_text = l10n::t("InsightNone");
+  std::string busiest_text = l10n::t("insight.none");
   if (summary.has_busiest && summary.busiest.date.size() >= 10) {
     busiest_text = summary.busiest.date.substr(5, 5) + " · " +
                    movebit::format_minutes(summary.busiest.active_mins);
@@ -1258,15 +1258,15 @@ void MainWindow::RefreshInsightCard() {
   std::int64_t const sit = model_.config.sit_reminder_minutes;
   std::string sedentary;
   if (summary.longest <= 0) {
-    sedentary = l10n::t("InsightNoData");
+    sedentary = l10n::t("insight.noData");
   } else if (summary.longest >= sit * 2) {
-    sedentary = l10n::t("InsightLong2",
+    sedentary = l10n::t("insight.long2",
                         {l10n::A(movebit::format_minutes(summary.longest))});
   } else if (summary.longest >= sit) {
-    sedentary = l10n::t("InsightLong1",
+    sedentary = l10n::t("insight.long1",
                         {l10n::A(movebit::format_minutes(summary.longest))});
   } else {
-    sedentary = l10n::t("InsightLong0",
+    sedentary = l10n::t("insight.long0",
                         {l10n::A(movebit::format_minutes(summary.longest))});
   }
   InsightSedentary().Text(winrt::to_hstring(sedentary));
@@ -1309,9 +1309,9 @@ void MainWindow::RefreshFooter() {
       model_.data_dir.empty()
           ? L""
           : winrt::to_hstring(
-                l10n::t("MainConfigPath", {l10n::A(model_.data_dir)}))));
+                l10n::t("main.configPath", {l10n::A(model_.data_dir)}))));
   AboutVersion().Text(winrt::to_hstring(
-      l10n::t("UpdCurrentVersion", {l10n::A(rivet_app::kVersion)})));
+      l10n::t("upd.currentVersion", {l10n::A(rivet_app::kVersion)})));
 }
 
 // ---- reloads ------------------------------------------------------------------------
@@ -1390,7 +1390,7 @@ void MainWindow::ShowOnboarding() {
         d.sound_enabled = sound;
         d.welcome_shown = true;
       });
-      self->toast_.Show(l10n::t("ObSettled"), {l10n::t("ObSettledBody")},
+      self->toast_.Show(l10n::t("ob.settled"), {l10n::t("ob.settledBody")},
                         rivet_app::ReminderKind::water, {},
                         self->model_.config.snooze_minutes);
     }
@@ -1478,7 +1478,7 @@ void MainWindow::HideToTray() {
   AppWindow().Hide();
   if (!tray_hint_shown_) {
     tray_hint_shown_ = true;
-    tray_.ShowInfo(l10n::t("TrayHideHintTitle"), l10n::t("TrayHideHintBody"));
+    tray_.ShowInfo(l10n::t("tray.hideHintTitle"), l10n::t("tray.hideHintBody"));
   }
 }
 
@@ -1653,7 +1653,7 @@ void MainWindow::Autostart_Toggled(
   auto const on = AutostartSwitch().IsOn();
   model_.autostart = on;
   model_.config_status =
-      l10n::t("SetStatusApplied", {l10n::T(movebit::now_ms())});
+      l10n::t("set.statusApplied", {l10n::T(movebit::now_ms())});
   RefreshStatusMarker();
   (void)api_->set_autostart_async(on, [](rivet_app::Result<void>) {});
 }

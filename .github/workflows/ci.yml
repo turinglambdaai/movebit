@@ -24,6 +24,11 @@ jobs:
       - name: Version preflight (VERSION == rivet.rktd)
         shell: bash
         run: bash scripts/check-release-version.sh
+      - name: i18n embedded tables are in sync (issue #66)
+        shell: bash
+        run: |
+          raco rivet i18n
+          git diff --exit-code -- linux/GeneratedI18n.hpp windows/GeneratedI18n.hpp macos-host/Sources/RivetHost/GeneratedI18n.swift
       - name: Install pinned Rivet (tag package install)
         shell: bash
         run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
@@ -57,6 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          raco rivet i18n
           raco rivet doctor
           xvfb-run -a raco rivet package
 
@@ -88,6 +94,7 @@ jobs:
         run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
       - name: Build the SwiftUI host
         run: |
+          raco rivet i18n
           raco rivet doctor
           raco rivet build
       - name: Assert staged macOS artifact
@@ -113,6 +120,8 @@ jobs:
       - name: Build the WinUI host
         shell: pwsh
         run: |
+          raco rivet i18n
+          if (-not $?) { throw 'raco rivet i18n failed' }
           raco rivet doctor
           if (-not $?) { throw 'raco rivet doctor failed' }
           raco rivet build

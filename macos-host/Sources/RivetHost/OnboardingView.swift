@@ -55,15 +55,15 @@ struct OnboardingView: View {
                 .font(.system(size: 72))
                 .padding(.top, 24)
                 .padding(.bottom, 8)
-            Text(L10n.t("ObHello"))
+            Text(L10n.t("ob.hello"))
                 .font(.system(size: 26, weight: .bold))
                 .foregroundColor(Palette.inkPrimary)
-            Text(L10n.t("ObIntro"))
+            Text(L10n.t("ob.intro"))
                 .font(.system(size: 14.5))
                 .foregroundColor(Palette.inkSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
-            Text(L10n.t("ObSteps"))
+            Text(L10n.t("ob.steps"))
                 .font(.system(size: 13))
                 .foregroundColor(Palette.inkMuted)
                 .padding(.top, 6)
@@ -73,7 +73,7 @@ struct OnboardingView: View {
 
     private var remindersPage: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.t("ObWaterTitle"))
+            Text(L10n.t("ob.waterTitle"))
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(Palette.inkPrimary)
             HStack(spacing: 10) {
@@ -86,7 +86,7 @@ struct OnboardingView: View {
                 sitCard(60, label: "ObSit60")
                 sitCard(90, label: "ObSit90")
             }
-            Text(L10n.t("ObSoundTitle"))
+            Text(L10n.t("ob.soundTitle"))
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(Palette.inkPrimary)
                 .padding(.top, 8)
@@ -95,7 +95,7 @@ struct OnboardingView: View {
                     get: { state.sound },
                     set: { state.sound = $0 }))
                     .labelsHidden()
-                Text(L10n.t("ObSoundHint"))
+                Text(L10n.t("ob.soundHint"))
                     .font(.system(size: 12))
                     .foregroundColor(Palette.inkSecondary)
             }
@@ -104,7 +104,7 @@ struct OnboardingView: View {
 
     private var pactPage: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.t("ObPactTitle"))
+            Text(L10n.t("ob.pactTitle"))
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(Palette.inkPrimary)
             VStack(alignment: .leading, spacing: 8) {
@@ -119,7 +119,7 @@ struct OnboardingView: View {
             .background(RoundedRectangle(cornerRadius: 12).fill(Palette.cardBg))
             .overlay(RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Palette.cardBorder, lineWidth: 1))
-            Text(L10n.t("ObPactOutro"))
+            Text(L10n.t("ob.pactOutro"))
                 .font(.system(size: 13))
                 .foregroundColor(Palette.inkMuted)
         }
@@ -128,10 +128,10 @@ struct OnboardingView: View {
 
     private var summaryLines: [String] {
         [
-            L10n.t("ObSummaryToast", "\(state.sit)"),
-            L10n.t("ObSummaryWater", "\(state.water)"),
-            L10n.t("ObSummaryAway", "\(model.config.away_reset_minutes)"),
-            L10n.t("ObSummarySound", L10n.t(state.sound ? "ObOn" : "ObOff")),
+            L10n.t("ob.summaryToast", "\(state.sit)"),
+            L10n.t("ob.summaryWater", "\(state.water)"),
+            L10n.t("ob.summaryAway", "\(model.config.away_reset_minutes)"),
+            L10n.t("ob.summarySound", L10n.t(state.sound ? "ObOn" : "ObOff")),
         ]
     }
 
@@ -176,7 +176,7 @@ struct OnboardingView: View {
             }
             HStack {
                 if state.page < lastPage {
-                    Button(L10n.t("ObSkip")) { skipToDefaults() }
+                    Button(L10n.t("ob.skip")) { skipToDefaults() }
                         .buttonStyle(.plain)
                         .foregroundColor(Palette.inkMuted)
                 }
@@ -190,9 +190,9 @@ struct OnboardingView: View {
     }
 
     private var nextLabel: String {
-        state.page == 0 ? L10n.t("ObStart")
-            : state.page == lastPage ? L10n.t("ObLaunch")
-            : L10n.t("ObNext")
+        state.page == 0 ? L10n.t("ob.start")
+            : state.page == lastPage ? L10n.t("ob.launch")
+            : L10n.t("ob.next")
     }
 
     private func next() {
