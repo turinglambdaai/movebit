@@ -12,19 +12,19 @@ v0.0.1. Free community application under MIT; no commercial activation or subscr
 
 Official releases target Windows x64, macOS (Apple silicon and Intel) and Linux x64/arm64. Every platform ships a portable archive; Windows adds an MSI, macOS a DMG, Linux a deb, rpm and AppImage. Use the [official Releases](https://github.com/turinglambdaai/movebit/releases), select an explicitly listed OS/architecture asset, and check the supplied SHA-256 sidecars. Preview assets may lack publisher signing or notarization; do not disable system-wide security protections to install them.
 
-Platform notes: idle detection uses the native desktop APIs (GetLastInputInfo / CoreGraphics / XScreenSaver). On Linux, Mubi's card docks on X11 sessions; Wayland sessions honestly fall back to system notifications (reminders and updates work as usual).
+Platform notes: idle detection uses the native desktop APIs (GetLastInputInfo / CoreGraphics / XScreenSaver). On Linux, Mubi's card docks on X11 sessions; on Wayland the compositor does not let an app place a click-through card, so cues deliver as in-app reminder cards instead (reminders, history and updates work as usual).
 
 ## Your first session
 
 1. Install and launch. The compact first-run flow asks for a water interval (30/45/60 min), a sit interval (45/60/90 min) and whether cues make a sound — or press Skip for the defaults.
-2. Meet Mubi. When a cycle is due, the character appears at the screen edge with a clear health suggestion and an actionable label. The bubble rests after a few seconds; the cue itself waits in the tray.
-3. Respond your way: **Done** (a self-report — never a measurement), **Later** (defers by the snooze interval), **Hide** (puts it away; the next cycle arrives on schedule). All three live in the tray menu, always reachable — the character panel itself is fully click-through.
+2. Meet Mubi. When a cycle is due, the character appears at the screen edge with a clear health suggestion and an actionable label. The card rests after a few seconds; Done / Later / Hide sit right on it.
+3. Respond your way: **Done** (a self-report — never a measurement), **Later** (defers by the snooze interval), **Hide** (puts it away; the next cycle arrives on schedule). All three sit on the reminder card itself — the tray menu (Windows / macOS) reaches them too — and the character and its text stay pointer-through; only the action row accepts clicks.
 4. Enable login startup only if you want background reminders. Treat the history charts as usage estimates, not health measurements.
 
 ## Mubi, focus mode and honesty
 
 - The three gestures map to the three reminders: sit → stretch, water → raised cup, eye rest → closed eyes. Several due reminders merge into one cue with every meaning preserved.
-- **Focus mode** (tray toggle) queues cues silently during presentations and delivers ONE bounded summary when it ends — never a pile-up. Cues that were already on screen are not re-emitted.
+- **Focus mode** (the tray toggle on Windows / macOS, a header button on Linux) queues cues silently during presentations and delivers ONE bounded summary when it ends — never a pile-up. Cues that were already on screen are not re-emitted.
 - Unanswered cues expire after ten minutes and the next reminder arrives on its normal schedule. Silence never counts as completion, and nothing is lost.
 - Personalize Mubi in settings: size S/M/L (body heights 60/78/104), motion (still/subtle/lively), dock position, label visibility. Reduce Motion (or motion "still") renders everything static.
 - There is no fullscreen forced break anywhere in v0.0.1, and no way to opt back into one — that contract was removed on purpose.
