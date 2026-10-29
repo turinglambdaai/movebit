@@ -1700,6 +1700,21 @@ void build_main_content() {
     mw.away_spin = add_stepper_row(card, l10n::t("set.awayReset").c_str(),
                                    c.away_reset_minutes, 1, 60, 1,
                                    G_CALLBACK(on_away_changed));
+    mw.snooze_spin = add_stepper_row(card, l10n::t("set.snooze").c_str(),
+                                     c.snooze_minutes, 5, 60, 5,
+                                     G_CALLBACK(on_snooze_changed));
+    mw.micro_switch = add_toggle_row(card, l10n::t("set.microToggle").c_str(),
+                                     c.micro_break_enabled,
+                                     G_CALLBACK(on_micro_set));
+    auto* micro_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    box_append(GTK_BOX(micro_row), label_with(l10n::t("set.microParams").c_str(), "row-label"));
+    mw.micro_interval_spin = add_stepper_row(
+        micro_row, "", c.micro_break_interval_minutes, 10, 60, 5,
+        G_CALLBACK(on_micro_interval_changed));
+    mw.micro_duration_spin = add_stepper_row(
+        micro_row, "", c.micro_break_duration_seconds, 10, 60, 5,
+        G_CALLBACK(on_micro_duration_changed));
+    box_append(GTK_BOX(card), micro_row);
     auto* mubi_size_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     box_append(GTK_BOX(mubi_size_row),
                label_with(l10n::t("set.mubiSize").c_str(), "row-label"));
@@ -1777,21 +1792,6 @@ void build_main_content() {
     mw.motion_switch = add_toggle_row(card, l10n::t("set.motion").c_str(),
                                       c.motion_enabled,
                                       G_CALLBACK(on_motion_set));
-    mw.snooze_spin = add_stepper_row(card, l10n::t("set.snooze").c_str(),
-                                     c.snooze_minutes, 5, 60, 5,
-                                     G_CALLBACK(on_snooze_changed));
-    mw.micro_switch = add_toggle_row(card, l10n::t("set.microToggle").c_str(),
-                                     c.micro_break_enabled,
-                                     G_CALLBACK(on_micro_set));
-    auto* micro_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    box_append(GTK_BOX(micro_row), label_with(l10n::t("set.microParams").c_str(), "row-label"));
-    mw.micro_interval_spin = add_stepper_row(
-        micro_row, "", c.micro_break_interval_minutes, 10, 60, 5,
-        G_CALLBACK(on_micro_interval_changed));
-    mw.micro_duration_spin = add_stepper_row(
-        micro_row, "", c.micro_break_duration_seconds, 10, 60, 5,
-        G_CALLBACK(on_micro_duration_changed));
-    box_append(GTK_BOX(card), micro_row);
     mw.sound_switch = add_toggle_row(card, l10n::t("set.sound").c_str(),
                                      c.sound_enabled, G_CALLBACK(on_sound_set));
     mw.autostart_switch = add_toggle_row(
@@ -1908,9 +1908,6 @@ void apply_global_css() {
     .sit-bar { min-height: 9px; }
     .sit-bar progress { background: #C25E3E; border-radius: 4px; }
     .sit-bar trough { background: #EAE6DC; border-radius: 4px; }
-                    border: 1px solid #3A3550; border-radius: 8px; padding: 7px 16px; }
-                         background: #1A1730; border: 1px solid #5A527A;
-                         border-radius: 8px; padding: 7px 16px; }
     .toast-bg { background: #FFFDFB; border-radius: 14px; border: 1px solid #E2DCCC; }
     .mubi-bg { background: #FFFDFB; border-radius: 20px; border: 1px solid #E2DCCC; }
     .mubi-capsule { background: #FFFDFB; border-radius: 12px; }
