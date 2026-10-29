@@ -1,13 +1,13 @@
 # MoveBit 健康提醒拟人化交互契约（实施基线）
 
-> **2026-10-26 已批准从实验版本重新设计：** 负责人确认 v0.x 从无真实用户，下一次发布才是首个真正的产品。允许重做 UX、RPC、配置、历史文件与引导，**无需迁移旧版，也不用保留旧交互**。实施任务：[Issue #55](https://github.com/turinglambdaai/movebit/issues/55)。本文件描述未来 v1 目标，**不表示已经发布**。
+> **2026-10-26 已批准从实验版本重新设计：** 负责人确认 v0.x 从无真实用户，下一次发布才是首个真正的产品。允许重做 UX、RPC、配置、历史文件与引导，**无需迁移旧版，也不用保留旧交互**。实施任务：[Issue #55](https://github.com/turlamai/movebit/issues/55)。本文件描述未来 v1 目标，**不表示已经发布**。
 
 **新产品默认体验：** 小角色以明确的喝水、起身、护眼健康建议传递提醒；系统无法安全显示角色时，退化到**不阻塞操作的系统通知或托盘操作**。新版彻底取消全屏强制休息、延迟跳过、严格模式及旧式弹窗双轨兼容。已经公开的 v0.x 只是历史发布，不覆盖旧 tag。
 
 **健康语义优先：** 提醒包含全部到期类型、建议行动（drink-water / stand-and-stretch / rest-eyes）和可爱的视觉动作；完成是用户自述确认，稍后由后端负责。专注期间静默不能自动记为完成或把待提醒事件丢掉；到期、待处理、已确认/稍后/过期由 #55 定义。
 
 
-状态：**产品方向已决定开始实施；原生桌面宠物尚未发布。** 实施总任务：[Issue #51](https://github.com/turinglambdaai/movebit/issues/51)。关联控制权修复：[Issue #49](https://github.com/turinglambdaai/movebit/issues/49)、[PR #50](https://github.com/turinglambdaai/movebit/pull/50)。
+状态：**产品方向已决定开始实施；原生桌面宠物尚未发布。** 实施总任务：[Issue #51](https://github.com/turlamai/movebit/issues/51)。关联控制权修复：[Issue #49](https://github.com/turlamai/movebit/issues/49)、[PR #50](https://github.com/turlamai/movebit/pull/50)。
 
 [English](COMPANION-RFC.md) · 中文
 
@@ -57,6 +57,6 @@ MVP 表现状态：`idle`（待机）、`water`（喝水）、`stretch`（久坐
 
 ## 开发、验收顺序
 
-任务分阶段见 [#51](https://github.com/turinglambdaai/movebit/issues/51)。首要任务是**验证喝水/久坐/护眼提醒清晰有效且不阻断工作，而不是先堆宠物动画与养成机制**。三平台均需测试打字、鼠标选择与点击穿透、焦点恢复、多屏热插拔、缩放、休眠唤醒、全屏/演示、减少动态效果、读屏、后端崩溃、稍后提醒/离席重置与退出。
+任务分阶段见 [#51](https://github.com/turlamai/movebit/issues/51)。首要任务是**验证喝水/久坐/护眼提醒清晰有效且不阻断工作，而不是先堆宠物动画与养成机制**。三平台均需测试打字、鼠标选择与点击穿透、焦点恢复、多屏热插拔、缩放、休眠唤醒、全屏/演示、减少动态效果、读屏、后端崩溃、稍后提醒/离席重置与退出。
 
 执行 `raco test racket/`、wire/schema 检查与 `raco rivet acceptance --json`（包含打包后的原生 UI）。只陈述已验证的平台和实测指标，不以某个平台测试通过代表三平台一致。公开产品文档继续保持中英文双份。

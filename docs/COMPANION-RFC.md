@@ -1,13 +1,13 @@
 # Health reminder UX contract — companion-style cues (RFC / implementation baseline)
 
-> **V1 reset, approved 2026-10-26:** The owner confirms v0.x was an experiment with **no real users**. The next release is the first real health-reminder product; clean-slate UX, RPC, settings and data schemas are explicitly allowed. No migration, legacy presentation opt-in or mandatory backwards compatibility. Execution: [#55](https://github.com/turinglambdaai/movebit/issues/55). This document defines the **target** experience, not already shipped behavior.
+> **V1 reset, approved 2026-10-26:** The owner confirms v0.x was an experiment with **no real users**. The next release is the first real health-reminder product; clean-slate UX, RPC, settings and data schemas are explicitly allowed. No migration, legacy presentation opt-in or mandatory backwards compatibility. Execution: [#55](https://github.com/turlamai/movebit/issues/55). This document defines the **target** experience, not already shipped behavior.
 
 **New product default:** small character delivers concise water, stand-up and eye-rest cues; if the native surface cannot be input-safe, use a non-blocking native notification/tray fallback. **Remove** fullscreen forced-break / delayed skip / strict onboarding / previous popup modes from v1. Existing published v0.x releases remain historical; do not overwrite version tags.
 
 **Semantic health message first:** cue includes due kinds, suggested action (drink-water / stand-and-stretch / rest-eyes), and visual gesture; Done is self-reported acknowledgement, Later defers by backend policy. Quiet/presentation suppression must not manufacture completion or drop a pending event. See #55 for the due → pending → acknowledged/snoozed/expired state-machine task.
 
 
-Status: **SHIPPED in v0.0.1 (2026-10-27)** — the character-delivered cue lifecycle, tray Done/Later/Hide/Focus, quiet queuing with a bounded summary and the Mubi design system are live in the product. Product implementation tracker: [#51](https://github.com/turinglambdaai/movebit/issues/51). Desktop-session acceptance evidence is tracked in #56 D4 / #58.
+Status: **SHIPPED in v0.0.1 (2026-10-27)** — the character-delivered cue lifecycle, tray Done/Later/Hide/Focus, quiet queuing with a bounded summary and the Mubi design system are live in the product. Product implementation tracker: [#51](https://github.com/turlamai/movebit/issues/51). Desktop-session acceptance evidence is tracked in #56 D4 / #58.
 
 [中文](COMPANION-RFC.zh-CN.md) · English
 
@@ -58,6 +58,6 @@ Modes for MVP: `idle`, `water`, `stretch` (sit), `blink` (micro), `quiet`, `stat
 
 ## Delivery / verification
 
-Implementation is sliced and tracked in [#51](https://github.com/turinglambdaai/movebit/issues/51). Native work begins with **correct, usable water/sit/micro reminders and input safety**, not collectible pets or elaborate animations. Verify on all supported hosts and packaged builds: typing/clicking/selection underneath the pet, focus restoration, changing displays, OS scaling, sleep/wake, fullscreen/presentation, Reduce Motion, keyboard/readers, backend crash, snooze/away-reset and explicit opt-out.
+Implementation is sliced and tracked in [#51](https://github.com/turlamai/movebit/issues/51). Native work begins with **correct, usable water/sit/micro reminders and input safety**, not collectible pets or elaborate animations. Verify on all supported hosts and packaged builds: typing/clicking/selection underneath the pet, focus restoration, changing displays, OS scaling, sleep/wake, fullscreen/presentation, Reduce Motion, keyboard/readers, backend crash, snooze/away-reset and explicit opt-out.
 
 Use `raco test racket/`, wire/schema checks and `raco rivet acceptance --json` (packaged app, native UI). Report actual measured results and platform gaps; tests passing on one host do not prove parity. Keep public docs in English and Chinese.

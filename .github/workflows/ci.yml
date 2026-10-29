@@ -26,7 +26,7 @@ jobs:
         run: bash scripts/check-release-version.sh
       - name: Install pinned Rivet (tag package install)
         shell: bash
-        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
+        run: raco pkg install --auto --no-docs 'https://github.com/turlamai/rivet.git#${{ env.RIVET_PIN }}'
       - name: i18n embedded tables are in sync (issue #66)
         shell: bash
         run: |
@@ -57,7 +57,7 @@ jobs:
       # it ships no packages of its own.
       - name: Install pinned Rivet (tag package install)
         shell: bash
-        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
+        run: raco pkg install --auto --no-docs 'https://github.com/turlamai/rivet.git#${{ env.RIVET_PIN }}'
       - name: Build, package, and launch-smoke the GTK4 host
         shell: bash
         run: |
@@ -91,7 +91,7 @@ jobs:
           version: '9.3'
       - name: Install pinned Rivet (tag package install)
         shell: bash
-        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
+        run: raco pkg install --auto --no-docs 'https://github.com/turlamai/rivet.git#${{ env.RIVET_PIN }}'
       - name: Build the SwiftUI host
         run: |
           raco rivet i18n
@@ -116,7 +116,7 @@ jobs:
           version: '9.3'
       - name: Install pinned Rivet (tag package install)
         shell: bash
-        run: raco pkg install --auto --no-docs 'https://github.com/turinglambdaai/rivet.git#${{ env.RIVET_PIN }}'
+        run: raco pkg install --auto --no-docs 'https://github.com/turlamai/rivet.git#${{ env.RIVET_PIN }}'
       - name: Build the WinUI host
         shell: pwsh
         run: |
