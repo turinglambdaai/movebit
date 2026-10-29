@@ -4,7 +4,7 @@
 
 一款桌面健康提醒应用：喝水、起身、护眼三类提醒，由停靠在屏幕边缘的原创小角色**沐比（Mubi）**温柔交付——永远没有全屏遮罩、没有焦点抢夺、没有输入拦截。一份 Racket 领域核心（唯一的提醒状态机）通过 [Rivet](https://github.com/turlamai/rivet) 的类型化 RPC 驱动 Windows、macOS、Linux 上的第一方原生宿主。
 
-[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turlamai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turlamai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turlamai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/turlamai/movebit)](https://github.com/turlamai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turlamai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turlamai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 [English](README.md) · **中文**
 
