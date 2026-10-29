@@ -2,9 +2,9 @@
 
 > **v0.0.1 —— 全新起点（2026-10-27）。** 重启后的 MoveBit 按所有者决定以 0.0.1 版本发布：有意重启版本线，作为第一款真实产品。旧实验线 v0.5.0（含全屏强制休息）退役为历史——v0.0.1 中不存在任何全屏休息，也不提供从 v0.5 的迁移路径。
 
-一款桌面健康提醒应用：喝水、起身、护眼三类提醒，由停靠在屏幕边缘的原创小角色**沐比（Mubi）**温柔交付——永远没有全屏遮罩、没有焦点抢夺、没有输入拦截。一份 Racket 领域核心（唯一的提醒状态机）通过 [Rivet](https://github.com/turinglambdaai/rivet) 的类型化 RPC 驱动 Windows、macOS、Linux 上的第一方原生宿主。
+一款桌面健康提醒应用：喝水、起身、护眼三类提醒，由停靠在屏幕边缘的原创小角色**沐比（Mubi）**温柔交付——永远没有全屏遮罩、没有焦点抢夺、没有输入拦截。一份 Racket 领域核心（唯一的提醒状态机）通过 [Rivet](https://github.com/turlamai/rivet) 的类型化 RPC 驱动 Windows、macOS、Linux 上的第一方原生宿主。
 
-[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turinglambdaai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turlamai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turlamai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turlamai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 [English](README.md) · **中文**
 
@@ -27,7 +27,7 @@ MIT 许可的免费社区应用，不接商业激活或订阅。 提供 macOS、
 
 ## 架构
 
-MoveBit 以 [Rivet](https://github.com/turinglambdaai/rivet) 重建：所有策略都在一份 Racket 领域核心里（`app/backend.rkt` + `racket/`），每个平台宿主只是一层薄薄的原生壳，负责渲染状态、转发用户操作，通过类型化 RPC（RVT1）与核心通信：
+MoveBit 以 [Rivet](https://github.com/turlamai/rivet) 重建：所有策略都在一份 Racket 领域核心里（`app/backend.rkt` + `racket/`），每个平台宿主只是一层薄薄的原生壳，负责渲染状态、转发用户操作，通过类型化 RPC（RVT1）与核心通信：
 
 | 宿主 | 技术栈 | 目录 |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ Racket 运行时静态链接进宿主——不依赖外部解释器、没有 .NE
 
 ## 安装
 
-从 [Releases](https://github.com/turinglambdaai/movebit/releases/latest) 下载：
+从 [Releases](https://github.com/turlamai/movebit/releases/latest) 下载：
 
 | 平台 | 便携压缩包 | 安装器 |
 | --- | --- | --- |
@@ -112,10 +112,10 @@ Racket 运行时静态链接进宿主——不依赖外部解释器、没有 .NE
 
 ## 从源码构建
 
-前置：[Racket CS](https://racket-lang.org)（9.x）、以 link 方式安装的 [rivet](https://github.com/turinglambdaai/rivet) CLI，以及对应宿主的工具链（Windows 需带 WinUI 的 Visual Studio，Linux 需 GTK 4 开发包，macOS 需 Xcode）。
+前置：[Racket CS](https://racket-lang.org)（9.x）、以 link 方式安装的 [rivet](https://github.com/turlamai/rivet) CLI，以及对应宿主的工具链（Windows 需带 WinUI 的 Visual Studio，Linux 需 GTK 4 开发包，macOS 需 Xcode）。
 
 ```bash
-git clone https://github.com/turinglambdaai/rivet.git ../rivet
+git clone https://github.com/turlamai/rivet.git ../rivet
 raco pkg install --auto --no-docs --link ../rivet/rivet ../rivet/rivet-cli
 
 raco rivet doctor        # 工具链自检
@@ -135,7 +135,7 @@ Linux 打包脚本（deb / rpm / AppImage）在 `packaging/linux/` 下，作用�
 ## 路线图
 
 - [x] Windows 托盘图标与快捷操作（打开 / 暂停 / 退出）
-- [x] 三端应用内签名清单更新已随 [0.5.0](https://github.com/turinglambdaai/movebit/releases/tag/v0.5.0) 发布：下载可取消、Windows MSI 经被动 msiexec 交接自更新、zip 换装带备份与回滚。
+- [x] 三端应用内签名清单更新已随 [0.5.0](https://github.com/turlamai/movebit/releases/tag/v0.5.0) 发布：下载可取消、Windows MSI 经被动 msiexec 交接自更新、zip 换装带备份与回滚。
 - [x] 取消、拒绝错误签名与回滚的测试级证据（`racket/tests/update-test.rkt`，CI 上运行）。
 - [x] v0.0.1 已作为全新起点基线发布，签名更新 feed 已上线（每个发布附带 `update-manifest.json`）。
 - [ ] 每种安装形态的实测 N→N+1 更新证据（更新器测试已证明机制本身；逐形态的真实更新记录仍未做）。

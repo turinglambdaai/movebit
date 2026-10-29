@@ -2,9 +2,9 @@
 
 > **v0.0.1 — the fresh start (2026-10-27).** The rebooted MoveBit ships as version 0.0.1 by owner decision: a deliberate restart of the version line for the first real product. The old experimental v0.5.0 line (with its fullscreen forced breaks) is retired history — v0.0.1 contains no fullscreen break anywhere and no migration path from v0.5.
 
-A desktop health reminder app: water, stand-up and eye-rest cues delivered by **Mubi（沐比）**, a small original character docked at the edge of your screen — never a fullscreen cover, never stolen focus, never intercepted input. One Racket domain core (the canonical reminder state machine) drives first-party native hosts on Windows, macOS, and Linux over [Rivet](https://github.com/turinglambdaai/rivet)'s typed RPC.
+A desktop health reminder app: water, stand-up and eye-rest cues delivered by **Mubi（沐比）**, a small original character docked at the edge of your screen — never a fullscreen cover, never stolen focus, never intercepted input. One Racket domain core (the canonical reminder state machine) drives first-party native hosts on Windows, macOS, and Linux over [Rivet](https://github.com/turlamai/rivet)'s typed RPC.
 
-[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turinglambdaai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turinglambdaai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/turinglambdaai/movebit)](https://github.com/turlamai/movebit/releases/latest) ![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey) ![built with](https://img.shields.io/badge/built%20with-Rivet-c15f3c) [![CI](https://github.com/turlamai/movebit/actions/workflows/ci.yml/badge.svg)](https://github.com/turlamai/movebit/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **English** · [中文](README.zh-CN.md)
 
@@ -27,7 +27,7 @@ Most reminder tools lose the moment the notification becomes easy to dismiss —
 
 ## Architecture
 
-MoveBit is rebuilt on [Rivet](https://github.com/turinglambdaai/rivet): all policy lives in one Racket domain core (`app/backend.rkt` + `racket/`), and every platform host is a thin native shell that renders state and forwards user actions over typed RPC (RVT1):
+MoveBit is rebuilt on [Rivet](https://github.com/turlamai/rivet): all policy lives in one Racket domain core (`app/backend.rkt` + `racket/`), and every platform host is a thin native shell that renders state and forwards user actions over typed RPC (RVT1):
 
 | Host | Stack | Directory |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ The Racket runtime is statically linked into each host — no external interpret
 
 ## Install
 
-Grab your build from [Releases](https://github.com/turinglambdaai/movebit/releases/latest):
+Grab your build from [Releases](https://github.com/turlamai/movebit/releases/latest):
 
 | Platform | Portable archive | Installer |
 | --- | --- | --- |
@@ -112,10 +112,10 @@ The on-disk config carries a `SchemaVersion` marker; a file without it (any v0.5
 
 ## Build from source
 
-Prerequisites: [Racket CS](https://racket-lang.org) (9.x), the [rivet](https://github.com/turinglambdaai/rivet) CLI linked into it, and per-host toolchains (Visual Studio with WinUI for Windows, GTK 4 dev packages for Linux, Xcode for macOS).
+Prerequisites: [Racket CS](https://racket-lang.org) (9.x), the [rivet](https://github.com/turlamai/rivet) CLI linked into it, and per-host toolchains (Visual Studio with WinUI for Windows, GTK 4 dev packages for Linux, Xcode for macOS).
 
 ```bash
-git clone https://github.com/turinglambdaai/rivet.git ../rivet
+git clone https://github.com/turlamai/rivet.git ../rivet
 raco pkg install --auto --no-docs --link ../rivet/rivet ../rivet/rivet-cli
 
 raco rivet doctor        # toolchain self-check
@@ -135,7 +135,7 @@ Linux packaging scripts (deb / rpm / AppImage) live under `packaging/linux/` and
 ## Roadmap
 
 - [x] Tray icon with quick actions (open / pause / exit) on Windows
-- [x] In-app signed-manifest updates shipped on all three hosts ([0.5.0](https://github.com/turinglambdaai/movebit/releases/tag/v0.5.0)): cancellable downloads, Windows MSI self-update through a passive msiexec handoff, and backup + rollback around the zip swap.
+- [x] In-app signed-manifest updates shipped on all three hosts ([0.5.0](https://github.com/turlamai/movebit/releases/tag/v0.5.0)): cancellable downloads, Windows MSI self-update through a passive msiexec handoff, and backup + rollback around the zip swap.
 - [x] Cancellation, signature-rejection and rollback evidence at the updater test level (`racket/tests/update-test.rkt`, runs on CI).
 - [x] v0.0.1 published as the fresh-start baseline with the signed update feed live (`update-manifest.json` on every release).
 - [ ] Live N→N+1 update evidence recorded for every supported install shape (the updater tests prove the mechanics; a recorded real update per shape is still to do).
