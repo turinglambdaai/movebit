@@ -151,6 +151,30 @@ inline bool acceptance_mode() {
   return value;
 }
 
+// Stage tracer for packaged-desktop diagnosis: appends one line per step to
+// %TEMP%\RivetHost-mubi.log so a crash during cue delivery names the exact
+// stage it died in (no debugger required on the test machine).
+inline void mubi_trace(char const* stage) {
+  wchar_t path[MAX_PATH]{};
+  DWORD const n = ::GetTempPathW(MAX_PATH, path);
+  if (n == 0 || n >= MAX_PATH) return;
+  std::wstring const file = std::wstring(path) + L"RivetHost-mubi.log";
+  HANDLE h = ::CreateFileW(file.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ,
+                           nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                           nullptr);
+  if (h == INVALID_HANDLE_VALUE) return;
+  wchar_t line[160]{};
+  int const len = swprintf_s(line, L"%llu %hs\r\n",
+                             static_cast<unsigned long long>(::GetTickCount64()),
+                             stage);
+  if (len > 0) {
+    DWORD written = 0;
+    ::WriteFile(h, line, static_cast<DWORD>(len * sizeof(wchar_t)), &written,
+                nullptr);
+  }
+  ::CloseHandle(h);
+}
+
 struct MubiCompanion {
   Window window{nullptr};
   Controls::Canvas canvas{nullptr};
@@ -208,15 +232,24 @@ struct MubiCompanion {
 
   void Show(MubiState state, std::wstring const& message) {
     if (acceptance_mode()) return;
+    mubi_trace("show:enter");
     try {
       EnsureWindow();
+      mubi_trace("show:ensure-ok");
       Rebuild(state, message);
+      mubi_trace("show:rebuild-ok");
       Position();
+      mubi_trace("show:position-ok");
       window.Activate();
+      mubi_trace("show:activate-ok");
       ApplyPointerThrough();
+      mubi_trace("show:pointer-ok");
       StartGesture(state);
+      mubi_trace("show:gesture-ok");
       StartLabelTimer(message);
+      mubi_trace("show:label-ok");
     } catch (...) {
+      mubi_trace("show:caught");
       // The reminder surface must never take the tray app down; the cue
       // itself stays safe in the backend ledger.
       Dismiss();
@@ -238,6 +271,7 @@ struct MubiCompanion {
   }
 
   void Dismiss() {
+    mubi_trace("dismiss:enter");
     if (window != nullptr) {
       window.Close();
       window = {nullptr};
@@ -445,19 +479,37 @@ struct MubiCompanion {
   }
 
   bool _root_is_dark() const {
+    mubi_trace("dark:enter");
+    // Explicit null checks only: on /EHsc the catch below cannot intercept a
+    // hardware access violation, and before the first Content() assignment
+    // (the companion window is created lazily on the first cue) try_as
+    // returns an empty projection whose ActualTheme() call is a null-vtable
+    // AV — the packaged-app crash seen on first cue delivery.
     try {
-      return window != nullptr &&
-             window.Content().try_as<FrameworkElement>()
-                 .ActualTheme() == ElementTheme::Dark;
-    } catch (...) {
-      // Before first layout: ask the OS.
-      HIGHCONTRAST hc{sizeof(HIGHCONTRAST)};
-      if (::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
-          (hc.dwFlags & HCF_HIGHCONTRASTON)) {
-        return true;
+      if (window == nullptr) return false;
+      auto content = window.Content();
+      mubi_trace("dark:content-read");
+      if (content) {
+        auto element = content.try_as<FrameworkElement>();
+        mubi_trace("dark:try-as-done");
+        if (element) {
+          mubi_trace("dark:calling-actual-theme");
+          bool const dark = element.ActualTheme() == ElementTheme::Dark;
+          mubi_trace("dark:theme-read");
+          return dark;
+        }
       }
-      return false;
+    } catch (...) {
+      // Projected exceptions (null/changed) fall through to the OS query.
+      mubi_trace("dark:caught");
     }
+    mubi_trace("dark:os-fallback");
+    HIGHCONTRAST hc{sizeof(HIGHCONTRAST)};
+    if (::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
+        (hc.dwFlags & HCF_HIGHCONTRASTON)) {
+      return true;
+    }
+    return false;
   }
 
   void ApplyPointerThrough() {
