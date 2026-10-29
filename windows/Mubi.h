@@ -281,7 +281,12 @@ struct MubiCompanion {
       capsule_text = {nullptr};
       root = {nullptr};
       canvas_scale = {nullptr};
+      cup_transform = {nullptr};
+      ack_glint = {nullptr};
+      stand_arcs.clear();
       pointer_through_applied = false;
+      if (anim_timer) anim_timer.Stop();
+      if (label_timer) label_timer.Stop();
     }
   }
 
@@ -478,36 +483,28 @@ struct MubiCompanion {
         {static_cast<int>(card_w + 2), static_cast<int>(card_h + label_h + 2)});
   }
 
+  // Dark-mode probe for art direction. Deliberately does NOT touch the
+  // companion window's XAML tree: the window is created lazily on the first
+  // cue, and after a Close() the Content() projection stays non-null while
+  // the backing object is gone — a null check cannot catch that torn-down
+  // state, and ActualTheme() on it is the null-vtable AV behind issue #78.
+  // The registry value below is the same user setting XAML's ActualTheme
+  // resolves, without walking any possibly-dead projection. High contrast
+  // still forces dark. const: art direction per card build is stable.
   bool _root_is_dark() const {
-    mubi_trace("dark:enter");
-    // Explicit null checks only: on /EHsc the catch below cannot intercept a
-    // hardware access violation, and before the first Content() assignment
-    // (the companion window is created lazily on the first cue) try_as
-    // returns an empty projection whose ActualTheme() call is a null-vtable
-    // AV — the packaged-app crash seen on first cue delivery.
-    try {
-      if (window == nullptr) return false;
-      auto content = window.Content();
-      mubi_trace("dark:content-read");
-      if (content) {
-        auto element = content.try_as<FrameworkElement>();
-        mubi_trace("dark:try-as-done");
-        if (element) {
-          mubi_trace("dark:calling-actual-theme");
-          bool const dark = element.ActualTheme() == ElementTheme::Dark;
-          mubi_trace("dark:theme-read");
-          return dark;
-        }
-      }
-    } catch (...) {
-      // Projected exceptions (null/changed) fall through to the OS query.
-      mubi_trace("dark:caught");
-    }
-    mubi_trace("dark:os-fallback");
     HIGHCONTRAST hc{sizeof(HIGHCONTRAST)};
     if (::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
         (hc.dwFlags & HCF_HIGHCONTRASTON)) {
       return true;
+    }
+    DWORD light = 1;
+    DWORD size = sizeof(light);
+    if (::RegGetValueW(HKEY_CURRENT_USER,
+                       L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes"
+                       L"\\Personalize",
+                       L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &light,
+                       &size) == ERROR_SUCCESS) {
+      return light == 0;
     }
     return false;
   }
