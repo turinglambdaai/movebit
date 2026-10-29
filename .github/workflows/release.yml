@@ -213,7 +213,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Set up embeddable Racket CS
-        uses: turinglambdaai/rivet/.github/actions/setup-embed-racket@4383203ef30c5d1374cd26f4c3a927b46bf73484
+        uses: turlamai/rivet/.github/actions/setup-embed-racket@4383203ef30c5d1374cd26f4c3a927b46bf73484
       - name: Install GTK4, a virtual display, and packaging tooling
         run: |
           sudo apt-get update
@@ -342,11 +342,11 @@ jobs:
             on && /^## / {exit}
             on {print}
           ' CHANGELOG.md > /tmp/notes.md
-          if gh release view "${{ github.ref_name }}" -R turinglambdaai/movebit >/dev/null 2>&1; then
-            gh release upload "${{ github.ref_name }}" dist/* --clobber -R turinglambdaai/movebit
+          if gh release view "${{ github.ref_name }}" -R turlamai/movebit >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" dist/* --clobber -R turlamai/movebit
           else
             gh release create "${{ github.ref_name }}" dist/* \
-              -R turinglambdaai/movebit \
+              -R turlamai/movebit \
               --title "MoveBit ${{ github.ref_name }}" \
               --notes-file /tmp/notes.md
           fi
