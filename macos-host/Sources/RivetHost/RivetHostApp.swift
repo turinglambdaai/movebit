@@ -21,9 +21,16 @@ enum MoveBitApp {
     }
 }
 
-/// The droplet status-bar glyph, drawn as a template image (pure black +
-/// alpha) so it follows the menu bar's light/dark appearance. Drawn in code —
-/// SwiftPM resource bundles cannot ship inside a signed rivet app bundle.
+/// The status-bar glyphs, drawn as template images (pure black + alpha) so
+/// they follow the menu bar's light/dark appearance. Drawn in code — SwiftPM
+/// resource bundles cannot ship inside a signed rivet app bundle.
+///
+/// Three presentation states (rivet's in-place status-item pattern): the
+/// droplet is the resting brand glyph, Mubi's silhouette appears while a
+/// reminder is on screen — the cue surface is pointer-through, so the menu
+/// bar glyph is the character's visible bell — and the moon covers
+/// focus/paused. Glyph art is hand-simplified for 18 pt legibility; the
+/// canonical paths live in assets/mubi/tokens.json.
 private enum MenuBarIcon {
     static var droplet: NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
@@ -45,6 +52,61 @@ private enum MenuBarIcon {
         image.isTemplate = true
         return image
     }
+
+    /// Mubi's silhouette: the egg body with two leaf ears, eyes knocked out
+    /// (white shows the menu bar through the template mask).
+    static var mubi: NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            NSColor.black.setFill()
+            // Ears: slim tilted ovals peeking over the head.
+            let ears: [(CGFloat, CGFloat)] = [(6.55, -22.0), (11.45, 22.0)]
+            for spec in ears {
+                let ear = NSBezierPath(
+                    ovalIn: NSRect(x: spec.0 - 1.1, y: 13.6, width: 2.2, height: 3.6))
+                var tilt = AffineTransform(translationByX: spec.0, byY: 15.4)
+                tilt.rotate(byDegrees: spec.1)
+                tilt.translate(x: -spec.0, y: -15.4)
+                ear.transform(using: tilt)
+                ear.fill()
+            }
+            // Body: the egg — wide calm bottom, narrow head.
+            let body = NSBezierPath()
+            body.move(to: NSPoint(x: 9, y: 15.4))
+            body.curve(to: NSPoint(x: 2.3, y: 7.6),
+                       controlPoint1: NSPoint(x: 5.1, y: 13.6),
+                       controlPoint2: NSPoint(x: 2.3, y: 10.9))
+            body.curve(to: NSPoint(x: 15.7, y: 7.6),
+                       controlPoint1: NSPoint(x: 2.3, y: 2.2),
+                       controlPoint2: NSPoint(x: 15.7, y: 2.2))
+            body.curve(to: NSPoint(x: 9, y: 15.4),
+                       controlPoint1: NSPoint(x: 15.7, y: 10.9),
+                       controlPoint2: NSPoint(x: 12.9, y: 13.6))
+            body.close()
+            body.fill()
+            // Eyes: knocked out so the glyph reads as a face, not a blob.
+            NSColor.white.setFill()
+            NSBezierPath(ovalIn: NSRect(x: 6.1, y: 8.0, width: 1.5, height: 1.9)).fill()
+            NSBezierPath(ovalIn: NSRect(x: 10.4, y: 8.0, width: 1.5, height: 1.9)).fill()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+
+    /// Quiet hours: focus mode or paused reminders.
+    static var moon: NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: NSRect(x: 2.5, y: 2.5, width: 13, height: 13)).fill()
+            NSColor.white.setFill()
+            // The bite comes well from the upper-right so the surviving
+            // crescent reads as a moon, not a blob.
+            NSBezierPath(ovalIn: NSRect(x: 7.5, y: 6.5, width: 12, height: 12)).fill()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
 }
 
 @MainActor
@@ -55,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindow: NSWindow?
     private var onboardingState: OnboardingState?
     private var menuBar: RivetMenuBarController?
+    private var menuBarGlyphState: GlyphState?
     private var companion: CompanionController?
     private var toastController: ToastPanelController?
     private var microController: MicroPanelController?
@@ -188,11 +251,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     handler: { [weak self] in self?.quit() }),
         ])
         if let menuBar {
-            menuBar.update(items: items)
+            // The glyph is the character's bell: droplet at rest, Mubi
+            // while a reminder is on screen, moon when quiet or paused.
+            // Swapping reinstalls the status item (rivet's controller owns
+            // the lifecycle); items themselves refresh in place.
+            let state = glyphState(model)
+            if state != menuBarGlyphState {
+                menuBarGlyphState = state
+                menuBar.install(icon: glyphImage(state), items: items)
+            } else {
+                menuBar.update(items: items)
+            }
         } else {
             let controller = RivetMenuBarController()
-            controller.install(icon: MenuBarIcon.droplet, items: items)
+            let state = glyphState(model)
+            menuBarGlyphState = state
+            controller.install(icon: glyphImage(state), items: items)
             menuBar = controller
+        }
+    }
+
+    private enum GlyphState { case droplet, mubi, moon }
+
+    private func glyphState(_ model: MoveBitModel) -> GlyphState {
+        if model.paused.paused || model.quiet { return .moon }
+        if !model.pendingCues.isEmpty { return .mubi }
+        return .droplet
+    }
+
+    private func glyphImage(_ state: GlyphState) -> NSImage {
+        switch state {
+        case .droplet: return MenuBarIcon.droplet
+        case .mubi: return MenuBarIcon.mubi
+        case .moon: return MenuBarIcon.moon
         }
     }
 
