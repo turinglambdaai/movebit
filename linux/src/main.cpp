@@ -2205,8 +2205,18 @@ void draw_state(cairo_t* cr, int state) {
   }
 }
 
+double scale_for(std::string const& size);
+
 void draw(GtkDrawingArea*, cairo_t* cr, int, int, gpointer) {
+  // draw_state() paints in the 120x140 canonical design grid (the master
+  // data every host shares); the canvas widget is sized to the user's Mubi
+  // size, so map design units onto the allocation. Without this the right
+  // ~27% of the character clips at the widget edge on M/L.
+  double const s = scale_for(g_state.mubi_size);
+  cairo_save(cr);
+  cairo_scale(cr, s, s);
   draw_state(cr, g_state.mubi_state);
+  cairo_restore(cr);
 }
 
 double scale_for(std::string const& size) {
