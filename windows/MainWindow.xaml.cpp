@@ -563,7 +563,12 @@ void MainWindow::RefreshStatesAfterTick() {
 
 void MainWindow::ApplyConfig(rivet_app::ReminderConfig const& changed,
                              bool announce) {
-  bool const language_changed = changed.language != model_.config.language;
+  // Compare against the host's LIVE language, not the cached config: the
+  // settings UI writes optimistic drafts into model_.config, so the cached
+  // language can already match the incoming one before the host has ever
+  // rebuilt in it.
+  bool const language_changed =
+      movebit::resolve_language(changed.language) != language_;
   model_.config = changed;
   companion_.ApplyConfig(changed.companion_size, changed.companion_motion,
                          changed.companion_dock, changed.companion_labels);
@@ -590,8 +595,11 @@ void MainWindow::MutateConfig(F mutate) {
   auto draft = previous;
   mutate(draft);
   model_.config = draft;
-  language_ = movebit::resolve_language(draft.language);
-  l10n::g_language = language_;
+  // The live language is NOT switched here: ApplyConfig (the backend's
+  // config-changed broadcast) owns it. An optimistic switch would make
+  // ApplyConfig's language_changed check miss the toggle — the host kept
+  // rendering stale-language static labels after switching (same bug shape
+  // as the GTK host's, fixed there in the same slice).
   auto const weak = get_weak();
   // Optimistic save; the backend clamps and re-announces via config-changed.
   // Completions run on the backend reader thread — re-dispatch.
