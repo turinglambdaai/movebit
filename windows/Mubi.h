@@ -256,12 +256,13 @@ struct MubiCompanion {
     }
   }
 
-  // The idle pose is attached to an EXISTING card only: the companion is
-  // created lazily with the first character cue, so a broken/absent
-  // surface can never affect plain startup (launch-smoke contract).
+  // The companion is a launch-visible surface: the first idle call creates
+  // the card, so the pet is present from startup instead of appearing with
+  // the first cue (~20 minutes in). Safe to create eagerly again — the
+  // crash root causes (#73 dead theme probe, #78 torn projection) are
+  // fixed, and Show() catches everything into Dismiss().
   void ShowIdle() {
     if (acceptance_mode()) return;
-    if (window == nullptr) return;
     Show(quiet ? MubiState::Focus : MubiState::Idle, L"");
   }
 
@@ -440,7 +441,11 @@ struct MubiCompanion {
     Controls::Grid::SetRow(card, 0);
     root.Children().Append(card);
 
-    bool const show_label = labels_always || !message.empty();
+    // The window surface is opaque, so the label row is always reserved and
+    // the idle card reads "MoveBit": cue cycles swap the text but never
+    // resize the window — users read a grow/shrink as the pet misbehaving
+    // (#56 feedback). macOS keeps its free-floating transparent panel there.
+    bool const show_label = true;
     if (show_label) {
       capsule = Controls::Border{};
       capsule.Background(solid(dark ? "#2A2723" : "#FFFDFB"));
