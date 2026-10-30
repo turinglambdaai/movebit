@@ -484,8 +484,21 @@ struct MubiCompanion {
     window.Content(outer);
 
     double const label_h = show_label ? 40.0 : 0.0;
+    // AppWindow().Resize() speaks PHYSICAL pixels; the card math above is
+    // in logical units. Without the per-window DPI factor a 200% display
+    // got a quarter-area window — the canvas overflowed it and the
+    // character showed only as a sliver (launch-visible feedback).
+    UINT dpi = 96;
+    if (auto window_native = window.try_as<::IWindowNative>()) {
+      HWND hwnd = nullptr;
+      if (SUCCEEDED(window_native->get_WindowHandle(&hwnd)) && hwnd) {
+        dpi = ::GetDpiForWindow(hwnd);
+      }
+    }
+    double const dp = static_cast<double>(dpi) / 96.0;
     window.AppWindow().Resize(
-        {static_cast<int>(card_w + 2), static_cast<int>(card_h + label_h + 2)});
+        {static_cast<int>((card_w + 2) * dp),
+         static_cast<int>((card_h + label_h + 2) * dp)});
   }
 
   // Dark-mode probe for art direction. Deliberately does NOT touch the
