@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.0.3 (2026-10-30)
+
+The companion-presence slice: Mubi is now visible from launch on every
+platform — the desktop pet users expected, not a surface that appears with
+the first cue — verified live on all three test machines (Windows 11,
+Ubuntu 26.04 GNOME Wayland, macOS).
+
+### Fixed
+
+- **Windows: the companion crashed the host on the first character cue**
+  (#73) and again on later cues after a dismissal (#78). Root-caused from
+  full WER dumps: the dark-mode probe walked the companion's own XAML
+  tree, and a closed WinUI window leaves a non-null but dead projection
+  that no null check catches. The probe now reads the same user setting
+  from the registry (high contrast still forces dark) and dismissal tears
+  down timers and transforms explicitly.
+- **Windows: the companion was invisible from launch** — the idle pose
+  refused to create the card (a lazy first-cue strategy), so the pet
+  appeared only after the first cue, ~20 minutes in. The card is now a
+  launch-visible surface with a fixed size: the label row is always
+  reserved, so cue cycles swap the capsule text and never resize the
+  window.
+- **Windows: the companion card rendered at a quarter of its design area
+  on high-DPI displays.** `AppWindow.Resize` takes physical pixels; the
+  card math is logical. At 200% scaling the canvas overflowed the window
+  and the character showed only as a sliver. The resize is now scaled by
+  the per-window DPI.
+- **Windows: a live language switch left static labels untranslated.**
+  The settings draft poisoned the language cache, so the retranslate
+  pass never ran; the same two-phase fix as the Linux host.
+- **Linux: Wayland sessions never showed the companion at all.** Mutter
+  has no wlr-layer-shell and core Wayland gives clients no global
+  coordinates, so the character path was X11-only. On Wayland sessions
+  the host now prefers the Xwayland backend (present in every stock
+  GNOME/KDE session, with DISPLAY/XAUTHORITY already exported), which
+  unlocks companion docking, positioned toasts, and precise hit regions.
+  `MOVEBIT_BACKEND=wayland` opts back into the notification fallback.
+- **Linux: the companion canvas never scaled to the configured Mubi
+  size** — the draw function painted 120×140 design units into the
+  smaller widget, clipping the right ~27% of the character.
+- **Linux: settings order now matches macOS and Windows** (health blocks
+  before companion blocks), and a corrupted CSS fragment from the GTK4
+  port was removed.
+- **i18n: host localization layers migrated onto rivet's generated
+  pipeline** (#66) with a CI sync gate that regenerates the tables and
+  fails on drift; 209 keys across zh/en.
+
+### Changed
+
+- Release engineering corrected after the owner rename (turlamai) in
+  release actions and publish targets (#79); merged-branch pruning
+  protects release refs (#70).
+
 ## 0.0.2 (2026-10-27)
 
 The full-surface audit slice: it ships the update-channel fix that only
