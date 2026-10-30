@@ -18,3 +18,6 @@ compiled/
 # MSBuild intermediate dirs (WinUI host)
 windows/Generated Files/
 windows/RivetHost/
+
+# SwiftPM local scratch (manual swift build attempts)
+macos-host/.build/
