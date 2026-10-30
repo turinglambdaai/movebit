@@ -21,8 +21,19 @@ jobs:
       - uses: actions/checkout@v7
       - uses: Bogdanp/setup-racket@v1.16
         with: {version: '9.3', architecture: x64, distribution: full, variant: CS}
-      - run: raco pkg install --auto --no-docs "https://github.com/turlamai/rivet.git#$env:RIVET_PIN"
+      - name: Export trusted Mozilla CA roots for Windows Racket
         shell: pwsh
+        run: |
+          $bundle = Join-Path $env:RUNNER_TEMP 'movebit-mozilla-roots.pem'
+          $js = 'const tls=require("node:tls"),fs=require("node:fs"); if(tls.rootCertificates.length<50) process.exit(2); fs.writeFileSync(process.argv[1],tls.rootCertificates.join("\n")+"\n",{flag:"wx"});'
+          node -e $js $bundle
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $bundle -PathType Leaf)) {
+            throw "Unable to export trusted CA roots; refusing insecure TLS fallback"
+          }
+          "MOVEBIT_CI_CA_BUNDLE=$bundle" >> $env:GITHUB_ENV
+      - name: Install pinned Rivet with verified TLS
+        shell: pwsh
+        run: racket scripts/ci-install-windows-deps.rkt
       - run: raco rivet acceptance --json
       - uses: actions/upload-artifact@v7
         if: always()
