@@ -3446,8 +3446,10 @@ int on_backend_finished(gpointer user_data) {
   };
   // Honest capability report (issue #54/#56): the Mubi companion needs
   // reliable placement + click-through, which GTK4 only offers on X11.
-  // On Wayland the compositor owns both, so delivery plans as a
-  // notification there (the documented fallback, never a floating pet).
+  // main() prefers Xwayland on Wayland sessions exactly for this, so this
+  // branch is the rare native-Wayland fallback (MOVEBIT_BACKEND=wayland,
+  // or a session without Xwayland): delivery plans as a notification
+  // there, never a floating pet.
   {
     // Decide from the GDK backend actually in use, NOT from environment
     // variables: the Wayland client library falls back to the default
@@ -3603,7 +3605,33 @@ void on_shutdown(GApplication*, gpointer) {
 
 }  // namespace
 
+// Wayland sessions cannot dock an ambient companion: mutter has no
+// wlr-layer-shell (probed: gtk_layer_is_supported() == false on GNOME 50)
+// and core Wayland gives clients no global coordinates, while Xwayland
+// ships with every stock GNOME/KDE session and carries the DISPLAY and
+// XAUTHORITY the session already exports. Preferring the X11 backend
+// unlocks the full feature set — override-redirect companion docking,
+// positioned toasts, precise hit regions. MOVEBIT_BACKEND=wayland opts
+// out for Wayland-native debugging; a Wayland session without a working
+// Xwayland keeps the notification fallback.
+void prefer_xwayland_backend() {
+  if (char const* forced = g_getenv("MOVEBIT_BACKEND");
+      forced != nullptr && *forced != '\0') {
+    g_setenv("GDK_BACKEND", forced, TRUE);
+    return;
+  }
+  char const* wayland = g_getenv("WAYLAND_DISPLAY");
+  char const* display = g_getenv("DISPLAY");
+  if (wayland == nullptr || *wayland == '\0') return;  // real X11 session
+  if (display == nullptr || *display == '\0') return;  // no Xwayland
+  Display* x = XOpenDisplay(display);
+  if (x == nullptr) return;  // Xwayland present but dead
+  XCloseDisplay(x);
+  g_setenv("GDK_BACKEND", "x11", TRUE);
+}
+
 int main(int argc, char** argv) {
+  prefer_xwayland_backend();
   auto* app = gtk_application_new("site.jrtx.movebit",
                                   G_APPLICATION_DEFAULT_FLAGS);
   g_signal_connect(app, "activate", G_CALLBACK(on_activate), nullptr);
