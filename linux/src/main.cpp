@@ -1109,30 +1109,68 @@ void close_update_progress() {
   }
 }
 
+// GTK4 deprecated GtkDialog (4.10) and gtk_show_uri. The replacements:
+// GtkAlertDialog for plain confirmations (async choose, button-index
+// responses), plain windows for rich content (selectable error text, live
+// progress, the path row), and GtkUriLauncher for links. The update flow's
+// handlers keep their exact semantics — only the window construction
+// changed.
+
+// A plain modal window: title + content box. For dialogs that need more
+// than an alert body. Caller appends buttons.
+GtkWindow* make_dialog_window(char const* title, GtkBox** content_out) {
+  auto* window = GTK_WINDOW(gtk_application_window_new(g_state.app));
+  gtk_window_set_title(window, title);
+  if (g_state.window != nullptr) {
+    gtk_window_set_transient_for(window, g_state.window);
+  }
+  gtk_window_set_modal(window, TRUE);
+  gtk_window_set_resizable(window, FALSE);
+  auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+  gtk_widget_set_margin_top(content, 12);
+  gtk_widget_set_margin_bottom(content, 12);
+  gtk_widget_set_margin_start(content, 12);
+  gtk_widget_set_margin_end(content, 12);
+  gtk_window_set_child(window, content);
+  if (content_out != nullptr) *content_out = GTK_BOX(content);
+  return window;
+}
+
+// One button on a dialog window; the click functor rides in object data.
+void add_dialog_button(GtkWindow* window, GtkBox* content, char const* label,
+                       bool suggested, std::function<void()> on_click) {
+  auto* btn = gtk_button_new_with_label(label);
+  if (suggested) {
+    gtk_widget_add_css_class(GTK_WIDGET(btn), "suggested-action");
+  }
+  g_object_set_data_full(
+      G_OBJECT(btn), "mb-onclick", new std::function<void()>(std::move(on_click)),
+      +[](gpointer data) { delete static_cast<std::function<void()>*>(data); });
+  g_signal_connect(
+      btn, "clicked",
+      G_CALLBACK(+[](GtkButton* button, gpointer) {
+        auto* fn = static_cast<std::function<void()>*>(
+            g_object_get_data(G_OBJECT(button), "mb-onclick"));
+        if (fn != nullptr && *fn) (*fn)();
+      }),
+      nullptr);
+  gtk_box_append(content, GTK_WIDGET(btn));
+  (void)window;
+}
+
 void show_update_message(std::string const& title, std::string const& body) {
-  auto* dialog = gtk_dialog_new_with_buttons(
-      title.c_str(), g_state.window,
-      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
-                                  GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("dialog.close").c_str(), GTK_RESPONSE_CLOSE, nullptr);
-  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+  GtkBox* content = nullptr;
+  auto* window = make_dialog_window(title.c_str(), &content);
   auto* text = gtk_label_new(body.c_str());
   gtk_label_set_wrap(GTK_LABEL(text), TRUE);
   // Error text must be copyable — a bug report starts from this string.
   gtk_label_set_selectable(GTK_LABEL(text), TRUE);
   gtk_label_set_max_width_chars(GTK_LABEL(text), 60);
-  gtk_widget_set_margin_top(text, 12);
   gtk_widget_set_margin_bottom(text, 6);
-  gtk_widget_set_margin_start(text, 12);
-  gtk_widget_set_margin_end(text, 12);
-  gtk_box_append(GTK_BOX(area), text);
-  g_signal_connect(
-      dialog, "response",
-      G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
-        gtk_window_destroy(GTK_WINDOW(dialog));
-      }),
-      nullptr);
-  gtk_window_present(GTK_WINDOW(dialog));
+  gtk_box_append(content, text);
+  add_dialog_button(window, content, l10n::t("dialog.close").c_str(), false,
+                    [window] { gtk_window_destroy(window); });
+  gtk_window_present(window);
 }
 
 void show_update_error(std::string const& message) {
@@ -1152,27 +1190,20 @@ void set_updates_hint(std::string const& text) {
 // the user's consent to re-exec. Declining keeps the current (old) process;
 // the next launch is the new version regardless.
 void show_appimage_restart_dialog() {
-  auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("upd.downloadedTitle").c_str(), g_state.window,
-      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
-                                  GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("dialog.cancel").c_str(), GTK_RESPONSE_CLOSE,
-      l10n::t("upd.actionRestartInstall").c_str(), GTK_RESPONSE_ACCEPT,
-      nullptr);
-  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  auto* hint = gtk_label_new(l10n::t("upd.appImageHint").c_str());
-  gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
-  gtk_label_set_max_width_chars(GTK_LABEL(hint), 60);
-  gtk_widget_set_margin_top(hint, 12);
-  gtk_widget_set_margin_bottom(hint, 6);
-  gtk_widget_set_margin_start(hint, 12);
-  gtk_widget_set_margin_end(hint, 12);
-  gtk_box_append(GTK_BOX(area), hint);
-  g_signal_connect(
-      dialog, "response",
-      G_CALLBACK(+[](GtkDialog* dialog, gint response, gpointer) {
-        gtk_window_destroy(GTK_WINDOW(dialog));
-        if (response != GTK_RESPONSE_ACCEPT) return;
+  GtkAlertDialog* alert = gtk_alert_dialog_new(
+      "%s", l10n::t("upd.downloadedTitle").c_str());
+  gtk_alert_dialog_set_detail(alert, l10n::t("upd.appImageHint").c_str());
+  // l10n::t strings live for this statement; set_buttons copies them.
+  char const* buttons[] = {l10n::t("dialog.cancel").c_str(),
+                           l10n::t("upd.actionRestartInstall").c_str(),
+                           nullptr};
+  gtk_alert_dialog_set_buttons(alert, buttons);
+  gtk_alert_dialog_choose(
+      alert, g_state.window, nullptr,
+      +[](GObject* src, GAsyncResult* res, gpointer) {
+        int response = gtk_alert_dialog_choose_finish(GTK_ALERT_DIALOG(src),
+                                                      res, nullptr);
+        if (response != 1) return;  // 1 = Restart & Install
         char const* self = getenv("APPIMAGE");
         if (self == nullptr || self[0] == '\0') return;
         execl(self, self, static_cast<char*>(nullptr));
@@ -1180,32 +1211,23 @@ void show_appimage_restart_dialog() {
         // running either way.
         show_update_error(std::string("re-exec failed: ") +
                           std::strerror(errno));
-      }),
+      },
       nullptr);
-  gtk_window_present(GTK_WINDOW(dialog));
+  g_object_unref(alert);
 }
 
 // Tarball installs: hand off the verified archive. Installation stays manual
 // (nothing is ever executed or moved by the host), so the dialog explains
 // the step and points at the file's folder.
 void show_downloaded_dialog(std::string const& path) {
-  auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("upd.downloadedTitle").c_str(), g_state.window,
-      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
-                                  GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("dialog.close").c_str(), GTK_RESPONSE_CLOSE, nullptr);
-  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-  gtk_widget_set_margin_top(content, 12);
-  gtk_widget_set_margin_bottom(content, 6);
-  gtk_widget_set_margin_start(content, 12);
-  gtk_widget_set_margin_end(content, 12);
-  gtk_box_append(GTK_BOX(area), content);
+  GtkBox* content = nullptr;
+  auto* window = make_dialog_window(l10n::t("upd.downloadedTitle").c_str(),
+                                    &content);
 
   auto* hint = gtk_label_new(l10n::t("upd.installHint").c_str());
   gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
   gtk_label_set_max_width_chars(GTK_LABEL(hint), 60);
-  gtk_box_append(GTK_BOX(content), hint);
+  gtk_box_append(content, hint);
 
   // The backend stages the archive under <data-dir>/updates/.
   if (!path.empty()) {
@@ -1213,7 +1235,7 @@ void show_downloaded_dialog(std::string const& path) {
     gtk_label_set_selectable(GTK_LABEL(path_label), TRUE);
     gtk_label_set_wrap(GTK_LABEL(path_label), TRUE);
     gtk_widget_add_css_class(path_label, "caption");
-    gtk_box_append(GTK_BOX(content), path_label);
+    gtk_box_append(content, path_label);
 
     auto* open = gtk_button_new_with_label(l10n::t("upd.openFolder").c_str());
     g_object_set_data_full(G_OBJECT(open), "update-open-path",
@@ -1234,21 +1256,29 @@ void show_downloaded_dialog(std::string const& path) {
           std::string const dir = p->substr(0, slash);
           GFile* folder = g_file_new_for_path(dir.c_str());
           gchar* uri = g_file_get_uri(folder);
-          gtk_show_uri(GTK_WINDOW(g_state.window), uri, GDK_CURRENT_TIME);
+          // GtkUriLauncher replaced gtk_show_uri (deprecated); the launcher
+          // releases itself in the finish callback.
+          GtkUriLauncher* launcher = gtk_uri_launcher_new(uri);
+          gtk_uri_launcher_launch(
+              launcher, g_state.window, nullptr,
+              +[](GObject* src, GAsyncResult* res, gpointer) {
+                GError* error = nullptr;
+                gtk_uri_launcher_launch_finish(GTK_URI_LAUNCHER(src), res,
+                                               &error);
+                if (error != nullptr) g_error_free(error);
+                g_object_unref(src);
+              },
+              nullptr);
           g_free(uri);
           g_object_unref(folder);
         }),
         nullptr);
-    gtk_box_append(GTK_BOX(content), open);
+    gtk_box_append(content, open);
   }
 
-  g_signal_connect(
-      dialog, "response",
-      G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
-        gtk_window_destroy(GTK_WINDOW(dialog));
-      }),
-      nullptr);
-  gtk_window_present(GTK_WINDOW(dialog));
+  add_dialog_button(window, content, l10n::t("dialog.close").c_str(), false,
+                    [window] { gtk_window_destroy(window); });
+  gtk_window_present(window);
 }
 
 int on_update_poll_tick(gpointer) {
@@ -1335,52 +1365,42 @@ void start_update_download() {
   g_update.download_started_ms = g_get_monotonic_time() / 1000;
   g_update.last_phase = "downloading";
 
-  auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("upd.downloading", {l10n::A(g_update.pending_version)}).c_str(),
-      g_state.window,
-      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
-                                  GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("dialog.cancel").c_str(), GTK_RESPONSE_CANCEL, nullptr);
-  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  auto* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-  gtk_widget_set_margin_top(content, 12);
-  gtk_widget_set_margin_bottom(content, 6);
-  gtk_widget_set_margin_start(content, 12);
-  gtk_widget_set_margin_end(content, 12);
-  gtk_box_append(GTK_BOX(area), content);
+  GtkBox* content = nullptr;
+  auto* dialog = make_dialog_window(
+      l10n::t("upd.downloading", {l10n::A(g_update.pending_version)})
+          .c_str(),
+      &content);
   auto* bar = gtk_progress_bar_new();
   gtk_widget_set_size_request(bar, 300, -1);
-  gtk_box_append(GTK_BOX(content), bar);
+  gtk_box_append(content, bar);
   auto* label =
       gtk_label_new(l10n::t("upd.downloading",
                             {l10n::A(g_update.pending_version)})
                         .c_str());
-  gtk_box_append(GTK_BOX(content), label);
+  gtk_box_append(content, label);
 
   // Cancel really cancels now: the start RPC doubles as the cancel gesture
   // (the backend's toggle contract). Fire it while the backend is still
   // downloading, detach the progress UI, and show the cancelled hint — the
   // update itself stays one click away (the offer was never withdrawn).
-  g_signal_connect(
-      dialog, "response",
-      G_CALLBACK(+[](GtkDialog* dialog, gint, gpointer) {
-        if (g_state.api != nullptr && g_update.last_phase == "downloading") {
-          (void)g_state.api->start_update_download_async(
-              [](rivet_app::Result<void>) {});
-        }
-        stop_update_poll();
-        g_update.progress_dialog = nullptr;
-        g_update.progress_bar = nullptr;
-        g_update.progress_label = nullptr;
-        g_update.download_in_flight = false;
-        g_update.download_started_ms = 0;
-        set_updates_hint(l10n::t("upd.cancelled"));
-        gtk_window_destroy(GTK_WINDOW(dialog));
-      }),
-      nullptr);
-  // DESTROY_WITH_PARENT: if the main window goes away the dialog dies with
-  // it — clear the raw pointers and the poll so no tick touches dead
-  // widgets.
+  add_dialog_button(dialog, content, l10n::t("dialog.cancel").c_str(), false,
+                    [dialog] {
+                      if (g_state.api != nullptr &&
+                          g_update.last_phase == "downloading") {
+                        (void)g_state.api->start_update_download_async(
+                            [](rivet_app::Result<void>) {});
+                      }
+                      stop_update_poll();
+                      g_update.progress_dialog = nullptr;
+                      g_update.progress_bar = nullptr;
+                      g_update.progress_label = nullptr;
+                      g_update.download_in_flight = false;
+                      g_update.download_started_ms = 0;
+                      set_updates_hint(l10n::t("upd.cancelled"));
+                      gtk_window_destroy(dialog);
+                    });
+  // If the main window goes away this window dies with it (transient) —
+  // clear the raw pointers and the poll so no tick touches dead widgets.
   g_signal_connect(
       dialog, "destroy",
       G_CALLBACK(+[](GtkWidget*, gpointer) {
@@ -1390,8 +1410,8 @@ void start_update_download() {
         stop_update_poll();
       }),
       nullptr);
-  gtk_window_present(GTK_WINDOW(dialog));
-  g_update.progress_dialog = GTK_WINDOW(dialog);
+  gtk_window_present(dialog);
+  g_update.progress_dialog = dialog;
   g_update.progress_bar = GTK_PROGRESS_BAR(bar);
   g_update.progress_label = GTK_LABEL(label);
   g_update.poll_source = g_timeout_add(400, on_update_poll_tick, nullptr);
@@ -1428,33 +1448,25 @@ void show_update_consent(rivet_app::UpdateCheck const& check) {
     return;
   }
   g_update.pending_version = version;
-  auto* dialog = gtk_dialog_new_with_buttons(
-      l10n::t("upd.availableTitle").c_str(), g_state.window,
-      static_cast<GtkDialogFlags>(GTK_DIALOG_MODAL |
-                                  GTK_DIALOG_DESTROY_WITH_PARENT),
-      l10n::t("dialog.cancel").c_str(), GTK_RESPONSE_CANCEL,
-      l10n::t("upd.actionUpdate").c_str(), GTK_RESPONSE_ACCEPT, nullptr);
-  auto* area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-  auto* text =
-      gtk_label_new(l10n::t("upd.found", {l10n::A(version)}).c_str());
-  gtk_label_set_wrap(GTK_LABEL(text), TRUE);
-  gtk_label_set_max_width_chars(GTK_LABEL(text), 60);
-  gtk_widget_set_margin_top(text, 12);
-  gtk_widget_set_margin_bottom(text, 6);
-  gtk_widget_set_margin_start(text, 12);
-  gtk_widget_set_margin_end(text, 12);
-  gtk_box_append(GTK_BOX(area), text);
-  g_signal_connect(
-      dialog, "response",
-      G_CALLBACK(+[](GtkDialog* dialog, gint response, gpointer) {
-        bool const go = response == GTK_RESPONSE_ACCEPT;
-        gtk_window_destroy(GTK_WINDOW(dialog));
-        if (go) {
+  GtkAlertDialog* alert =
+      gtk_alert_dialog_new("%s", l10n::t("upd.availableTitle").c_str());
+  gtk_alert_dialog_set_detail(
+      alert, l10n::t("upd.found", {l10n::A(version)}).c_str());
+  // l10n::t strings live for this statement; set_buttons copies them.
+  char const* buttons[] = {l10n::t("dialog.cancel").c_str(),
+                           l10n::t("upd.actionUpdate").c_str(), nullptr};
+  gtk_alert_dialog_set_buttons(alert, buttons);
+  gtk_alert_dialog_choose(
+      alert, g_state.window, nullptr,
+      +[](GObject* src, GAsyncResult* res, gpointer) {
+        int response = gtk_alert_dialog_choose_finish(GTK_ALERT_DIALOG(src),
+                                                      res, nullptr);
+        if (response == 1) {  // 1 = Update
           start_update_download();
         }
-      }),
+      },
       nullptr);
-  gtk_window_present(GTK_WINDOW(dialog));
+  g_object_unref(alert);
 }
 
 void on_check_updates_clicked(GtkButton*, gpointer) {
@@ -2354,6 +2366,11 @@ void present(int state, std::string const& message, GtkApplication* app,
     // windows ignore client XMoveWindow under mutter, so the companion
     // must be an override-redirect OSD surface. Realize first so the X
     // surface exists, then flip the attribute before the window maps.
+    // GDK 4.16 deprecates the X11 native accessors below with no
+    // replacement — the entire feature stands on them — so the deprecation
+    // is acknowledged here and silenced for this block only.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     {
       auto* surface = gtk_native_get_surface(GTK_NATIVE(window));
       if (surface == nullptr) {
@@ -2371,6 +2388,7 @@ void present(int state, std::string const& message, GtkApplication* app,
         XChangeWindowAttributes(xdisplay, xid, CWOverrideRedirect, &attrs);
       }
     }
+#pragma GCC diagnostic pop
 #endif
 
     auto* body_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
@@ -2447,7 +2465,10 @@ void present(int state, std::string const& message, GtkApplication* app,
   gtk_window_present(s.mubi_window);
 
   // Dock inside the monitor work area. GTK4 has no gtk_window_move; on
-  // X11 position through Xlib against the monitor's work area.
+  // X11 position through Xlib against the monitor's work area. Same story
+  // as above: deprecated X11 accessors, no replacement.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #ifdef GDK_WINDOWING_X11
   if (auto* surface = gtk_native_get_surface(GTK_NATIVE(s.mubi_window))) {
     if (GDK_IS_X11_SURFACE(surface)) {
@@ -2483,6 +2504,7 @@ void present(int state, std::string const& message, GtkApplication* app,
       XFlush(xdisplay);
     }
   }
+#pragma GCC diagnostic pop
 #endif
 
   // The label reads ~5 s, then the card returns to its calm pose. The cue
