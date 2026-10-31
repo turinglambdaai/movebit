@@ -9,8 +9,9 @@ permissions:
 env:
   RIVET_PIN: 9d766b4acab672844093204cb4845ef4ef933d2c
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Superseded PR runs may be cancelled; main checks must finish for each SHA.
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   windows:
