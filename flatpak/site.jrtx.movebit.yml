@@ -41,7 +41,7 @@ modules:
       - type: git
         url: https://github.com/lz4/lz4.git
         tag: v1.9.4
-        commit: 5ff512391b486332e6bc4e99c8c23c9bc473ca32
+        commit: 5ff839680134437dbf4678f3d0c7b371d84f4964
   - name: ncurses
     # libtinfo.so.6 only (the payload's NEEDED entry); no programs, no
     # terminfo database install — the host system's entries stay put.
