@@ -390,6 +390,13 @@ void refresh_settings_widgets();
 void refresh_status_label();
 void schedule_chart_redraw();
 
+// StatusNotifierItem tray (GNOME shows it through the AppIndicator
+// extension; rivet's TrayIcon reports availability before we commit).
+namespace tray {
+void sync();
+bool install();
+}  // namespace tray
+
 // Main-window widgets, rebuilt with the content.
 struct MainWidgets {
   GtkLabel* today_duration{nullptr};
@@ -811,6 +818,7 @@ void refresh_pause_button() {
         g_state.model.is_paused() ? l10n::t("tray.resume").c_str()
                                   : l10n::t("tray.pause").c_str());
   }
+  tray::sync();
 }
 
 void refresh_quit_button() {
@@ -825,6 +833,7 @@ void refresh_focus_button() {
         g_state.focus_button,
         l10n::t(g_state.model.quiet ? "tray.focusOff" : "tray.focusOn").c_str());
   }
+  tray::sync();
 }
 
 // The header lives outside content_root, so the language-change rebuild
@@ -2616,6 +2625,105 @@ void on_mubi_hide(GtkButton*, gpointer) {
   mubi::present(g_state.mubi_quiet ? 5 : 0, "", nullptr);
 }
 
+// ---- tray (StatusNotifierItem, issue #54 parity with the mac/win hosts) ----
+// The companion surface is fully pointer-through on X11, so Done / Later /
+// Hide / pause / Focus live here too, acting on the newest open cue — the
+// same menu shape as the other hosts. rivet's TrayIcon talks SNI +
+// dbusmenu over the session bus; on GNOME that surfaces through the
+// AppIndicator extension, and TrayIcon::available() is false without a
+// watcher, in which case the header buttons stay the only controls.
+namespace tray {
+
+std::unique_ptr<rivet::system::TrayIcon> g_icon;
+
+rivet::system::TrayMenuItem menu_item(std::string label,
+                                      std::function<void()> action) {
+  return rivet::system::TrayMenuItem(std::move(label), std::move(action));
+}
+
+// "Done · Sip some water 💧" — the control names both the action and the
+// advice, mirroring the mac host's cueActionLabel.
+std::string cue_done_label(rivet_app::HealthCue const& cue) {
+  char const* advice =
+      cue.action == rivet_app::CueAction::drink_water
+          ? "notif.waterTitle"
+          : cue.action == rivet_app::CueAction::rest_eyes ? "micro.hint"
+                                                          : "notif.sitTitle";
+  return l10n::t("tray.cueDone") + " · " + l10n::t(advice);
+}
+
+std::vector<rivet::system::TrayMenuItem> build_menu() {
+  using rivet::system::TrayMenuItem;
+  std::vector<TrayMenuItem> items;
+  items.push_back(menu_item(l10n::t("tray.open"), [] {
+    if (g_state.window != nullptr) {
+      gtk_window_present(g_state.window);
+    }
+  }));
+  if (!g_state.model.pending_cues.empty()) {
+    items.push_back(TrayMenuItem(TrayMenuItem::Type::separator));
+    // The card presents the newest open cue (the backend plans every X11
+    // cue for character delivery), so the handlers below act on it.
+    auto const& cue = g_state.model.pending_cues.back();
+    items.push_back(menu_item(cue_done_label(cue), [] {
+      on_mubi_done(nullptr, nullptr);
+    }));
+    items.push_back(menu_item(l10n::t("tray.cueLater"), [] {
+      on_mubi_later(nullptr, nullptr);
+    }));
+    items.push_back(menu_item(l10n::t("tray.cueHide"), [] {
+      on_mubi_hide(nullptr, nullptr);
+    }));
+  }
+  items.push_back(TrayMenuItem(TrayMenuItem::Type::separator));
+  items.push_back(menu_item(l10n::t(g_state.model.is_paused() ? "tray.resume"
+                                                              : "tray.pause"),
+                            [] { on_pause_clicked(nullptr, nullptr); }));
+  items.push_back(menu_item(l10n::t(g_state.model.quiet ? "tray.focusOff"
+                                                        : "tray.focusOn"),
+                            [] { on_focus_clicked(nullptr, nullptr); }));
+  items.push_back(TrayMenuItem(TrayMenuItem::Type::separator));
+  items.push_back(menu_item(l10n::t("tray.exit"), [] {
+    on_quit_clicked(nullptr, nullptr);
+  }));
+  return items;
+}
+
+std::string tooltip_body() {
+  auto const& model = g_state.model;
+  if (model.is_paused() && model.paused.until_ms.has_value()) {
+    return l10n::t("tpl.pausedUntil", {l10n::T(*model.paused.until_ms)});
+  }
+  return l10n::t("tpl.running");
+}
+
+// Rebuild the whole menu in place: cheap (a layout-revision bump on the
+// dbusmenu), and it carries every state change — cue ledger, pause,
+// Focus, language.
+void sync() {
+  if (g_icon == nullptr) return;
+  g_icon->set_menu(build_menu());
+  g_icon->set_tooltip("MoveBit", tooltip_body());
+}
+
+bool install() {
+  if (!rivet::system::TrayIcon::available()) return false;
+  // Themed icon name: packages install "movebit" into the icon theme
+  // (rivet's deb/rpm assembly); the flatpak export only accepts icons
+  // named after the app id, so pick the name by environment.
+  char const* icon_name =
+      std::filesystem::exists("/.flatpak-info") ? "site.jrtx.movebit"
+                                                : "movebit";
+  g_icon = std::make_unique<rivet::system::TrayIcon>("site.jrtx.movebit",
+                                                     "MoveBit", icon_name);
+  g_icon->set_activation_handler(
+      [] { if (g_state.window != nullptr) gtk_window_present(g_state.window); });
+  sync();
+  return true;
+}
+
+}  // namespace tray
+
 GtkWindow* toast_window_new(GtkApplication* app) {
   auto* window = gtk_application_window_new(app);
   gtk_widget_add_css_class(GTK_WIDGET(window), "toast-bg");
@@ -2947,6 +3055,7 @@ void refresh_states_after_tick() {
         on_result(std::move(r),
                   [](std::vector<rivet_app::HealthCue> const& cues) {
                     g_state.model.pending_cues = cues;
+                    tray::sync();
                   });
       });
 }
@@ -3365,6 +3474,10 @@ void bootstrap(GtkApplication* app) {
   reload_autostart();
   reload_data_dir();
   reflect_pending_update();
+  // The tray registers on the session bus once the main context owns the
+  // loop; without a StatusNotifierWatcher (no AppIndicator extension)
+  // install() reports false and the header buttons stay the controls.
+  tray::install();
   if (!config.welcome_shown) {
     onboarding_show(app);
   }

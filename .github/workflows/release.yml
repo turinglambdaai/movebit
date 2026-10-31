@@ -196,8 +196,10 @@ jobs:
   # runs one `raco rivet release` and adopts rivet's own artifacts: the
   # tar.gz (update-feed payload), the portable zip (+ sidecar), and the
   # native installers (deb, rpm, AppImage — both arches, rivet pins an
-  # aarch64 appimagetool). The release flow cleans the unpacked payload
-  # tree from dist/ at the end, so nothing may re-zip or re-package after.
+  # aarch64 appimagetool), then wraps the tar.gz payload into a Flatpak
+  # bundle from the flatpak/ manifest template. The release flow cleans
+  # the unpacked payload tree from dist/ at the end, so nothing may
+  # re-zip or re-package after.
   linux:
     name: Linux ${{ matrix.arch }}
     needs: validate
@@ -240,6 +242,35 @@ jobs:
           export RIVET_UPDATE_PRIVATE_KEY="$KEY_DER"
           xvfb-run -a raco rivet release --development
           rm -f "$KEY_DER"
+      - name: Flatpak bundle
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          case "$ARCH" in x64) FPARCH=x86_64 ;; arm64) FPARCH=aarch64 ;; esac
+          sudo apt-get install --yes flatpak flatpak-builder
+          # User-level everything: runner accounts install runtimes and
+          # build without root. GNOME 50 is the oldest supported platform
+          # runtime (48 went EOL 2026-03-24); its glibc 2.42 covers the
+          # ubuntu-24.04-built payload.
+          flatpak --user remote-add --if-not-exists flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install -y --noninteractive flathub \
+            "org.gnome.Platform/${FPARCH}/50" "org.gnome.Sdk/${FPARCH}/50"
+          # The manifest template carries version/arch/sha placeholders so
+          # the archive source's checksum is exact per release.
+          cp "dist/movebit-${VERSION}-linux-${ARCH}.tar.gz" .
+          SHA="$(sha256sum "movebit-${VERSION}-linux-${ARCH}.tar.gz" | cut -d' ' -f1)"
+          sed -e "s/__VERSION__/${VERSION}/" -e "s/__ARCH__/${ARCH}/" \
+              -e "s/__SHA256__/${SHA}/" \
+              flatpak/site.jrtx.movebit.yml > site.jrtx.movebit.gen.yml
+          # --disable-rofiles-fuse: runners have no /dev/fuse.
+          flatpak-builder --user --force-clean --disable-rofiles-fuse \
+            --repo=flatpak-repo flatpak-build site.jrtx.movebit.gen.yml
+          flatpak build-bundle flatpak-repo \
+            "movebit-${VERSION}-linux-${ARCH}.flatpak" site.jrtx.movebit stable
+          rm -rf flatpak-build flatpak-repo "movebit-${VERSION}-linux-${ARCH}.tar.gz"
+          test -f "movebit-${VERSION}-linux-${ARCH}.flatpak"
       - name: Collect rivet artifacts + checksums
         run: |
           set -euo pipefail
@@ -322,7 +353,7 @@ jobs:
           # releases/latest/download/<alias> without knowing the version.
           # Bytes are identical copies of the tagged assets, created after
           # SHA256SUMS so the checksum manifest stays versioned-asset-only.
-          required="macos-arm64.dmg macos-x64.dmg windows-x64.msi linux-x64.deb linux-arm64.deb linux-x64.AppImage"
+          required="macos-arm64.dmg macos-x64.dmg windows-x64.msi linux-x64.deb linux-arm64.deb linux-x64.AppImage linux-x64.flatpak linux-arm64.flatpak"
           for a in $required; do
             test -f "movebit-${VERSION}-${a}" || { echo "::error::missing movebit-${VERSION}-${a}"; exit 1; }
             cp "movebit-${VERSION}-${a}" "movebit-${a}"

@@ -99,9 +99,11 @@ private enum MenuBarIcon {
             NSColor.black.setFill()
             NSBezierPath(ovalIn: NSRect(x: 2.5, y: 2.5, width: 13, height: 13)).fill()
             NSColor.white.setFill()
-            // The bite comes well from the upper-right so the surviving
-            // crescent reads as a moon, not a blob.
-            NSBezierPath(ovalIn: NSRect(x: 7.5, y: 6.5, width: 12, height: 12)).fill()
+            // The bite sits just off-center (d ≈ 2.8pt, near-overlapping
+            // radii) so the surviving crescent is a slim 3pt moon with
+            // pointed horns opening right — a bigger offset reads as a
+            // blob at 18pt.
+            NSBezierPath(ovalIn: NSRect(x: 5.8, y: 3.0, width: 12, height: 12)).fill()
             return true
         }
         image.isTemplate = true
