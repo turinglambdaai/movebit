@@ -65,6 +65,33 @@ jobs:
             "movebit-${VERSION}-linux-${ARCH}.flatpak" site.jrtx.movebit stable
           sha256sum "movebit-${VERSION}-linux-${ARCH}.flatpak" \
             > "movebit-${VERSION}-linux-${ARCH}.flatpak.sha256"
+      - name: Sandbox execution check
+        run: |
+          set -euo pipefail
+          sudo apt-get install --yes xvfb x11-utils
+          Xvfb :99 -screen 0 1024x768x24 & xvfb_pid=$!
+          sleep 1
+          # Install the bundle from the local file: the runtime ref is
+          # already present, so nothing reaches for the network here.
+          DISPLAY=:99 flatpak --user install -y --noninteractive \
+            ./movebit-*-linux-*.flatpak
+          DISPLAY=:99 flatpak run --env=MOVEBIT_ACCEPTANCE=1 \
+            site.jrtx.movebit > app-run.log 2>&1 & run_pid=$!
+          for _ in $(seq 1 20); do
+            flatpak ps --columns=application | grep -q site.jrtx.movebit && break
+            sleep 1
+          done
+          # The sandboxed process is alive under its own instance.
+          flatpak ps --columns=application | grep site.jrtx.movebit
+          sleep 8
+          # The window mapped on the display and the embedded backend booted
+          # (the RVT1 runtime layout resolves through /proc/self/exe inside
+          # the sandbox).
+          DISPLAY=:99 xwininfo -root -tree | grep -i movebit
+          grep -qE "ready|listening|serve|backend" app-run.log || \
+            { echo "backend boot evidence missing"; tail -20 app-run.log; exit 1; }
+          kill "$run_pid" 2>/dev/null || pkill -f site.jrtx.movebit || true
+          kill "$xvfb_pid" 2>/dev/null || true
       - name: Dump build dirs (diagnosis)
         if: failure()
         run: |
