@@ -2,7 +2,7 @@
 
 **Status: design proposal dated 2026-10-31, NOT shipped behavior, proven adoption or an offer for sale.**  
 **English** · [简体中文](PRODUCT-EXPERIENCE-2026.zh-CN.md)  
-Parent [#86](https://github.com/turlamai/movebit/issues/86). Workstreams: [#87](https://github.com/turlamai/movebit/issues/87), [#88](https://github.com/turlamai/movebit/issues/88), [#89](https://github.com/turlamai/movebit/issues/89), [#90](https://github.com/turlamai/movebit/issues/90), [#91](https://github.com/turlamai/movebit/issues/91), [#92](https://github.com/turlamai/movebit/issues/92). The #51/#54/#56 safety and original-art contracts still hold. Commercial policy is governed by #81/PR #82; this document does not change published MIT source rights.
+Parent [#86](https://github.com/turlamai/movebit/issues/86). Workstreams: [#87](https://github.com/turlamai/movebit/issues/87), [#88](https://github.com/turlamai/movebit/issues/88), [#89](https://github.com/turlamai/movebit/issues/89), [#90](https://github.com/turlamai/movebit/issues/90), [#91](https://github.com/turlamai/movebit/issues/91), [#92](https://github.com/turlamai/movebit/issues/92), [#94](https://github.com/turlamai/movebit/issues/94). The #51/#54/#56 safety and original-art contracts still hold. Commercial policy is governed by #81/PR #82; this document does not change published MIT source rights.
 
 ## The product in one sentence
 
@@ -70,6 +70,16 @@ Explicitly test pause/focus, quiet periods crossing midnight, lock/sleep/wake, c
 ## Canonical event data and privacy
 
 Separate `triggered`, `presented`, `acknowledged`, `snoozed`, `dismissed`, `expired` and `not_delivered` per kind and day. Merged events count each constituent kind once. Store stable event IDs, reconcile retries and device shards idempotently. Earlier history storing only fired reminders has **unknown acknowledgments**, not a presumed zero. Active minutes are system activity estimates, not diagnosed sedentary time. Keep all content local by default; research requires voluntary feedback or informed minimal measurement, never background keystroke or app-content collection.
+
+## Useful fun: Mubi helps you act instead of merely notifying you
+
+**Opt-in experiments #94:** Two tiny polished guided experiences transform a glance at a notification into a voluntary action:
+
+1. **20-second eye-rest companion:** Only when the user explicitly starts it, Mubi looks toward an imagined faraway horizon and shows a simple 20-second prompt. Stop, Skip and self-reported Done remain available. There is no eye tracking or assertion that the user looked away.
+2. **1–2-minute movement mini-session:** Mubi demonstrates two or three very gentle optional movements. Users can follow at their own pace, skip each or stop; no risky medical coaching or camera/body inference.
+3. **Hydration acknowledgment:** An optional tiny cup “cheers” response after the user deliberately marks drinking. Any later water-volume log must use explicit voluntary entry, never guess.
+
+Personality comes from more carefully crafted poses and responses, not around-the-clock movement or increasing the number of nags. None of these experiences auto-start, steal focus or lock the desktop. Focus/away/Reduce Motion and immediate cancellation take precedence; first evaluate whether real users enjoy and use them before growing the behavior library.
 
 ## Sustainable revenue without weakening Free
 
