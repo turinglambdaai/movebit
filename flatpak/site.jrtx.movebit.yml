@@ -36,7 +36,7 @@ modules:
     buildsystem: simple
     build-commands:
       - make lib-release PREFIX=/app
-      - make install-lib PREFIX=/app
+      - make -C lib install PREFIX=/app
     sources:
       - type: git
         url: https://github.com/lz4/lz4.git
