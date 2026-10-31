@@ -60,11 +60,17 @@ jobs:
               -e "s/__SHA256__/${SHA}/" \
               flatpak/site.jrtx.movebit.yml > site.jrtx.movebit.gen.yml
           flatpak-builder --user --force-clean --disable-rofiles-fuse \
+            --keep-build-dirs \
             --repo=flatpak-repo flatpak-build site.jrtx.movebit.gen.yml
           flatpak build-bundle flatpak-repo \
             "movebit-${VERSION}-linux-${ARCH}.flatpak" site.jrtx.movebit stable
           sha256sum "movebit-${VERSION}-linux-${ARCH}.flatpak" \
             > "movebit-${VERSION}-linux-${ARCH}.flatpak.sha256"
+      - name: Dump build dirs (diagnosis)
+        if: failure()
+        run: |
+          find .flatpak-builder/build -maxdepth 3 | head -40 || true
+          find . -maxdepth 2 -name "movebit-linux-*" -o -maxdepth 2 -name "*.tar.gz" | head -10
       - uses: actions/upload-artifact@v7
         with:
           name: flatpak-smoke-${{ matrix.arch }}
