@@ -52,6 +52,10 @@ modules:
       - --without-progs
       - --without-tack
       - --without-tests
+      # We only need libtinfo; the C++ binding does not survive the
+      # GNOME 50 SDK's GCC 15 libstdc++ (cstddef redefinition).
+      - --without-cxx-binding
+      - --without-cxx
       - --disable-db-install
     sources:
       - type: archive
