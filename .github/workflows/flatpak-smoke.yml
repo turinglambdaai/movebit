@@ -60,7 +60,6 @@ jobs:
               -e "s/__SHA256__/${SHA}/" \
               flatpak/site.jrtx.movebit.yml > site.jrtx.movebit.gen.yml
           flatpak-builder --user --force-clean --disable-rofiles-fuse \
-            --keep-build-dirs \
             --repo=flatpak-repo flatpak-build site.jrtx.movebit.gen.yml
           flatpak build-bundle flatpak-repo \
             "movebit-${VERSION}-linux-${ARCH}.flatpak" site.jrtx.movebit stable

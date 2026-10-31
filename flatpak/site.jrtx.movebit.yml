@@ -72,7 +72,10 @@ modules:
       - type: file
         path: flatpak/site.jrtx.movebit.desktop
     build-commands:
-      - cp -a movebit-linux-*/. /app/movebit/
+      # flatpak-builder strips the archive's leading directory: the payload
+      # (RivetHost, runtime/, res/, app/) lands flat in the build dir.
+      - mkdir -p /app/movebit
+      - cp -a RivetHost runtime res app /app/movebit/
       # The bundle's `command` resolves on the sandbox PATH (/app/bin); the
       # payload lives outside it. A symlink keeps /proc/self/exe pointing
       # at the real binary so the runtime layout discovery works.
