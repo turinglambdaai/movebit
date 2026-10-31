@@ -2,7 +2,7 @@
 
 **状态：2026-10-31 产品评审提案；不代表功能已经实现、用户测试已经通过或 Pro 已售卖。**  
 [English](PRODUCT-EXPERIENCE-2026.md) · **简体中文**  
-总任务 [#86](https://github.com/turlamai/movebit/issues/86)，执行 [#87](https://github.com/turlamai/movebit/issues/87) · [#88](https://github.com/turlamai/movebit/issues/88) · [#89](https://github.com/turlamai/movebit/issues/89) · [#90](https://github.com/turlamai/movebit/issues/90) · [#91](https://github.com/turlamai/movebit/issues/91) · [#92](https://github.com/turlamai/movebit/issues/92)。基础安全规范仍见 #51、#54、#56；商业决策见 #81 / PR #82。本提案**不**覆盖安全、隐私、离线或 MIT 许可。
+总任务 [#86](https://github.com/turlamai/movebit/issues/86)，执行 [#87](https://github.com/turlamai/movebit/issues/87) · [#88](https://github.com/turlamai/movebit/issues/88) · [#89](https://github.com/turlamai/movebit/issues/89) · [#90](https://github.com/turlamai/movebit/issues/90) · [#91](https://github.com/turlamai/movebit/issues/91) · [#92](https://github.com/turlamai/movebit/issues/92) · [#94](https://github.com/turlamai/movebit/issues/94)。基础安全规范仍见 #51、#54、#56；商业决策见 #81 / PR #82。本提案**不**覆盖安全、隐私、离线或 MIT 许可。
 
 ## 一句话产品定位
 
@@ -71,6 +71,16 @@
 ## 数据词典与隐私：绝对不造假
 
 `triggered`=调度器触发；`presented`=宿主确认显示；`acknowledged`=用户自报完成；`snoozed`=用户延后；`dismissed`=明确隐藏；`expired`=未处理过期；`not_delivered`=静默或平台失败未展示。分别按类别计数，合并事件按类别去重；重试、重启、跨设备合并必须幂等。**历史版本只有触发总数，则已完成数为未知而不是 0，也不得倒推。** 统计活跃时长属于估计，不等于久坐诊断。只需本地存储；实验测试使用自愿反馈或不带个人工作内容的明确同意信息，不安装隐蔽遥测。
+
+## 有趣但有用：沐比陪你完成动作，而非只提醒你
+
+**体验试验 #94：** 两个**主动选择**的微互动流程，能把「看一眼消息」变成「真正做一件小事」：
+
+1. **20 秒远眺陪伴：** 仅在用户主动选择「现在护眼」时，沐比缓缓望向虚构远景，显示简洁 20 秒提示，用户可以停止、跳过或标记完成。不是眼球追踪，也不声称知道用户是否真的远眺。
+2. **1–2 分钟轻活动：** 沐比表演 2–3 个简单自选动作，用户可以按自己的身体情况做或跳过；避免危险动作、过度健身指导和任何摄像头检测。
+3. **喝水回执：** 用户自愿点击「喝了」，沐比给予一瞬间轻巧的杯子互动。若未来提供水量记录，必须是用户手动填入的可选项，而非自动推断。
+
+沐比的活泼可以体现在精心设计的更多姿态、神态和响应层次中，而不是全天移动或用更多提醒博取注意。上面这些互动**不自动开始、不抢焦点、不封锁桌面**；用户随时终止，离席/专注/Reduce Motion 优先。应先通过目标用户的实际体验，再决定是否扩大角色行为集。
 
 ## 商业模式：卖附加价值，不卖基础健康权
 
