@@ -210,7 +210,16 @@
   (define dir (shard-dir store date-key))
   (make-directory* dir)
   (define path (build-path dir (string-append device ".json")))
-  (define tmp (string->path (string-append (path->string path) ".tmp")))
+  ;; A unique temp per write: two instances of the same device (a debug
+  ;; second launch shares the bootstrap device-id, hence the shard) must
+  ;; not share one tmp path — a concurrent rename would move the other
+  ;; writer's tmp out from under it and kill that flush with ENOENT. The
+  ;; scanner ignores *.tmp, so stragglers never enter the aggregation.
+  (define tmp
+    (string->path
+     (string-append (path->string path) "."
+                    (number->string (current-milliseconds)) "."
+                    (number->string (random 1000000)) ".tmp")))
   (call-with-output-file tmp
     (lambda (out)
       (write-json (day-record->jsexpr record) out)

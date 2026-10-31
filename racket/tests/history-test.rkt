@@ -211,3 +211,33 @@
                  (history-device-record store today-key))
                 47)
   (delete-directory/files dir))
+
+;; TwoInstances_same_device_id_concurrent_saves — a debug second launch
+;; shares the bootstrap device-id and writes the same shard. The writers
+;; must not share one tmp path (a concurrent rename moves the other
+;; writer's tmp away, killing its flush with ENOENT), no exception may
+;; escape a save, and the shard stays readable with no tmp residue.
+(let* ([dir (make-temp-dir "duo")]
+       [a (make-history-store dir "aaaaaaaa")]
+       [b (make-history-store dir "aaaaaaaa")])
+  (history-load! a)
+  (history-load! b)
+  (define errors '())
+  (define (worker store start)
+    (for ([i (in-range 50)])
+      (with-handlers ([exn:fail? (lambda (e) (set! errors (cons e errors)))])
+        (history-save-day! store today-key (day-record (+ start i) 0 0 0 0)))))
+  (define ta (thread (lambda () (worker a 100))))
+  (define tb (thread (lambda () (worker b 500))))
+  (thread-wait ta)
+  (thread-wait tb)
+  (check-equal? errors '())
+  (define shard (build-path dir "history" today-key "aaaaaaaa.json"))
+  (check-true (file-exists? shard))
+  (define js (call-with-input-file shard read-json))
+  (check-true (hash? js))
+  ;; Last rename wins: one writer's final value, never a torn file.
+  (check-not-false (memv (hash-ref js 'ActiveMinutes 0) '(149 549)))
+  (for ([f (in-list (directory-list (build-path dir "history" today-key)))])
+    (check-false (string-suffix? (path->string f) ".tmp")))
+  (delete-directory/files dir))

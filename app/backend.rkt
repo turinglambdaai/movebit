@@ -390,13 +390,20 @@
   (state-set! pending-cues (map cue->dto (orchestrator-open-cues o))))
 
 ;; Periodic flush (~every 5 minutes), exit flush, update-restart flush.
+;; Best-effort end to end: a transient write failure (a second instance of
+;; the same device racing the shard, a full disk) must not break the tick
+;; loop or the host's shutdown path — the in-memory store stays usable and
+;; the next flush retries.
 (define (flush-today! rt)
-  (define scheduler (runtime-scheduler rt))
-  (define stats (scheduler-stats scheduler))
-  (history-save-day! (runtime-history rt)
-                     (day-stats-date-key stats)
-                     (stats->record stats)
-                     (day-stats-date-key stats)))
+  (with-handlers ([exn:fail?
+                   (lambda (e)
+                     (log-error 'movebit "history flush failed: ~a" e))])
+    (define scheduler (runtime-scheduler rt))
+    (define stats (scheduler-stats scheduler))
+    (history-save-day! (runtime-history rt)
+                       (day-stats-date-key stats)
+                       (stats->record stats)
+                       (day-stats-date-key stats))))
 
 ;; --- Init -----------------------------------------------------------------
 
