@@ -19,6 +19,9 @@ runtime: org.gnome.Platform
 runtime-version: '50'
 sdk: org.gnome.Sdk
 command: RivetHost
+# The release contract bundles from branch `stable` (build-bundle arg);
+# builder otherwise commits to master.
+branch: stable
 separate-locales: false
 finish-args:
   # prefer_xwayland_backend() picks X11 exactly when DISPLAY is set and
