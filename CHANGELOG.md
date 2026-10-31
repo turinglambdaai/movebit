@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.0.4 (2026-10-31)
+
+The presence-polish slice: the application icon becomes Mubi on every
+platform, the menu bar presents states, Linux gets its tray, and the
+release contract grows Flatpak bundles — all verified live on the three
+test machines.
+
+### Added
+
+- **Linux: StatusNotifierItem tray** (rivet's first-party `TrayIcon`):
+  the same menu shape as the macOS/Windows hosts — open, cue actions
+  (Done · advice / Later / Hide) on the newest open cue, pause/resume,
+  Focus, quit — rebuilding in place on every cue/pause/Focus/language
+  change. Requires a StatusNotifierWatcher (GNOME's AppIndicator
+  extension); without one the header buttons remain the controls.
+- **Flatpak bundles** join the release contract: the tar.gz payload
+  wrapped with the GNOME 50 platform plus lz4/ncurses modules
+  (`linux-x64.flatpak`, `linux-arm64.flatpak`, stable aliases, sha256
+  sidecars).
+- **The Mubi app icon family**: the Dock/Finder/taskbar icon is now the
+  character itself — a warm-dark squircle composed by
+  `scripts/gen-app-icons.sh` from the canonical `tokens.json` art
+  (geometry and palette), rendering icns, ico, and the Linux desktop PNG
+  from one source.
+
+### Changed
+
+- **macOS menu bar glyphs present states** (rivet's in-place status-item
+  pattern): the droplet rests as the brand glyph, Mubi's silhouette
+  appears while a reminder is on screen — the cue surface is
+  pointer-through, so the glyph is the character's visible bell — and a
+  slim crescent moon covers Focus/paused. All template images.
+- Fixed four HTML-escaped ampersands (`Settings &amp; stats` and friends)
+  that native menus rendered literally.
+
 ## 0.0.3 (2026-10-30)
 
 The companion-presence slice: Mubi is now visible from launch on every

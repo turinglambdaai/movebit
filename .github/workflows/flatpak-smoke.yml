@@ -1,0 +1,72 @@
+name: Flatpak smoke
+# Validation leg for the Flatpak bundle pipeline without a release: runs
+# the exact steps of release.yml's Flatpak stage against the latest
+# published release payload, on both architectures, and uploads the
+# bundle as an artifact. Dispatch manually after touching flatpak/ or
+# the release leg; it never publishes anything.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - flatpak/**
+      - .github/workflows/flatpak-smoke.yml
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Flatpak smoke (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install flatpak + flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes flatpak flatpak-builder
+      - name: Fetch the published release payload
+        run: |
+          set -euo pipefail
+          # The newest non-draft release's payload for this arch; the smoke
+          # test validates the pipeline, not a specific version.
+          VERSION="$(gh release list -R turlamai/movebit --limit 5 --json tagName,isDraft --jq '.[] | select(.isDraft|not) | .tagName' | head -1 | sed 's/^v//')"
+          echo "Smoke payload version: ${VERSION}"
+          curl -sSL -o "movebit-${VERSION}-linux-${ARCH}.tar.gz" \
+            "https://github.com/turlamai/movebit/releases/download/v${VERSION}/movebit-${VERSION}-linux-${ARCH}.tar.gz"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCH: ${{ matrix.arch }}
+      - name: Build the bundle (same steps as the release leg)
+        run: |
+          set -euo pipefail
+          VERSION="$(ls movebit-*-linux-*.tar.gz | head -1 | sed -E 's/movebit-([^-]+)-linux-.*/\1/')"
+          ARCH="${{ matrix.arch }}"
+          case "$ARCH" in x64) FPARCH=x86_64 ;; arm64) FPARCH=aarch64 ;; esac
+          flatpak --user remote-add --if-not-exists flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install -y --noninteractive flathub \
+            "org.gnome.Platform/${FPARCH}/50" "org.gnome.Sdk/${FPARCH}/50"
+          SHA="$(sha256sum "movebit-${VERSION}-linux-${ARCH}.tar.gz" | cut -d' ' -f1)"
+          sed -e "s/__VERSION__/${VERSION}/" -e "s/__ARCH__/${ARCH}/" \
+              -e "s/__SHA256__/${SHA}/" \
+              flatpak/site.jrtx.movebit.yml > site.jrtx.movebit.gen.yml
+          flatpak-builder --user --force-clean --disable-rofiles-fuse \
+            --repo=flatpak-repo flatpak-build site.jrtx.movebit.gen.yml
+          flatpak build-bundle flatpak-repo \
+            "movebit-${VERSION}-linux-${ARCH}.flatpak" site.jrtx.movebit stable
+          sha256sum "movebit-${VERSION}-linux-${ARCH}.flatpak" \
+            > "movebit-${VERSION}-linux-${ARCH}.flatpak.sha256"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-smoke-${{ matrix.arch }}
+          path: movebit-*.flatpak*
+          if-no-files-found: error
