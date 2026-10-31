@@ -31,12 +31,12 @@ finish-args:
   - --talk-name=org.gnome.Mutter.IdleMonitor
 modules:
   - name: lz4
-    buildsystem: meson
-    config-opts:
-      - -Ddefault_library=shared
-      - -Dprograms=false
-      - -Dtests=false
-      - -Dcontrib=false
+    # Upstream keeps meson under build/ (flatpak-builder needs it at the
+    # module root), so use the primary Makefile build — library only.
+    buildsystem: simple
+    build-commands:
+      - make lib-release PREFIX=/app
+      - make install-lib PREFIX=/app
     sources:
       - type: git
         url: https://github.com/lz4/lz4.git
