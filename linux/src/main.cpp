@@ -395,6 +395,7 @@ void schedule_chart_redraw();
 namespace tray {
 void sync();
 bool install();
+bool installed();
 }  // namespace tray
 
 // Main-window widgets, rebuilt with the content.
@@ -2744,6 +2745,8 @@ bool install() {
   return true;
 }
 
+bool installed() { return g_icon != nullptr; }
+
 }  // namespace tray
 
 GtkWindow* toast_window_new(GtkApplication* app) {
@@ -3496,10 +3499,6 @@ void bootstrap(GtkApplication* app) {
   reload_autostart();
   reload_data_dir();
   reflect_pending_update();
-  // The tray registers on the session bus once the main context owns the
-  // loop; without a StatusNotifierWatcher (no AppIndicator extension)
-  // install() reports false and the header buttons stay the controls.
-  tray::install();
   if (!config.welcome_shown) {
     onboarding_show(app);
   }
@@ -3680,6 +3679,13 @@ void on_activate(GtkApplication* app, gpointer) {
     lease->forward_arguments({});
     std::exit(0);
   }
+  // The tray registers before the window is built: whether a
+  // StatusNotifierWatcher exists decides the header bar's shape (with the
+  // tray, it stays a bare title like the mac/win hosts; without one, the
+  // mandatory #54 controls live in the header as the fallback). The icon
+  // constructor runs on the main thread — its dbusmenu callbacks ride the
+  // default main context, which the GTK main loop drives once it starts.
+  tray::install();
   lease->set_activation_handler([](std::vector<std::string>) {
     dispatch_ui([] {
       if (g_state.window != nullptr) gtk_window_present(g_state.window);
@@ -3692,22 +3698,26 @@ void on_activate(GtkApplication* app, gpointer) {
   gtk_window_set_default_size(GTK_WINDOW(window), 860, 760);
 
   auto* header = gtk_header_bar_new();
-  auto* pause = gtk_button_new_with_label(l10n::t("tray.pause").c_str());
-  g_signal_connect(pause, "clicked", G_CALLBACK(on_pause_clicked), nullptr);
-  gtk_header_bar_pack_start(GTK_HEADER_BAR(header), pause);
-  g_state.pause_button = GTK_BUTTON(pause);
-  // Focus needs a header entry on this host: Linux has no tray (the
-  // StatusNotifierItem contract is upstream rivet #118), and #54 makes the
-  // Done/Later/Hide/Focus controls mandatory on every host.
-  auto* focus = gtk_button_new_with_label(
-      l10n::t(g_state.model.quiet ? "tray.focusOff" : "tray.focusOn").c_str());
-  g_signal_connect(focus, "clicked", G_CALLBACK(on_focus_clicked), nullptr);
-  gtk_header_bar_pack_start(GTK_HEADER_BAR(header), focus);
-  g_state.focus_button = GTK_BUTTON(focus);
-  auto* quit = gtk_button_new_with_label(l10n::t("tray.exit").c_str());
-  g_signal_connect(quit, "clicked", G_CALLBACK(on_quit_clicked), nullptr);
-  gtk_header_bar_pack_end(GTK_HEADER_BAR(header), quit);
-  g_state.quit_button = GTK_BUTTON(quit);
+  if (!tray::installed()) {
+    // Tray-less fallback only (no StatusNotifierWatcher — GNOME without
+    // its AppIndicator extension): #54 makes the controls mandatory, so
+    // they live in the header here. With the tray present this host looks
+    // like the mac/win ones — a bare title, controls in the tray menu.
+    auto* pause = gtk_button_new_with_label(l10n::t("tray.pause").c_str());
+    g_signal_connect(pause, "clicked", G_CALLBACK(on_pause_clicked), nullptr);
+    gtk_header_bar_pack_start(GTK_HEADER_BAR(header), pause);
+    g_state.pause_button = GTK_BUTTON(pause);
+    auto* focus = gtk_button_new_with_label(
+        l10n::t(g_state.model.quiet ? "tray.focusOff" : "tray.focusOn")
+            .c_str());
+    g_signal_connect(focus, "clicked", G_CALLBACK(on_focus_clicked), nullptr);
+    gtk_header_bar_pack_start(GTK_HEADER_BAR(header), focus);
+    g_state.focus_button = GTK_BUTTON(focus);
+    auto* quit = gtk_button_new_with_label(l10n::t("tray.exit").c_str());
+    g_signal_connect(quit, "clicked", G_CALLBACK(on_quit_clicked), nullptr);
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(header), quit);
+    g_state.quit_button = GTK_BUTTON(quit);
+  }
   gtk_window_set_titlebar(GTK_WINDOW(window), header);
 
   auto* root = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
